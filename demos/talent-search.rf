@@ -1,0 +1,200 @@
+let SHEET_URL = hasVar("sheet") ? getVar("sheet") : "https://docs.google.com/spreadsheets/d/1h4_cgCVawXPNPPV7tk5jHQaxyGF1_GcVQnlExpRx5Mk/edit?gid=0#gid=0";
+let CRITERIA = hasVar("input") ? getVar("input") : "Marketing executive with 5+ years experience in growth or brand management";
+let START_ROW = 2;
+let MAX_ROWS = 10;
+
+function goToCell(cellAddress) {
+    press("j", ["command"]);
+    wait(1);
+    type(cellAddress);
+    wait(1);
+    press("enter");
+    wait(1);
+	press("escape");
+}
+
+function analyzeLinkedInProfile() {
+    log("Reviewing profile sections for match criteria...");
+    
+    // Take first screenshot at top of profile
+    let screenshot1 = screenshot();
+    
+    // Scroll down to capture experience section
+    press("pagedown");
+    wait(0.4);
+    let screenshot2 = screenshot();
+    wait(0.4);
+    
+    // Scroll down more to capture skills/education
+    press("pagedown");
+    wait(0.4);
+    let screenshot3 = screenshot();
+    wait(0.4);
+    
+    // Scroll back to top for next profile
+    press("home");
+    wait(1);
+    
+    
+    let analysis = vision(
+        [screenshot1.image, screenshot2.image, screenshot3.image],
+        `Analyze this LinkedIn profile across these 3 screenshots and determine if this person matches the following criteria: "${CRITERIA}". 
+
+        Screenshot 1 shows the top section with basic info and headline.
+        Screenshot 2 shows the experience/work history section.
+        Screenshot 3 shows skills, education and additional sections.
+        
+        Look for:
+        - Job titles and roles
+        - Years of experience  
+        - Company names and industries
+        - Skills and endorsements
+        - Education background
+        
+        Provide a concise but detailed analysis explaining your reasoning, then make a final decision. Return valid JSON without markdown formatting or code fences.`,
+        {
+            format: "json",
+            schema: {
+                type: "object",
+                properties: {
+                    matches: {type: "boolean"},
+                    reasoning: {type: "string", description: "Concise explanation of why this person does or doesn't match the criteria based on their profile sections"}
+                },
+                required: ["matches", "reasoning"]
+            }
+        }
+    );
+    
+    if (analysis) {
+        if (analysis.matches) {
+            log("Found a potential match!");
+        } else {
+            log("This candidate doesn't meet our criteria");
+        }
+        return analysis;
+    } else {
+        throw "Failed to analyze LinkedIn profile";
+    }
+}
+
+function returnToGoogleSheet() {
+    log("Heading back to update the spreadsheet...");
+    press("w", ["command"]);
+    wait(2);
+}
+
+function fillMatchesColumnKeyboard(rowIndex, sheetStructure, matchResult) {
+    let cellAddress = sheetStructure.matchesColumn + rowIndex;
+    goToCell(cellAddress);
+    
+    selectAll();
+    type(matchResult ? "YES" : "NO");
+    press("return");
+    wait(1);
+}
+
+function fillReasoningColumn(rowIndex, sheetStructure, reasoning) {
+    if (sheetStructure.reasoningColumn) {
+        let cellAddress = sheetStructure.reasoningColumn + rowIndex;
+        goToCell(cellAddress);
+        
+        selectAll();
+        type(reasoning);
+        press("return");
+        wait(1);
+    }
+}
+
+function analyzeSheetStructure() {
+    log("Getting familiar with the spreadsheet layout...");
+    press("home", ["command"]);
+    wait(0.3);
+    press("a", ["command"]);
+    wait(0.5);
+    press("c", ["command"]);
+    wait(0.5);
+    
+    let sheetContent = readClipboard();
+    
+    let structureAnalysis = ai(
+        "Analyze this Google Sheets data and identify the column structure. Look at the header row and tell me which columns (A, B, C, etc.) contain: names/talent names, LinkedIn links/URLs, matches/results, and reasoning/notes (if available). Return valid JSON without markdown formatting or code fences.\n\nSheet data:\n" + sheetContent,
+        {
+            format: "json",
+            schema: {
+                type: "object",
+                properties: {
+                    nameColumn: {type: "string"},
+                    linkedinColumn: {type: "string"},
+                    matchesColumn: {type: "string"},
+                    reasoningColumn: {type: "string", description: "Column for reasoning/notes, null if not found"}
+                },
+                required: ["nameColumn", "linkedinColumn", "matchesColumn"]
+            }
+        }
+    );
+    
+    if (!structureAnalysis) {
+        throw "Failed to analyze sheet structure";
+    }
+    
+    return structureAnalysis;
+}
+
+function processRowTalent(rowIndex, sheetStructure) {
+    log("Checking candidate #" + (rowIndex - 1) + "...");
+    let cellAddress = sheetStructure.linkedinColumn + rowIndex;
+    goToCell(cellAddress);
+    
+    wait(1);
+	press("enter");
+    wait(1);
+    press("tab");
+    wait(1);
+    press("enter");
+	 
+    wait(5);
+    
+    let profileAnalysis = analyzeLinkedInProfile();
+    
+    returnToGoogleSheet();
+    
+    fillMatchesColumnKeyboard(rowIndex, sheetStructure, profileAnalysis.matches);
+    
+    if (sheetStructure.reasoningColumn) {
+        log("Adding reasoning for this decision...");
+        fillReasoningColumn(rowIndex, sheetStructure, profileAnalysis.reasoning);
+    }
+}
+
+function screenTalents() {
+    log("Starting talent screening process...");
+    let chrome = open("Google Chrome");
+    wait(1);
+    
+    log("Opening the candidate spreadsheet...");
+    press("t", ["command"]);
+    wait(0.5);
+    type(SHEET_URL);
+    press("return");
+    wait(4);
+    
+    let sheetStructure = analyzeSheetStructure();
+    
+    press("home", ["command"]);
+    wait(0.5);
+    
+    log("Beginning to review candidates...");
+    for (let rowIndex = START_ROW; rowIndex <= START_ROW + MAX_ROWS - 1; rowIndex = rowIndex + 1) {
+        
+        try {
+            processRowTalent(rowIndex, sheetStructure);
+        } catch (error) {
+        }
+        
+        wait(2);
+    }
+    
+    log("Finished screening all candidates!");
+}
+
+screenTalents();

@@ -1,0 +1,659 @@
+// Linear AI Ticket → Download → PDF Extraction → Company Research → Google Sheets Report
+// Modified version that creates a comprehensive Google Sheets report instead of Google Docs
+
+function linearAITaskWorkflow() {
+    log("Alright, let's get started with Linear and find that AI task.");
+    let linear = open("Linear", true, 15);
+    let linearPid = linear.pid;
+
+    if (!linear.isUIStable) {
+        wait(2);
+    }
+
+    log("First, I need to make sure Linear is ready to go and close any popups.");
+    let uiReady = false;
+    let attempts = 0;
+    let maxAttempts = 3;
+
+    while (!uiReady && attempts < maxAttempts) {
+        attempts = attempts + 1;
+
+        let screenshotData = screenshot(linearPid);
+        let uiCheck = vision(screenshotData.image, "Check if Linear UI is fully loaded and if there are any popups, modals, or overlays visible. Return ONLY JSON that matches the schema. No extra text. Do not wrap in code fences or add language tags.", {
+            format: "json",
+            schema: {
+                "type": "object",
+                "properties": {
+                    "uiLoaded": {"type": "boolean"},
+                    "hasPopups": {"type": "boolean"},
+                    "popupType": {"type": "string"},
+                    "description": {"type": "string"}
+                },
+                "required": ["uiLoaded", "hasPopups"]
+            }
+        });
+
+        if (uiCheck && uiCheck.uiLoaded && !uiCheck.hasPopups) {
+            uiReady = true;
+        } else {
+            if (uiCheck && uiCheck.hasPopups) {
+                press("escape");
+                wait(0.5);
+                press("return");
+                wait(1);
+            } else {
+                wait(2);
+            }
+        }
+    }
+
+    press("esc");
+    press("G");
+    wait(0.5);
+    press("D");
+    wait(0.5);
+
+    press("o");
+    wait(1);
+    press("i");
+    wait(1);
+
+    type("[AI-TASK]");
+    wait(1);
+    press("return");
+    wait(3);
+
+    press("return");
+    wait(3);
+
+    let issueLink = locator({
+        waitTime: 5,
+        instruction: "Click link or attachment within the issue details"
+    });
+
+    if (issueLink.found) {
+        click(issueLink.coordinates);
+        wait(4);
+        log("Okay, found the link. Let me open it up.");
+        return {
+            success: true
+        };
+    } else {
+        return {
+            success: false,
+            error: "No link found in the issue"
+        };
+    }
+}
+
+function downloadFilesFromCurrentPage() {
+    log("Hmm, this page needs a moment to load everything.");
+    wait(3);
+
+    press("a", ["cmd"]);
+    wait(1);
+
+    let downloadBtn = locator({
+        waitTime: 10,
+        instruction: "Click in the center of the download icon under the folder name"
+    });
+
+    if (downloadBtn.found) {
+        click(downloadBtn.coordinates);
+        log("Looks good. Time to download all these files at once.");
+        wait(15);
+        log("Perfect, all the files are downloaded.");
+        return {
+            success: true,
+            message: "Download process completed"
+        };
+    } else {
+        return {
+            success: false,
+            error: "Download button not found"
+        };
+    }
+}
+
+function listDirectoryContents(dirPath) {
+    if (!fileExists(dirPath)) {
+        throw `Directory not found: ${dirPath}`;
+    }
+
+    let files = listDirectory(dirPath);
+
+    let filePaths = [];
+
+    for (let i = 0; i < length(files); i = i + 1) {
+       let path = pathJoin(dirPath, files[i]);
+       filePaths = filePaths.push(path);
+    }
+
+    return filePaths;
+}
+
+function findMostRecentDirectory(dirPath) {
+    if (!fileExists(dirPath)) {
+        throw `Directory not found: ${dirPath}`;
+    }
+
+    let items = listDirectory(dirPath);
+    let mostRecent = null;
+    let latestTime = 0;
+
+    for (let i = 0; i < length(items); i = i + 1) {
+        let item = items[i];
+        let itemPath = pathJoin(dirPath, item);
+        let info = fileInfo(itemPath);
+
+        if (info.type === "directory" && info.modificationTime > latestTime) {
+            latestTime = info.modificationTime;
+            mostRecent = {
+                name: item,
+                path: itemPath,
+                modified: humanDate(info.modificationTime * 1000),
+                modifiedTimestamp: info.modificationTime,
+                size: info.size
+            };
+        }
+    }
+
+    if (!mostRecent) {
+        throw `No directories found in: ${dirPath}`;
+    }
+
+    return mostRecent;
+}
+
+function findMostRecentInDownloads() {
+    let downloadsPath = pathJoin(getHomePath(), "Downloads");
+    return findMostRecentDirectory(downloadsPath);
+}
+
+function processDownloadedPDFs(downloadFolderPath) {
+    log("Now to sort through these downloaded PDFs.");
+    let allFilePaths = listDirectoryContents(downloadFolderPath);
+    let pdfPaths = [];
+
+    // Filter for PDF files only
+    for (let i = 0; i < length(allFilePaths); i = i + 1) {
+        let filePath = allFilePaths[i];
+        let lower = toLowerCase(filePath);
+        if (contains(lower, ".pdf")) {
+            pdfPaths = pdfPaths.push(filePath);
+        }
+    }
+
+    if (length(pdfPaths) === 0) {
+        log("Hmm, doesn't look like there are any PDFs here. Let me double-check.");
+        return {
+            pdfInvoices: [],
+            uniqueCompanies: [],
+            totalProcessed: 0,
+            uniqueCompanyCount: 0
+        };
+    }
+
+    log("Okay, I've got " + length(pdfPaths) + " PDFs here. Let's see what's inside.");
+    let documents = fileReader(pdfPaths);
+
+    if (!documents || !documents.results) {
+        throw "Failed to read PDF files from the download folder";
+    }
+
+    let pdfInvoices = [];
+    let uniqueCompanies = [];
+
+    // Process each PDF result
+    for (let i = 0; i < length(documents.results); i = i + 1) {
+        let dc = documents.results[i];
+        let fileName = dc.name;
+        let pdfContent = dc.data;
+        let tokens = dc.tokens;
+
+        log("Taking a look at this one: " + fileName);
+
+        try {
+            // Extract invoice data using AI from the PDF content
+            let invoiceData = ai(
+                "Extract invoice data from this PDF content. Look for: invoiceTo, invoiceNumber, invoiceFrom, date, itemsNumber (count of line items), total amount, tax amount. Be precise with the extraction. Return ONLY JSON that matches the schema. No extra text. Do not wrap in code fences or add language tags.\n\nPDF Content:\n" + pdfContent,
+                {
+                    format: "json",
+                    maxTokens: 2000,
+                    temperature: 0.1,
+                    schema: {
+                        "type": "object",
+                        "properties": {
+                            "invoiceTo": {"type": "string"},
+                            "invoiceNumber": {"type": "string"},
+                            "invoiceFrom": {"type": "string"},
+                            "date": {"type": "string"},
+                            "itemsNumber": {"type": "number"},
+                            "total": {"type": "string"},
+                            "tax": {"type": "string"}
+                        },
+                        "required": ["invoiceTo", "invoiceNumber", "invoiceFrom", "date", "itemsNumber", "total", "tax"]
+                    }
+                }
+            );
+
+            let result = invoiceData;
+            if (!result) {
+                throw "AI API returned invalid data for PDF content";
+            }
+
+            // Determine company name from invoice
+            let companyName = "";
+            if (result && result.invoiceFrom && trim(result.invoiceFrom) !== "") {
+                companyName = trim(result.invoiceFrom);
+            } else if (result && result.invoiceTo && trim(result.invoiceTo) !== "") {
+                companyName = trim(result.invoiceTo);
+            }
+
+            // Add to unique companies if new (no break usage)
+            if (companyName !== "" && companyName !== "N/A") {
+                let companyExists = false;
+                for (let j = 0; j < length(uniqueCompanies); j = j + 1) {
+                    if (uniqueCompanies[j] === companyName) {
+                        companyExists = true;
+                    }
+                }
+                if (!companyExists) {
+                    uniqueCompanies = uniqueCompanies.push(companyName);
+                }
+            }
+
+            // Add invoice data with metadata
+            let invoiceWithMeta = {
+                fileName: fileName,
+                filePath: pdfPaths[i],
+                companyName: companyName,
+                invoiceData: result
+            };
+
+            pdfInvoices = pdfInvoices.push(invoiceWithMeta);
+            log("Got all the key info from " + fileName + ".");
+
+        } catch (error) {
+            log("Had a little trouble with " + fileName + ", but I'll keep going.");
+        }
+    }
+
+    return {
+        pdfInvoices: pdfInvoices,
+        uniqueCompanies: uniqueCompanies,
+        totalProcessed: length(pdfInvoices),
+        uniqueCompanyCount: length(uniqueCompanies)
+    };
+}
+
+function researchCompany(companyName) {
+    log("Alright, time to figure out what category this expense is for: " + companyName + ".");
+
+    let app = open("Google Chrome");
+    openUrl("https://www.perplexity.ai/");
+    wait(5);
+
+    let searchText = "Look up " + companyName + " and tell me: 1) What type of business expense category this is (Office Supplies, Software, Marketing, Professional Services, Travel, Equipment, etc.) and 2) A short 1-2 sentence description of what the company does.";
+    wait(0.1);
+    type(searchText);
+    press("return");
+    wait(10);
+
+    press("tab");
+    press("a", ["cmd"]);
+    wait(0.5);
+    press("c", ["cmd"]);
+    wait(0.5);
+    press("escape");
+    wait(0.5);
+
+    let clipboardContent = readClipboard();
+
+    let extractedData = ai(
+        "Based on this company information, determine what expense category this would be and provide a short description. Return a simple expense category like: Office Supplies, Software/Technology, Marketing, Professional Services, Travel, Equipment, Utilities, etc. Also include a brief 1-2 sentence description of what the company does. Return ONLY JSON that matches the schema. No extra text.",
+        {
+            format: "json",
+            maxTokens: 800,
+            temperature: 0.1,
+            schema: {
+                "type": "object",
+                "properties": {
+                    "ExpenseCategory": {"type": "string", "description": "The expense category this company/invoice represents"},
+                    "CompanyDescription": {"type": "string", "description": "A short 1-2 sentence description of what the company does"}
+                },
+                "required": ["ExpenseCategory", "CompanyDescription"]
+            },
+            chatHistory: [
+                { role: "user", content: "Company information text:\n" + clipboardContent }
+            ]
+        }
+    );
+
+    press("w", ["command"]);
+    wait(0.5);
+
+    log("Got it - this looks like a " + extractedData.ExpenseCategory + " expense. " + extractedData.CompanyDescription);
+    return extractedData;
+}
+
+function researchCompanies(uniqueCompanies) {
+    log("Now I'll figure out what expense category each of these " + length(uniqueCompanies) + " companies represents.");
+    let companyResearch = [];
+
+    for (let i = 0; i < length(uniqueCompanies); i = i + 1) {
+        let companyName = uniqueCompanies[i];
+        let companyNum = i + 1;
+        let companyTotal = length(uniqueCompanies);
+        log("Categorizing expense " + companyNum + " of " + companyTotal + ": " + companyName);
+
+        try {
+            let researchData = researchCompany(companyName);
+            let companyWithResearch = {
+                companyName: companyName,
+                researchData: researchData
+            };
+            companyResearch = companyResearch.push(companyWithResearch);
+            log("Done with " + companyName + " - categorized as " + researchData.ExpenseCategory + ".");
+
+        } catch (error) {
+            log("Hmm, couldn't categorize " + companyName + ", I'll mark it as 'Other'.");
+            let companyWithResearch = {
+                companyName: companyName,
+                researchData: {
+                    ExpenseCategory: "Other",
+                    CompanyDescription: "Unable to determine company details"
+                },
+                error: error
+            };
+            companyResearch = companyResearch.push(companyWithResearch);
+        }
+
+        if (i < length(uniqueCompanies) - 1) {
+            wait(2);
+        }
+    }
+
+    return companyResearch;
+}
+
+function normalizeToText(value) {
+    if (value == null) {
+        return "";
+    }
+    return "" + value;
+}
+
+function createComprehensiveGoogleSheetsReport(invoiceResults, researchResults) {
+    log("Okay, let's put all this expense data into a nice Google Sheet.");
+
+    // Prepare data structure for the spreadsheet
+    let spreadsheetTitle = "Invoice & Expense Categorization Report - " + humanDate();
+
+    // Define headers for the expense categorization report
+    let headers = [
+        "Invoice #",
+        "File Name",
+        "Company Name",
+        "Invoice To",
+        "Invoice Number",
+        "Items Count",
+        "Total Amount",
+        "Tax Amount",
+        "Expense Category",
+        "Company Description",
+        "Date"
+    ];
+
+    // Prepare data rows by combining invoice and research data
+    let dataRows = [];
+    for (let i = 0; i < length(invoiceResults.pdfInvoices); i = i + 1) {
+        let invoice = invoiceResults.pdfInvoices[i];
+        let companyName = invoice.companyName;
+
+        // Find matching research data
+        let matchedResearch = null;
+        for (let j = 0; j < length(researchResults); j = j + 1) {
+            if (researchResults[j].companyName === companyName) {
+                matchedResearch = researchResults[j];
+            }
+        }
+
+        // Build the row with invoice data + expense category + company description
+        let row = [
+            normalizeToText(i + 1), // Invoice #
+            normalizeToText(invoice.fileName), // File Name
+            normalizeToText(companyName), // Company Name
+            normalizeToText(invoice.invoiceData.invoiceTo), // Invoice To
+            normalizeToText(invoice.invoiceData.invoiceNumber), // Invoice Number
+            normalizeToText(invoice.invoiceData.itemsNumber), // Items Count
+            normalizeToText(invoice.invoiceData.total), // Total Amount
+            normalizeToText(invoice.invoiceData.tax), // Tax Amount
+            // Expense category (or Other if not found)
+            matchedResearch ? normalizeToText(matchedResearch.researchData.ExpenseCategory) : "Other",
+            // Company description (or N/A if not found)
+            matchedResearch ? normalizeToText(matchedResearch.researchData.CompanyDescription) : "N/A",
+            normalizeToText(invoice.invoiceData.date) // Date moved to the end
+        ];
+
+        dataRows = dataRows.push(row);
+    }
+
+    let headerCount = length(headers);
+
+    // Create Google Sheets
+    log("Time to open Chrome and create a new spreadsheet.");
+    let chrome = open("Google Chrome");
+    wait(1.5);
+
+    try {
+        press("t", ["command"]);
+    } catch (error) {
+        log("New tab shortcut failed, focusing omnibox instead.", error);
+        press("l", ["command"]);
+    }
+    wait(0.5);
+
+    type("https://docs.google.com/spreadsheets/create");
+    press("return");
+    wait(7);
+
+    // Rename spreadsheet via file menu shortcut
+    log("Let's give this sheet a good name: " + spreadsheetTitle);
+    press("f", ["control", "option"]);
+    wait(0.6);
+    press("r");
+    wait(0.6);
+    selectAll();
+    type(spreadsheetTitle);
+    press("return");
+    wait(1.2);
+
+    // Return focus to the grid
+    press("escape");
+    wait(0.2);
+    press("return");
+    wait(0.3);
+
+    // Ensure bold formatting enabled for header row
+    log("First, I'll add some bold headers to keep things organized.");
+    press("b", ["command"]);
+    wait(0.2);
+
+    // Type headers
+    for (let i = 0; i < headerCount; i = i + 1) {
+        let headerText = headers[i];
+        type(headerText);
+        if (i < headerCount - 1) {
+            press("tab");
+            wait(0.1);
+        }
+    }
+
+    press("return");
+    wait(0.2);
+    press("left", ["command"]);
+    wait(0.2);
+
+    // Disable bold for data rows
+    press("b", ["command"]);
+    wait(0.2);
+
+    // Add data rows
+    log("Now, let me add all " + length(dataRows) + " rows of categorized expense data.");
+    for (let r = 0; r < length(dataRows); r = r + 1) {
+        let row = dataRows[r];
+        for (let c = 0; c < headerCount; c = c + 1) {
+            let value = row[c];
+            if (value && length(value) > 0) {
+                type(value);
+            }
+            if (c < headerCount - 1) {
+                press("tab");
+                wait(0.1);
+            }
+        }
+        if (r < length(dataRows) - 1) {
+            press("return");
+            wait(0.2);
+            press("left", ["command"]);
+            wait(0.2);
+        }
+    }
+
+    // Add a summary section below the main data
+    log("A little summary at the bottom should be helpful.");
+    press("return");
+    press("return");
+    press("left", ["command"]);
+    wait(0.2);
+
+    // Summary section headers
+    press("b", ["command"]); // Enable bold
+    type("SUMMARY");
+    press("return");
+    press("b", ["command"]); // Disable bold
+
+    type("Total PDFs Processed:");
+    press("tab");
+    type(normalizeToText(invoiceResults.totalProcessed));
+    press("return");
+
+    type("Unique Companies Found:");
+    press("tab");
+    type(normalizeToText(invoiceResults.uniqueCompanyCount));
+    press("return");
+
+    type("Expenses Categorized:");
+    press("tab");
+    type(normalizeToText(length(researchResults)));
+    press("return");
+
+    type("Report Generated:");
+    press("tab");
+    type(humanDate());
+
+    // Keyboard-based verification: Navigate to A1 and check we can select the sheet
+    log("Just need to double-check that everything looks right.");
+    press("escape");
+    wait(0.2);
+    press("home", ["command"]); // Go to A1
+    wait(0.2);
+
+    // Select all data to verify content exists
+    press("a", ["command"]);
+    wait(0.5);
+
+    // Copy selection to clipboard to verify data exists
+    press("c", ["command"]);
+    wait(0.5);
+    let clipboardContent = readClipboard();
+
+    // Basic validation that we have content
+    if (!clipboardContent || length(clipboardContent) < 10) {
+        throw "Verification failed: No meaningful data found in clipboard";
+    }
+
+    // Check that we have at least the title in clipboard (basic validation)
+    let hasExpectedContent = contains(clipboardContent, headers[0]) || contains(clipboardContent, spreadsheetTitle);
+    if (!hasExpectedContent) {
+        throw "Verification failed: Expected content not found in sheet";
+    }
+
+    log("And we're done! The expense categorization report is ready with all " + length(dataRows) + " records.");
+    return {
+        success: true,
+        totalInvoices: invoiceResults.totalProcessed,
+        totalCompanies: invoiceResults.uniqueCompanyCount,
+        reportCreated: true,
+        spreadsheetTitle: spreadsheetTitle,
+        headerCount: headerCount,
+        dataRowsCreated: length(dataRows),
+        clipboardSize: length(clipboardContent)
+    };
+}
+
+function linearAiTicketToSheetsReportMain() {
+    log("Alright, time to kick off this expense categorization process from start to finish.");
+    let results = {
+        linearSuccess: false,
+        downloadSuccess: false,
+        pdfProcessing: null,
+        researchResults: null,
+        reportCreated: false,
+        errors: []
+    };
+
+    try {
+        // Linear: open AI-ticket and click link
+        let linearResult = linearAITaskWorkflow();
+        if (!linearResult.success) {
+            throw "Linear workflow failed: " + linearResult.error;
+        }
+        results.linearSuccess = true;
+        log("Finished up with Linear. That part's done.");
+
+        // Download from the already-open page
+        let downloadResult = downloadFilesFromCurrentPage();
+        if (!downloadResult.success) {
+            throw "Download process failed: " + downloadResult.error;
+        }
+        results.downloadSuccess = true;
+        log("All the files are downloaded and ready.");
+
+        // Most recent download folder
+        log("Let me find where those files were saved.");
+        let recentDownload = findMostRecentInDownloads();
+        log("Okay, found the folder: " + recentDownload.name);
+
+        // Process PDFs
+        let pdfResults = processDownloadedPDFs(recentDownload.path);
+        results.pdfProcessing = pdfResults;
+        log("Finished processing the PDFs. Found " + pdfResults.uniqueCompanyCount + " unique companies to categorize.");
+
+        // Research companies for expense categorization
+        let researchResults = researchCompanies(pdfResults.uniqueCompanies);
+        results.researchResults = researchResults;
+        log("All the expense categorization is complete.");
+
+        // Create Google Sheets report
+        let reportResult = createComprehensiveGoogleSheetsReport(pdfResults, researchResults);
+        if (reportResult.success) {
+            results.reportCreated = true;
+            results.reportDetails = reportResult;
+        }
+
+        log("And that's a wrap! The expense categorization report is ready in Google Sheets.");
+        return results;
+
+    } catch (error) {
+        log("Oh, looks like something went wrong. Here's what happened: " + error);
+        let errs = [];
+        errs = errs.push(error);
+        results.errors = errs;
+        return results;
+    }
+}
+
+// Execute the orchestrator
+linearAiTicketToSheetsReportMain();

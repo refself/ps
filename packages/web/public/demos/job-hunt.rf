@@ -1,0 +1,174 @@
+
+let jobTitle = hasVar("input") ? getVar("input") : "human resource";
+let maxJobsToAnalyze = 5;
+
+log("Starting a search for " + jobTitle + " roles.");
+
+log("Opening Chrome and going to LinkedIn.");
+let chrome = open("Google Chrome");
+wait(1);
+press("t", ["command"]); // New tab
+wait(0.5);
+type("linkedin.com");
+press("return");
+wait(3);
+
+log("LinkedIn is open, going to the Jobs tab for '" + jobTitle + "' roles.");
+let jobsTab = locator({instruction: "Click the Jobs tab in the main navigation"});
+if (jobsTab.found) {
+    click([jobsTab.x, jobsTab.y]);
+    wait(2);
+} else {
+    throw "Could not find the Jobs tab";
+}
+
+let searchField = locator({instruction: "Click Describe the job you want input field"});
+if (searchField.found) {
+    click([searchField.x, searchField.y]);
+    wait(0.2);
+    type(jobTitle);
+    press("return");
+    wait(3);
+} else {
+    throw "Could not find the search field";
+}
+
+let jobSummaries = [];
+let jobCount = 0;
+
+log("Results are loading, checking each job.");
+
+while (jobCount < maxJobsToAnalyze) {
+    let jobScreen = screenshot();
+    let jobListings = vision(jobScreen.image, "Identify all clickable job listings visible on this LinkedIn jobs page. Return the names/titles of the jobs.", {
+        format: "json",
+        schema: {
+            type: "object",
+            properties: {
+                jobs: {
+                    type: "array",
+                    items: {
+                        type: "object",
+                        properties: {
+                            title: {type: "string"},
+                            company: {type: "string"}
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    if (jobListings && jobListings.jobs && jobListings.jobs.length > 0) {
+        let targetJob = jobListings.jobs[0];
+        let jobLink = locator({instruction: "Click on the job listing for '" + targetJob.title + "' at " + targetJob.company});
+        
+        if (jobLink.found) {
+            log("Opening '" + targetJob.title + "' at " + targetJob.company + " to see details.");
+            click([jobLink.x, jobLink.y]);
+            wait(2);
+            
+            let jobScreenshot = screenshot();
+            let jobAnalysis = vision(jobScreenshot.image, "Analyze this LinkedIn job listing. Extract the key information including job title, company, requirements, responsibilities, and salary if mentioned. Provide a concise summary.", {
+                format: "json",
+                schema: {
+                    type: "object",
+                    properties: {
+                        jobTitle: {type: "string"},
+                        company: {type: "string"},
+                        location: {type: "string"},
+                        requirements: {type: "array", items: {type: "string"}},
+                        responsibilities: {type: "array", items: {type: "string"}},
+                        salary: {type: "string"},
+                        summary: {type: "string"}
+                    }
+                }
+            });
+            
+            if (jobAnalysis) {
+                jobSummaries = jobSummaries.push(jobAnalysis);
+                jobCount = jobCount + 1;
+                log("Finished reviewing " + jobAnalysis.jobTitle + " and saving it.");
+            }
+            
+            if (jobCount >= maxJobsToAnalyze) {
+                break;
+            }
+            
+            scroll([jobLink.x, jobLink.y], "down", 3);
+            wait(1);
+        } else {
+            log("Could not open '" + targetJob.title + "', leaving it for later.");
+            break;
+        }
+    } else {
+        log("No more listings right now, switching to the report.");
+        break;
+    }
+}
+
+log("Have notes from " + jobCount + " roles, starting the report.");
+
+log("Opening Google Docs to write the report.");
+
+press("t", ["command"]);
+wait(0.5);
+type("docs.google.com/create");
+press("return");
+wait(3);
+
+let titleField = locator({instruction: "Click on the 'Untitled document' title field to rename"});
+if (titleField.found) {
+    click([titleField.x, titleField.y]);
+    wait(1);
+    selectAll();
+    type("LinkedIn " + jobTitle + " Job Analysis Report");
+    press("return");
+    wait(1);
+}
+
+let docBody = locator({instruction: "Click in the main document body area to start typing"});
+if (docBody.found) {
+    click([docBody.x, docBody.y]);
+    wait(1);
+} else {
+    click([700, 500]);
+    wait(1);
+}
+
+let jobDataText = "";
+for (let i = 0; i < jobSummaries.length; i = i + 1) {
+    let job = jobSummaries[i];
+    let jobNumber = i + 1;
+    jobDataText = jobDataText + "Job " + jobNumber + ":\n" + stringifyJSON(job, true) + "\n\n";
+}
+
+log("Turning these details into a summary.");
+let fullPrompt = "Create a professional job market analysis report for " + jobTitle + " positions based on this data:\n\n" + jobDataText + "\n\nFormat this as a clean Google Docs document with proper line spacing using \\n\\n between sections. Use simple text formatting suitable for Google Docs (no markdown). Include these sections: 1) EXECUTIVE SUMMARY (brief overview of findings), 2) JOB MARKET ANALYSIS (trends and insights from the " + jobCount + " analyzed positions), 3) DETAILED JOB BREAKDOWN (list each specific job with title, company, and key details), 4) COMMON REQUIREMENTS (skills and qualifications mentioned across positions), 5) SALARY INSIGHTS (compensation information if available), and 6) RECOMMENDATIONS (actionable advice for job seekers). Reference specific jobs by company name and title throughout the analysis.";
+let reportContent = ai(fullPrompt);
+if (reportContent && reportContent.text) {
+    type(reportContent.text);
+} else {
+    log("Summary helper failed, writing the basics myself.");
+    type("LinkedIn Job Analysis Report\n\n");
+    type("Search Query: " + jobTitle + "\n");
+    type("Jobs Analyzed: " + jobCount + "\n\n");
+    
+    for (let i = 0; i < jobSummaries.length; i = i + 1) {
+        let job = jobSummaries[i];
+        let jobNumber = i + 1;
+        type(jobNumber + ". " + job.jobTitle + " at " + job.company + "\n");
+        type("Summary: " + job.summary + "\n\n");
+    }
+}
+
+log("Report done in Google Docs for the " + jobTitle + " search with " + jobCount + " roles.");
+
+return {
+    jobTitle: jobTitle,
+    maxJobsToAnalyze: maxJobsToAnalyze,
+    jobCount: jobCount,
+    jobSummaries: jobSummaries,
+    jobDataText: jobDataText,
+    reportContent: reportContent
+};
