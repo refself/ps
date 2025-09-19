@@ -307,6 +307,7 @@ export const throwStatementBlock: BlockSchema<"throw-statement"> = {
 export const waitCallBlock: BlockSchema<"wait-call"> = {
   kind: "wait-call",
   label: "Wait",
+  description: "Pause execution for a specific number of seconds before continuing.",
   category: "automation",
   fields: [
     {
@@ -314,6 +315,7 @@ export const waitCallBlock: BlockSchema<"wait-call"> = {
       label: "Seconds",
       required: true,
       defaultValue: 1,
+      description: "How long to wait. Fractions represent milliseconds (0.5 = 500ms).",
       input: {
         kind: "number",
         min: 0,
@@ -322,18 +324,27 @@ export const waitCallBlock: BlockSchema<"wait-call"> = {
     }
   ],
   ports: [flowPorts.input, flowPorts.output],
-  childSlots: []
+  childSlots: [],
+  outputs: [
+    {
+      id: "result",
+      label: "Result",
+      description: "Wait returns no value; flow continues afterwards."
+    }
+  ]
 };
 
 export const pressCallBlock: BlockSchema<"press-call"> = {
   kind: "press-call",
   label: "Press Key",
+  description: "Simulate pressing a keyboard key with optional modifiers.",
   category: "automation",
   fields: [
     {
       id: "key",
       label: "Key",
       required: true,
+      description: "Name of the key to press (e.g. return, escape, a).",
       input: {
         kind: "string",
         placeholder: "return"
@@ -342,7 +353,7 @@ export const pressCallBlock: BlockSchema<"press-call"> = {
     {
       id: "modifiers",
       label: "Modifiers",
-      description: "Comma-separated keys (command, shift, alt, control)",
+      description: "Comma-separated modifier keys (command, control, option, shift).",
       input: {
         kind: "string",
         placeholder: "command, shift"
@@ -350,43 +361,140 @@ export const pressCallBlock: BlockSchema<"press-call"> = {
     }
   ],
   ports: [flowPorts.input, flowPorts.output],
-  childSlots: []
+  childSlots: [],
+  outputs: [
+    {
+      id: "result",
+      label: "Result",
+      description: "No value returned; the next block runs immediately."
+    }
+  ]
 };
 
 export const clickCallBlock: BlockSchema<"click-call"> = {
   kind: "click-call",
   label: "Click",
+  description: "Simulate a mouse click at the provided coordinates or on a locator result.",
   category: "automation",
   fields: [
     {
       id: "target",
       label: "Target",
       required: true,
+      description: "Point to click. Accepts coordinate arrays (e.g. [x, y]) or locator coordinates.",
       input: {
         kind: "expression"
       }
     }
   ],
   ports: [flowPorts.input, flowPorts.output],
-  childSlots: []
+  childSlots: [],
+  outputs: [
+    {
+      id: "result",
+      label: "Result",
+      description: "Click has no output; continue to the next block"
+    }
+  ]
 };
 
 export const typeCallBlock: BlockSchema<"type-call"> = {
   kind: "type-call",
   label: "Type Text",
+  description: "Type text or evaluated expressions at the current focus location.",
   category: "automation",
   fields: [
     {
       id: "text",
       label: "Text",
       required: true,
+      description: "Expression that resolves to the text to type. Wrap literal text in quotes.",
       input: {
         kind: "expression"
       }
     }
   ],
   ports: [flowPorts.input, flowPorts.output],
-  childSlots: []
+  childSlots: [],
+  outputs: [
+    {
+      id: "result",
+      label: "Result",
+      description: "No value returned; execution continues"
+    }
+  ]
+};
+
+export const scrollCallBlock: BlockSchema<"scroll-call"> = {
+  kind: "scroll-call",
+  label: "Scroll",
+  description: "Scroll the specified area in a direction by a given amount.",
+  category: "automation",
+  fields: [
+    {
+      id: "origin",
+      label: "Origin",
+      required: false,
+      description: "Coordinates to perform the scroll from. Defaults to the previously used location.",
+      input: {
+        kind: "expression"
+      }
+    },
+    {
+      id: "direction",
+      label: "Direction",
+      required: true,
+      defaultValue: "down",
+      description: "Direction to scroll.",
+      input: {
+        kind: "enum",
+        options: [
+          { label: "Down", value: "down" },
+          { label: "Up", value: "up" },
+          { label: "Left", value: "left" },
+          { label: "Right", value: "right" }
+        ]
+      }
+    },
+    {
+      id: "amount",
+      label: "Distance",
+      required: true,
+      defaultValue: 3,
+      description: "Scroll amount measured in wheel notches.",
+      input: {
+        kind: "number",
+        min: 1,
+        step: 1
+      }
+    }
+  ],
+  ports: [flowPorts.input, flowPorts.output],
+  childSlots: [],
+  outputs: [
+    {
+      id: "result",
+      label: "Result",
+      description: "Scroll does not yield a value; flow continues"
+    }
+  ]
+};
+
+export const selectAllCallBlock: BlockSchema<"select-all-call"> = {
+  kind: "select-all-call",
+  label: "Select All",
+  description: "Select all text/content in the active context.",
+  category: "automation",
+  fields: [],
+  ports: [flowPorts.input, flowPorts.output],
+  childSlots: [],
+  outputs: [
+    {
+      id: "result",
+      label: "Result",
+      description: "Returns nothing; subsequent blocks execute next"
+    }
+  ]
 };
 
 export const logCallBlock: BlockSchema<"log-call"> = {
@@ -476,10 +584,12 @@ export const visionCallBlock: BlockSchema<"vision-call"> = {
   kind: "vision-call",
   label: "Vision Analysis",
   category: "ai",
+  description: "Send screenshots to the vision model and capture structured responses.",
   fields: [
     {
       id: "identifier",
       label: "Store As",
+      description: "Variable that will store the vision response object.",
       input: {
         kind: "identifier",
         scope: "variable",
@@ -490,6 +600,7 @@ export const visionCallBlock: BlockSchema<"vision-call"> = {
       id: "target",
       label: "Image Source",
       required: true,
+      description: "Expression resolving to an image or array of images (e.g. screenshot().image).",
       input: {
         kind: "expression",
         expressionKind: "any"
@@ -499,6 +610,7 @@ export const visionCallBlock: BlockSchema<"vision-call"> = {
       id: "prompt",
       label: "Prompt",
       required: true,
+      description: "Natural language instructions for the vision model.",
       input: {
         kind: "string",
         multiline: true,
@@ -509,6 +621,7 @@ export const visionCallBlock: BlockSchema<"vision-call"> = {
       id: "format",
       label: "Output Format",
       defaultValue: "json",
+      description: "Return format. Use JSON when applying a schema.",
       input: {
         kind: "enum",
         options: [
@@ -520,6 +633,7 @@ export const visionCallBlock: BlockSchema<"vision-call"> = {
     {
       id: "schema",
       label: "JSON Schema",
+      description: "Optional JSON schema describing the AI response shape.",
       input: {
         kind: "code",
         language: "json",
@@ -528,18 +642,27 @@ export const visionCallBlock: BlockSchema<"vision-call"> = {
     }
   ],
   ports: [flowPorts.input, flowPorts.output],
-  childSlots: []
+  childSlots: [],
+  outputs: [
+    {
+      id: "analysis",
+      label: "Vision Result",
+      description: "Object with parsed data (fields depend on prompt/schema)."
+    }
+  ]
 };
 
 export const aiCallBlock: BlockSchema<"ai-call"> = {
   kind: "ai-call",
   label: "AI Response",
   category: "ai",
+  description: "Send a prompt to the AI model and capture text or JSON output.",
   fields: [
     {
       id: "identifier",
       label: "Store As",
       required: false,
+      description: "Optional variable name for the AI response (text, tokens, etc).",
       input: {
         kind: "identifier",
         scope: "variable",
@@ -550,6 +673,7 @@ export const aiCallBlock: BlockSchema<"ai-call"> = {
       id: "prompt",
       label: "Prompt",
       required: true,
+      description: "Instructions provided to the AI model.",
       input: {
         kind: "string",
         multiline: true,
@@ -561,6 +685,7 @@ export const aiCallBlock: BlockSchema<"ai-call"> = {
       label: "Output Format",
       required: false,
       defaultValue: "text",
+      description: "Return format. Select JSON when providing a schema.",
       input: {
         kind: "enum",
         options: [
@@ -581,7 +706,14 @@ export const aiCallBlock: BlockSchema<"ai-call"> = {
     }
   ],
   ports: [flowPorts.input, flowPorts.output],
-  childSlots: []
+  childSlots: [],
+  outputs: [
+    {
+      id: "response",
+      label: "AI Result",
+      description: "Response object (text property for text mode, structured fields for JSON mode)."
+    }
+  ]
 };
 
 export const screenshotCallBlock: BlockSchema<"screenshot-call"> = {
@@ -618,11 +750,13 @@ export const locatorCallBlock: BlockSchema<"locator-call"> = {
   kind: "locator-call",
   label: "Locate Element",
   category: "automation",
+  description: "Use vision or accessibility cues to locate an element on screen.",
   fields: [
     {
       id: "identifier",
       label: "Store As",
       required: false,
+      description: "Optional variable name to store the locator result (x, y, found, etc.).",
       input: {
         kind: "identifier",
         scope: "variable",
@@ -633,6 +767,7 @@ export const locatorCallBlock: BlockSchema<"locator-call"> = {
       id: "instruction",
       label: "Instruction",
       required: true,
+      description: "Natural language instruction describing what to locate.",
       input: {
         kind: "expression"
       }
@@ -640,6 +775,7 @@ export const locatorCallBlock: BlockSchema<"locator-call"> = {
     {
       id: "element",
       label: "Accessibility Query",
+      description: "Optional accessibility selector (e.g. role:textfield name=Email).",
       input: {
         kind: "string",
         placeholder: "role:button name=Submit"
@@ -648,6 +784,7 @@ export const locatorCallBlock: BlockSchema<"locator-call"> = {
     {
       id: "waitTime",
       label: "Wait Time (s)",
+      description: "How long to wait while searching before giving up.",
       input: {
         kind: "number",
         min: 0,
@@ -656,7 +793,81 @@ export const locatorCallBlock: BlockSchema<"locator-call"> = {
     }
   ],
   ports: [flowPorts.input, flowPorts.output],
-  childSlots: []
+  childSlots: [],
+  outputs: [
+    {
+      id: "result",
+      label: "Locator Result",
+      description: "Object containing {found, x, y, width, height}."
+    }
+  ]
+};
+
+export const readClipboardCallBlock: BlockSchema<"read-clipboard-call"> = {
+  kind: "read-clipboard-call",
+  label: "Read Clipboard",
+  category: "automation",
+  description: "Read the current clipboard contents as text.",
+  fields: [
+    {
+      id: "assignTo",
+      label: "Store As",
+      required: true,
+      description: "Variable that receives the clipboard text.",
+      input: {
+        kind: "identifier",
+        scope: "variable",
+        allowCreation: true
+      }
+    }
+  ],
+  ports: [flowPorts.input, flowPorts.output],
+  childSlots: [],
+  outputs: [
+    {
+      id: "text",
+      label: "Clipboard Text",
+      description: "String value read from the clipboard."
+    }
+  ]
+};
+
+export const fileReaderCallBlock: BlockSchema<"file-reader-call"> = {
+  kind: "file-reader-call",
+  label: "Read Files",
+  category: "io",
+  description: "Read up to 10 files and convert their contents to markdown.",
+  fields: [
+    {
+      id: "assignTo",
+      label: "Store As",
+      required: true,
+      description: "Variable that receives the file reader result (results array, errors, tokens).",
+      input: {
+        kind: "identifier",
+        scope: "variable",
+        allowCreation: true
+      }
+    },
+    {
+      id: "paths",
+      label: "Files or Directories",
+      required: true,
+      description: "Expression that resolves to an array of absolute file paths.",
+      input: {
+        kind: "expression"
+      }
+    }
+  ],
+  ports: [flowPorts.input, flowPorts.output],
+  childSlots: [],
+  outputs: [
+    {
+      id: "documents",
+      label: "Documents",
+      description: "Array with {name, data, tokens} for each file read."
+    }
+  ]
 };
 
 export const switchCaseBlock: BlockSchema<"switch-case"> = {
@@ -800,6 +1011,8 @@ export const knownBlockSchemas: BlockSchema[] = [
   waitCallBlock,
   pressCallBlock,
   clickCallBlock,
+  scrollCallBlock,
+  selectAllCallBlock,
   typeCallBlock,
   logCallBlock,
   openCallBlock,
@@ -808,6 +1021,8 @@ export const knownBlockSchemas: BlockSchema[] = [
   visionCallBlock,
   screenshotCallBlock,
   locatorCallBlock,
+  readClipboardCallBlock,
+  fileReaderCallBlock,
   switchCaseBlock,
   switchStatementBlock,
   catchClauseBlock,

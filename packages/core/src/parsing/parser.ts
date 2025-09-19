@@ -294,6 +294,27 @@ const convertStatement = (statement: Statement, blocks: BlockInstance[]): BlockI
         return block;
       }
 
+      if (calleeName === "readClipboard") {
+        const block = createBlockInstance("read-clipboard-call", {
+          assignTo: declarator.id.name
+        });
+        attachMetadata(block, declarationNode);
+        blocks.push(block);
+        return block;
+      }
+
+      if (calleeName === "fileReader") {
+        const args = declarator.init.arguments;
+        const pathsArg = args[0] ? sourceFor(args[0]) : "[]";
+        const block = createBlockInstance("file-reader-call", {
+          assignTo: declarator.id.name,
+          paths: pathsArg
+        });
+        attachMetadata(block, declarationNode);
+        blocks.push(block);
+        return block;
+      }
+
       if (calleeName === "screenshot") {
         const args = declarator.init.arguments;
         const targetArg = args[0] ? sourceFor(args[0]) : "";
@@ -362,6 +383,29 @@ const convertStatement = (statement: Statement, blocks: BlockInstance[]): BlockI
           key: keyValue,
           modifiers
         });
+        attachMetadata(block, expressionNode);
+        blocks.push(block);
+        return block;
+      }
+
+      if (callee.name === "scroll") {
+        const originArg = call.arguments[0] ? sourceFor(call.arguments[0]) : "[0, 0]";
+        const directionArg = call.arguments[1] ? stringLiteralValue(call.arguments[1]) ?? sourceFor(call.arguments[1]) : "down";
+        const amountLiteral = call.arguments[2] ? numberLiteralValue(call.arguments[2]) : null;
+        const amountFallback = call.arguments[2] ? Number(sourceFor(call.arguments[2])) : 1;
+        const amountValue = amountLiteral ?? (Number.isFinite(amountFallback) ? amountFallback : 1);
+        const block = createBlockInstance("scroll-call", {
+          origin: originArg,
+          direction: directionArg,
+          amount: amountValue
+        });
+        attachMetadata(block, expressionNode);
+        blocks.push(block);
+        return block;
+      }
+
+      if (callee.name === "selectAll") {
+        const block = createBlockInstance("select-all-call", {});
         attachMetadata(block, expressionNode);
         blocks.push(block);
         return block;

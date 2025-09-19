@@ -108,6 +108,7 @@ const InspectorPanel = () => {
 
   const schema = blockRegistry.get(block.kind);
   const fields = schema?.fields ?? [];
+  const outputs = schema?.outputs ?? [];
   const category = schema?.category ?? "utility";
   const accent = categoryColors[category] ?? "#3A5AE5";
   const iconName = categoryIcons[category] ?? "workflow";
@@ -189,7 +190,23 @@ const InspectorPanel = () => {
         </div>
       ) : null}
 
-      <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-6 pb-8 py-8">
+      {outputs.length > 0 ? (
+        <div className="flex flex-col gap-2 border-b border-[#0A1A2314] bg-white/85 px-6 py-3">
+          <h3 className="text-xs font-semibold uppercase tracking-[0.3em] text-[#9AA7B4]">Outputs</h3>
+          <ul className="flex flex-col gap-2">
+            {outputs.map((output) => (
+              <li key={output.id} className="flex flex-col rounded-lg border border-[#0A1A2314] bg-white px-3 py-2">
+                <span className="text-sm font-semibold text-[#0A1A23]">{output.label}</span>
+                {output.description ? (
+                  <span className="text-xs text-[#657782]">{output.description}</span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-6 pb-8 pt-6">
         {fields.length === 0 ? (
           <p className="text-sm text-[#657782]">This block has no configurable fields.</p>
         ) : (

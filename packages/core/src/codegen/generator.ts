@@ -211,6 +211,27 @@ const blockToStatement = ({
       return [t.expressionStatement(t.callExpression(t.identifier("click"), [targetExpression]))];
     }
 
+    case "scroll-call": {
+      const originCode = typeof block.data.origin === "string" && block.data.origin.trim() !== "" ? block.data.origin : "[0, 0]";
+      const direction = typeof block.data.direction === "string" && block.data.direction.trim() !== ""
+        ? block.data.direction.trim()
+        : "down";
+      const amountValue = block.data.amount;
+      const amount = typeof amountValue === "number" && Number.isFinite(amountValue)
+        ? t.numericLiteral(amountValue)
+        : parseExpression(String(amountValue ?? 1));
+      const originExpression = parseExpression(originCode);
+      return [
+        t.expressionStatement(
+          t.callExpression(t.identifier("scroll"), [originExpression, t.stringLiteral(direction), amount])
+        )
+      ];
+    }
+
+    case "select-all-call": {
+      return [t.expressionStatement(t.callExpression(t.identifier("selectAll"), []))];
+    }
+
     case "type-call": {
       const rawText = typeof block.data.text === "string" ? block.data.text.trim() : "";
       const candidate = rawText.length > 0 ? rawText : "\"\"";
@@ -221,6 +242,33 @@ const blockToStatement = ({
         expression = parseExpression(JSON.stringify(rawText));
       }
       return [t.expressionStatement(t.callExpression(t.identifier("type"), [expression]))];
+    }
+
+    case "read-clipboard-call": {
+      const assignTo = typeof block.data.assignTo === "string" && block.data.assignTo.trim() !== ""
+        ? block.data.assignTo.trim()
+        : "clipboardText";
+      const declaration = t.variableDeclaration("let", [
+        t.variableDeclarator(t.identifier(assignTo), t.callExpression(t.identifier("readClipboard"), []))
+      ]);
+      return [declaration];
+    }
+
+    case "file-reader-call": {
+      const assignTo = typeof block.data.assignTo === "string" && block.data.assignTo.trim() !== ""
+        ? block.data.assignTo.trim()
+        : "documents";
+      const pathsCode = typeof block.data.paths === "string" && block.data.paths.trim() !== ""
+        ? block.data.paths
+        : "[]";
+      const pathsExpression = parseExpression(pathsCode);
+      const declaration = t.variableDeclaration("let", [
+        t.variableDeclarator(
+          t.identifier(assignTo),
+          t.callExpression(t.identifier("fileReader"), [pathsExpression])
+        )
+      ]);
+      return [declaration];
     }
 
     case "log-call": {

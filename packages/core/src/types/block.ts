@@ -56,6 +56,12 @@ export type BlockFieldDefinition = {
   input: FieldInputConfiguration;
 };
 
+export type BlockOutputDefinition = {
+  id: string;
+  label: string;
+  description?: string;
+};
+
 export type PortDirection = "input" | "output";
 export type PortKind = "flow" | "value";
 
@@ -86,6 +92,7 @@ export type BlockSchema<TKind extends string = string> = {
   fields: BlockFieldDefinition[];
   ports: BlockPortDefinition[];
   childSlots: BlockChildSlotDefinition[];
+  outputs?: BlockOutputDefinition[];
 };
 
 export type BlockMetadata = {
