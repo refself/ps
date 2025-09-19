@@ -2,11 +2,41 @@ import { blockRegistry } from "@workflow-builder/core";
 
 import { useEditorStore } from "../state/editor-store";
 import FieldEditor from "./inspector/field-editor";
+import { Icon, type IconName } from "./icon";
+
+const categoryIcons: Record<string, IconName> = {
+  program: "workflow",
+  structure: "branch",
+  control: "branch",
+  variables: "variable",
+  functions: "function",
+  expressions: "expression",
+  ai: "sparkles",
+  automation: "gear",
+  utility: "wrench",
+  io: "link",
+  raw: "box"
+};
+
+const categoryColors: Record<string, string> = {
+  program: "#3A5AE5",
+  control: "#AF54BE",
+  variables: "#E2A636",
+  functions: "#32AA81",
+  expressions: "#578BC9",
+  ai: "#AF54BE",
+  automation: "#32AA81",
+  utility: "#3A5AE5",
+  io: "#578BC9",
+  raw: "#CD3A50"
+};
 
 const InspectorPanel = () => {
   const selectedBlockId = useEditorStore((state) => state.selectedBlockId);
   const document = useEditorStore((state) => state.document);
   const updateBlockFields = useEditorStore((state) => state.updateBlockFields);
+  const duplicateBlock = useEditorStore((state) => state.duplicateBlock);
+  const deleteBlock = useEditorStore((state) => state.deleteBlock);
 
   if (!selectedBlockId) {
     return (
@@ -29,34 +59,72 @@ const InspectorPanel = () => {
 
   const schema = blockRegistry.get(block.kind);
   const fields = schema?.fields ?? [];
+  const category = schema?.category ?? "utility";
+  const accent = categoryColors[category] ?? "#3A5AE5";
+  const iconName = categoryIcons[category] ?? "workflow";
+  const isRoot = block.id === document.root;
 
   return (
-    <section className="flex h-full flex-1 flex-col overflow-hidden border-b border-[#0A1A2314] bg-white/80 backdrop-blur">
-      <div className="flex flex-col gap-6 overflow-y-auto px-5 pb-8">
-        <div className="flex flex-col gap-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-[#657782]">Inspector</h2>
-          <div className="rounded-xl border border-[#0A1A2314] bg-white p-4 shadow-[0_18px_30px_rgba(10,26,35,0.08)]">
-            <h3 className="text-base font-semibold text-[#0A1A23]">{schema?.label ?? block.kind}</h3>
-            <p className="text-xs uppercase tracking-[0.4em] text-[#657782]">{block.kind}</p>
-            {schema?.description ? <p className="mt-2 text-xs text-[#465764]">{schema.description}</p> : null}
+    <section className="flex h-full flex-col overflow-hidden bg-white/85 backdrop-blur">
+      <div className="flex items-center justify-between border-b border-[#0A1A2314] px-6 py-4">
+        <div className="flex items-center gap-3">
+          <span
+            className="flex h-10 w-10 items-center justify-center rounded-xl"
+            style={{ backgroundColor: `${accent}14`, color: accent }}
+          >
+            <Icon name={iconName} className="h-5 w-5" />
+          </span>
+          <div className="flex flex-col">
+            <h2 className="text-sm font-semibold text-[#0A1A23]">{schema?.label ?? block.kind}</h2>
+            <span className="text-[11px] uppercase tracking-[0.3em] text-[#657782]">{block.kind}</span>
           </div>
         </div>
-
-        <div className="flex flex-col gap-4">
-          {fields.length === 0 ? (
-            <p className="text-sm text-[#657782]">This block has no configurable fields.</p>
-          ) : (
-            fields.map((field) => (
-              <FieldEditor
-                key={field.id}
-                field={field}
-                value={block.data[field.id] ?? field.defaultValue ?? ""}
-                onChange={(nextValue) => updateBlockFields(selectedBlockId, { [field.id]: nextValue })}
-                contextBlockId={selectedBlockId}
-              />
-            ))
-          )}
+        <div className="flex items-center gap-2">
+          {!isRoot ? (
+            <>
+              <button
+                type="button"
+                onClick={() => duplicateBlock(block.id)}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-[#0A1A2333] bg-white text-[#0A1A23] transition hover:border-[#32AA81] hover:text-[#32AA81]"
+                title="Duplicate block"
+                aria-label="Duplicate block"
+              >
+                <Icon name="copy" className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => deleteBlock(block.id)}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-[#CD3A50] bg-white text-[#CD3A50] transition hover:bg-[#CD3A5020]"
+                title="Delete block"
+                aria-label="Delete block"
+              >
+                <Icon name="trash" className="h-3.5 w-3.5" />
+              </button>
+            </>
+          ) : null}
         </div>
+      </div>
+
+      {schema?.description ? (
+        <div className="border-b border-[#0A1A2314] bg-white px-6 py-3 text-[12px] text-[#465764]">
+          {schema.description}
+        </div>
+      ) : null}
+
+      <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-6 pb-8">
+        {fields.length === 0 ? (
+          <p className="text-sm text-[#657782]">This block has no configurable fields.</p>
+        ) : (
+          fields.map((field) => (
+            <FieldEditor
+              key={field.id}
+              field={field}
+              value={block.data[field.id] ?? field.defaultValue ?? ""}
+              onChange={(nextValue) => updateBlockFields(selectedBlockId, { [field.id]: nextValue })}
+              contextBlockId={selectedBlockId}
+            />
+          ))
+        )}
       </div>
     </section>
   );

@@ -105,6 +105,26 @@ const numberLiteralValue = (node: Node | null | undefined): number | null => {
 };
 
 const convertStatement = (statement: Statement, blocks: BlockInstance[]): BlockInstance => {
+  const createFunctionCallBlock = ({
+    assignTo,
+    functionName,
+    args
+  }: {
+    assignTo?: string;
+    functionName: string;
+    args: Node[];
+  }) => {
+    const argCode = args
+      .map((arg) => sourceFor(arg))
+      .join(", ");
+    const block = createBlockInstance("function-call", {
+      assignTo,
+      functionName,
+      arguments: argCode
+    });
+    return block;
+  };
+
   if (n.FunctionDeclaration.check(statement)) {
     const functionNode = statement as FunctionDeclaration;
     const identifier = functionNode.id?.name ?? "anonymous";
@@ -273,6 +293,27 @@ const convertStatement = (statement: Statement, blocks: BlockInstance[]): BlockI
         blocks.push(block);
         return block;
       }
+
+      if (calleeName === "screenshot") {
+        const args = declarator.init.arguments;
+        const targetArg = args[0] ? sourceFor(args[0]) : "";
+        const block = createBlockInstance("screenshot-call", {
+          assignTo: declarator.id.name,
+          target: targetArg
+        });
+        attachMetadata(block, declarationNode);
+        blocks.push(block);
+        return block;
+      }
+
+      const functionCallBlock = createFunctionCallBlock({
+        assignTo: declarator.id.name,
+        functionName: calleeName,
+        args: declarator.init.arguments
+      });
+      attachMetadata(functionCallBlock, declarationNode);
+      blocks.push(functionCallBlock);
+      return functionCallBlock;
     }
 
     const initializer = declarator.init ? sourceFor(declarator.init) : "";
@@ -429,6 +470,24 @@ const convertStatement = (statement: Statement, blocks: BlockInstance[]): BlockI
         blocks.push(block);
         return block;
       }
+
+      if (callee.name === "screenshot") {
+        const target = call.arguments[0] ? sourceFor(call.arguments[0]) : "";
+        const block = createBlockInstance("screenshot-call", {
+          target
+        });
+        attachMetadata(block, expressionNode);
+        blocks.push(block);
+        return block;
+      }
+
+      const genericCallBlock = createFunctionCallBlock({
+        functionName: callee.name,
+        args: call.arguments
+      });
+      attachMetadata(genericCallBlock, expressionNode);
+      blocks.push(genericCallBlock);
+      return genericCallBlock;
     }
 
     const block = createBlockInstance("expression-statement", {

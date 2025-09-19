@@ -21,7 +21,9 @@ export type IconName =
   | "wrench"
   | "link"
   | "box"
-  | "arrowRight";
+  | "arrowRight"
+  | "check"
+  | "alert";
 
 type IconProps = {
   name: IconName;
@@ -190,6 +192,18 @@ const ICONS: Record<IconName, IconRenderer> = {
     <>
       <path {...strokeProps} d="M5 12h14" />
       <path {...strokeProps} d="M13 5l7 7-7 7" />
+    </>
+  ),
+  check: () => (
+    <>
+      <path {...strokeProps} d="M5 13l4 4 10-10" />
+    </>
+  ),
+  alert: () => (
+    <>
+      <path {...strokeProps} d="M12 9v4" />
+      <path {...strokeProps} d="M12 17h.01" />
+      <path {...strokeProps} d="M10.29 3.86L2.82 16a2 2 0 0 0 1.71 3h14.94a2 2 0 0 0 1.71-3l-7.47-12.14a2 2 0 0 0-3.42 0Z" />
     </>
   )
 };

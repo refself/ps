@@ -82,6 +82,45 @@ export const variableDeclarationBlock: BlockSchema<"variable-declaration"> = {
   childSlots: []
 };
 
+export const functionCallBlock: BlockSchema<"function-call"> = {
+  kind: "function-call",
+  label: "Function Call",
+  description: "Execute any Reflow function with optional arguments and variable assignment.",
+  category: "utility",
+  fields: [
+    {
+      id: "assignTo",
+      label: "Store As",
+      input: {
+        kind: "identifier",
+        scope: "variable",
+        allowCreation: true
+      }
+    },
+    {
+      id: "functionName",
+      label: "Function",
+      required: true,
+      input: {
+        kind: "string",
+        placeholder: "screenshot"
+      }
+    },
+    {
+      id: "arguments",
+      label: "Arguments",
+      description: "Comma-separated list or raw code expression",
+      input: {
+        kind: "string",
+        multiline: true,
+        placeholder: "arg1, arg2"
+      }
+    }
+  ],
+  ports: [flowPorts.input, flowPorts.output],
+  childSlots: []
+};
+
 export const returnStatementBlock: BlockSchema<"return-statement"> = {
   kind: "return-statement",
   label: "Return",
@@ -547,6 +586,36 @@ export const aiCallBlock: BlockSchema<"ai-call"> = {
   childSlots: []
 };
 
+export const screenshotCallBlock: BlockSchema<"screenshot-call"> = {
+  kind: "screenshot-call",
+  label: "Screenshot",
+  category: "automation",
+  description: "Capture the screen or a specific application window.",
+  fields: [
+    {
+      id: "assignTo",
+      label: "Store As",
+      input: {
+        kind: "identifier",
+        scope: "variable",
+        allowCreation: true
+      }
+    },
+    {
+      id: "target",
+      label: "Target PID",
+      description: "Optional process identifier to capture",
+      input: {
+        kind: "code",
+        language: "reflow",
+        placeholder: "app.pid"
+      }
+    }
+  ],
+  ports: [flowPorts.input, flowPorts.output],
+  childSlots: []
+};
+
 export const locatorCallBlock: BlockSchema<"locator-call"> = {
   kind: "locator-call",
   label: "Locate Element",
@@ -731,6 +800,7 @@ export const knownBlockSchemas: BlockSchema[] = [
   forStatementBlock,
   breakStatementBlock,
   throwStatementBlock,
+  functionCallBlock,
   waitCallBlock,
   pressCallBlock,
   clickCallBlock,
@@ -740,6 +810,7 @@ export const knownBlockSchemas: BlockSchema[] = [
   openUrlCallBlock,
   aiCallBlock,
   visionCallBlock,
+  screenshotCallBlock,
   locatorCallBlock,
   switchCaseBlock,
   switchStatementBlock,

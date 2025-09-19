@@ -1,5 +1,5 @@
 import { parse as babelParse, parseExpression as babelParseExpression } from "@babel/parser";
-import type { Expression, Identifier, Statement, VariableDeclaration } from "@babel/types";
+import type { Expression, Identifier, Statement, VariableDeclaration, SpreadElement } from "@babel/types";
 import * as t from "@babel/types";
 import { parse as recastParse, print as recastPrint } from "recast";
 
@@ -79,6 +79,37 @@ const parseForInitializer = (code: string): VariableDeclaration | Expression | n
   }
 
   throw new Error(`Unsupported for-loop initializer: ${code}`);
+};
+
+const parseCallArguments = (code: string): Array<Expression | SpreadElement> => {
+  if (!code || code.trim() === "") {
+    return [];
+  }
+
+  try {
+    const wrapped = `[${code}]`;
+    const parsed = babelParseExpression(wrapped, parserOptions);
+    if (t.isArrayExpression(parsed)) {
+      return parsed.elements
+        .map((element) => {
+          if (!element) {
+            return null;
+          }
+          if (t.isSpreadElement(element)) {
+            return element;
+          }
+          if (t.isExpression(element)) {
+            return element as Expression;
+          }
+          return parseExpression(recastPrint(element).code);
+        })
+        .filter((el): el is Expression | SpreadElement => Boolean(el));
+    }
+  } catch (error) {
+    // fall through to string literal fallback
+  }
+
+  return [parseExpression(code)];
 };
 
 const parameterIdentifiers = (parameters: string | undefined): Identifier[] => {
@@ -189,6 +220,24 @@ const blockToStatement = ({
       const messageExpression = typeof block.data.message === "string" ? block.data.message : "";
       const expression = parseExpression(messageExpression);
       return [t.expressionStatement(t.callExpression(t.identifier("log"), [expression]))];
+    }
+
+    case "function-call": {
+      const functionName =
+        typeof block.data.functionName === "string" && block.data.functionName.trim() !== ""
+          ? block.data.functionName.trim()
+          : "call";
+      const argsCode = typeof block.data.arguments === "string" ? block.data.arguments : "";
+      const args = parseCallArguments(argsCode);
+      const call = t.callExpression(t.identifier(functionName), args);
+      const assignTo =
+        typeof block.data.assignTo === "string" && block.data.assignTo.trim() !== ""
+          ? block.data.assignTo.trim()
+          : null;
+      if (assignTo) {
+        return [t.variableDeclaration("let", [t.variableDeclarator(t.identifier(assignTo), call)])];
+      }
+      return [t.expressionStatement(call)];
     }
 
     case "open-call": {
@@ -312,6 +361,20 @@ const blockToStatement = ({
       const callExpression = t.callExpression(t.identifier("vision"), args);
       const declaration = t.variableDeclaration("let", [t.variableDeclarator(t.identifier(identifier), callExpression)]);
       return [declaration];
+    }
+
+    case "screenshot-call": {
+      const assignTo =
+        typeof block.data.assignTo === "string" && block.data.assignTo.trim() !== ""
+          ? block.data.assignTo.trim()
+          : null;
+      const targetCode = typeof block.data.target === "string" ? block.data.target.trim() : "";
+      const args: Expression[] = targetCode ? [parseExpression(targetCode)] : [];
+      const call = t.callExpression(t.identifier("screenshot"), args);
+      if (assignTo) {
+        return [t.variableDeclaration("let", [t.variableDeclarator(t.identifier(assignTo), call)])];
+      }
+      return [t.expressionStatement(call)];
     }
 
     case "while-statement": {
