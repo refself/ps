@@ -40,24 +40,24 @@ const SlotDropZone = ({ parentId, slotId, index, depth, label, isEmpty }: SlotDr
       className={clsx(
         "relative transition",
         hasContent
-          ? "mx-1 h-2 rounded-full border border-dashed border-slate-800 bg-transparent"
-          : "rounded-xl border border-dashed border-slate-800 bg-slate-900/70 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-slate-400",
+          ? "mx-1 h-1.5 rounded-full border border-dashed border-[#0A1A2333] bg-transparent"
+          : "rounded-lg border border-dashed border-[#0A1A2333] bg-white/80 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#657782] backdrop-blur",
         canDrop
           ? hasContent
-            ? "border-blue-500/70 bg-blue-900/40"
-            : "border-blue-500/70 bg-blue-950/40 text-blue-200"
+            ? "border-[#3A5AE5] bg-[#3A5AE520]"
+            : "border-[#3A5AE5] bg-[#3A5AE510] text-[#3A5AE5]"
           : hasContent
-          ? "border-slate-800"
-          : "border-slate-800 bg-slate-900/70",
-        isOver && canDrop ? "shadow-inner shadow-blue-900/70" : "",
-        isEmpty ? "text-slate-500" : ""
+          ? "border-[#0A1A2333]"
+          : "border-[#0A1A2333] bg-white/80",
+        isOver && canDrop ? "shadow-[0_0_0_3px_rgba(58,90,229,0.25)]" : "",
+        isEmpty ? "text-[#657782]" : ""
       )}
-      style={{ marginLeft: depth * 28 }}
+      style={{ marginLeft: depth * 16 }}
     >
       {hasContent ? (
         <span
           className={clsx(
-            "absolute -top-5 left-1/2 -translate-x-1/2 rounded-full bg-slate-900 px-2 py-0.5 text-[10px] uppercase tracking-[0.25em] text-slate-300 shadow-sm transition",
+            "absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-white/95 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-[#3A5AE5] shadow-sm transition",
             isOver ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1"
           )}
         >

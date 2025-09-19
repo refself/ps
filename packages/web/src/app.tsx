@@ -1,20 +1,21 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
 import { EditorProvider } from "./state/editor-provider";
 import EditorCanvas from "./components/editor-canvas";
 import BlockLibraryPanel from "./components/block-library-panel";
-import InspectorPanel from "./components/inspector-panel";
-import CodePreviewPanel from "./components/code-preview-panel";
 import { EditorHeader } from "./components/editor-header";
 import WorkflowList from "./components/workflow-list";
 import { useEditorStore } from "./state/editor-store";
 import { useWorkspaceStore } from "./state/workspace-store";
+import InspectorPanel from "./components/inspector-panel";
+import CodeEditorPanel from "./components/code-editor-panel";
 
 const App = () => {
   useWorkspaceSynchronization();
   const activeWorkflowId = useWorkspaceStore((state) => state.activeWorkflowId);
+  const [mode, setMode] = useState<"visual" | "code">("visual");
 
   if (!activeWorkflowId) {
     return <WorkflowList />;
@@ -23,16 +24,29 @@ const App = () => {
   return (
     <DndProvider backend={HTML5Backend}>
       <EditorProvider>
-        <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 text-slate-100">
-          <EditorHeader />
-          <div className="flex flex-1 overflow-hidden">
-            <BlockLibraryPanel />
-            <EditorCanvas />
-            <div className="flex w-[360px] flex-col overflow-hidden border-l border-slate-800 bg-slate-900/80 backdrop-blur">
-              <InspectorPanel />
-              <CodePreviewPanel />
+        <div
+          className="flex h-screen w-screen flex-col overflow-hidden bg-[#F5F6F9] text-[#0A1A23]"
+          style={{
+            background:
+              "linear-gradient(0deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.15) 100%), linear-gradient(176deg, #EDEEF6 3%, #F2F0F9 45%, #F0F1F7 100%)"
+          }}
+        >
+          <EditorHeader viewMode={mode} onViewModeChange={setMode} />
+          {mode === "code" ? (
+            <div className="flex flex-1 overflow-hidden px-10 py-8">
+              <div className="flex w-full flex-col overflow-hidden rounded-2xl border border-[#0A1A2314] bg-white shadow-[0_30px_60px_rgba(10,26,35,0.15)]">
+                <CodeEditorPanel variant="full" />
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex flex-1 overflow-hidden">
+              <BlockLibraryPanel />
+              <EditorCanvas />
+              <div className="flex w-[420px] flex-col overflow-hidden border-l border-[#0A1A2314] bg-white/80 backdrop-blur">
+                <InspectorPanel />
+              </div>
+            </div>
+          )}
         </div>
       </EditorProvider>
     </DndProvider>

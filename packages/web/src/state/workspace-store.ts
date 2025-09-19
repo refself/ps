@@ -209,7 +209,8 @@ export const useWorkspaceList = () => {
     state.workflows.map((workflow) => ({
       id: workflow.id,
       name: workflow.document.metadata.name,
-      updatedAt: workflow.updatedAt
+      updatedAt: workflow.updatedAt,
+      description: workflow.document.metadata.description ?? ""
     }))
   );
 };

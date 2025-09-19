@@ -18,16 +18,16 @@ const FieldEditor = ({ field, value, onChange, contextBlockId }: FieldEditorProp
   if (input.kind === "boolean") {
     const checked = typeof value === "boolean" ? value : Boolean(fallbackValue);
     return (
-      <label className="flex items-center justify-between rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 shadow-sm shadow-slate-950/40">
+      <label className="flex items-center justify-between rounded-xl border border-[#0A1A2314] bg-white px-3 py-2 text-sm text-[#0A1A23] shadow-[0_12px_20px_rgba(10,26,35,0.08)]">
         <span className="flex flex-col">
-          <span className="font-medium text-slate-100">{field.label}</span>
-          {field.description ? <span className="text-xs text-slate-400">{field.description}</span> : null}
+          <span className="font-medium text-[#0A1A23]">{field.label}</span>
+          {field.description ? <span className="text-xs text-[#657782]">{field.description}</span> : null}
         </span>
         <input
           type="checkbox"
           checked={checked}
           onChange={(event) => onChange(event.target.checked)}
-          className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-blue-400 focus:ring-blue-500"
+          className="h-4 w-4 rounded border-[#0A1A2333] text-[#3A5AE5] focus:ring-[#3A5AE5]"
         />
       </label>
     );
@@ -41,10 +41,10 @@ const FieldEditor = ({ field, value, onChange, contextBlockId }: FieldEditorProp
         ? String(fallbackValue)
         : "";
     return (
-      <label className="flex flex-col gap-2 text-sm text-slate-100">
+      <label className="flex flex-col gap-2 text-sm text-[#0A1A23]">
         <div className="flex flex-col gap-1">
-          <span className="font-medium text-slate-100">{field.label}</span>
-          {field.description ? <span className="text-xs text-slate-400">{field.description}</span> : null}
+          <span className="font-medium text-[#0A1A23]">{field.label}</span>
+          {field.description ? <span className="text-xs text-[#657782]">{field.description}</span> : null}
         </div>
         <input
           type="number"
@@ -60,7 +60,7 @@ const FieldEditor = ({ field, value, onChange, contextBlockId }: FieldEditorProp
               onChange(Number(next));
             }
           }}
-          className="w-full rounded border border-slate-700 bg-slate-900 p-2 text-sm text-slate-100 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          className="w-full rounded border border-[#0A1A2333] bg-white p-2 text-sm text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
         />
       </label>
     );
@@ -69,15 +69,15 @@ const FieldEditor = ({ field, value, onChange, contextBlockId }: FieldEditorProp
   if (input.kind === "enum") {
     const stringValue = typeof value === "string" ? value : (typeof fallbackValue === "string" ? fallbackValue : "");
     return (
-      <label className="flex flex-col gap-2 text-sm text-slate-100">
+      <label className="flex flex-col gap-2 text-sm text-[#0A1A23]">
         <div className="flex flex-col gap-1">
-          <span className="font-medium text-slate-100">{field.label}</span>
-          {field.description ? <span className="text-xs text-slate-400">{field.description}</span> : null}
+          <span className="font-medium text-[#0A1A23]">{field.label}</span>
+          {field.description ? <span className="text-xs text-[#657782]">{field.description}</span> : null}
         </div>
         <select
           value={stringValue}
           onChange={(event) => onChange(event.target.value)}
-          className="w-full rounded border border-slate-700 bg-slate-900 p-2 text-sm text-slate-100 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          className="w-full rounded border border-[#0A1A2333] bg-white p-2 text-sm text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
         >
           <option value="" disabled>
             Select…
@@ -95,15 +95,15 @@ const FieldEditor = ({ field, value, onChange, contextBlockId }: FieldEditorProp
   if (input.kind === "identifier") {
     const identifierValue = typeof value === "string" ? value : (typeof fallbackValue === "string" ? fallbackValue : "");
     return (
-      <label className="flex flex-col gap-2 text-sm text-slate-100">
+      <label className="flex flex-col gap-2 text-sm text-[#0A1A23]">
         <div className="flex flex-col gap-1">
-          <span className="font-medium text-slate-100">{field.label}</span>
-          {field.description ? <span className="text-xs text-slate-400">{field.description}</span> : null}
+          <span className="font-medium text-[#0A1A23]">{field.label}</span>
+          {field.description ? <span className="text-xs text-[#657782]">{field.description}</span> : null}
         </div>
         <input
           value={identifierValue}
           onChange={(event) => onChange(event.target.value)}
-          className="w-full rounded border border-slate-700 bg-slate-900 p-2 text-sm text-slate-100 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          className="w-full rounded border border-[#0A1A2333] bg-white p-2 text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4] focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
           placeholder="identifier"
         />
       </label>
@@ -114,16 +114,16 @@ const FieldEditor = ({ field, value, onChange, contextBlockId }: FieldEditorProp
     const stringValue = typeof value === "string" ? value : (typeof fallbackValue === "string" ? fallbackValue : "");
     if (input.multiline) {
       return (
-        <label className="flex flex-col gap-2 text-sm text-slate-100">
+        <label className="flex flex-col gap-2 text-sm text-[#0A1A23]">
           <div className="flex flex-col gap-1">
-            <span className="font-medium text-slate-100">{field.label}</span>
-            {field.description ? <span className="text-xs text-slate-400">{field.description}</span> : null}
+            <span className="font-medium text-[#0A1A23]">{field.label}</span>
+            {field.description ? <span className="text-xs text-[#657782]">{field.description}</span> : null}
           </div>
           <textarea
             value={stringValue}
             onChange={(event) => onChange(event.target.value)}
             rows={4}
-            className="w-full rounded border border-slate-700 bg-slate-900 p-2 text-sm text-slate-100 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded border border-[#0A1A2333] bg-white p-2 text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4] focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
             placeholder={input.placeholder}
           />
         </label>
@@ -131,15 +131,15 @@ const FieldEditor = ({ field, value, onChange, contextBlockId }: FieldEditorProp
     }
 
     return (
-      <label className="flex flex-col gap-2 text-sm text-slate-100">
+      <label className="flex flex-col gap-2 text-sm text-[#0A1A23]">
         <div className="flex flex-col gap-1">
-          <span className="font-medium text-slate-100">{field.label}</span>
-          {field.description ? <span className="text-xs text-slate-400">{field.description}</span> : null}
+          <span className="font-medium text-[#0A1A23]">{field.label}</span>
+          {field.description ? <span className="text-xs text-[#657782]">{field.description}</span> : null}
         </div>
         <input
           value={stringValue}
           onChange={(event) => onChange(event.target.value)}
-          className="w-full rounded border border-slate-700 bg-slate-900 p-2 text-sm text-slate-100 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          className="w-full rounded border border-[#0A1A2333] bg-white p-2 text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4] focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
           placeholder={input.placeholder}
         />
       </label>
@@ -148,7 +148,7 @@ const FieldEditor = ({ field, value, onChange, contextBlockId }: FieldEditorProp
 
   if (input.kind === "code" || input.kind === "expression") {
     return (
-      <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-3 shadow-sm shadow-slate-950/40">
+      <div className="rounded-xl border border-[#0A1A2314] bg-white p-3 shadow-[0_18px_32px_rgba(10,26,35,0.08)]">
         <ExpressionEditor
           value={typeof value === "string" ? value : typeof fallbackValue === "string" ? fallbackValue : ""}
           onChange={(expression) => onChange(expression)}
@@ -161,9 +161,9 @@ const FieldEditor = ({ field, value, onChange, contextBlockId }: FieldEditorProp
   }
 
   return (
-    <label className="flex flex-col gap-2 text-sm text-slate-200">
-      <span className="font-medium text-slate-100">{field.label}</span>
-      <span className="text-xs text-slate-500">Unsupported field type</span>
+    <label className="flex flex-col gap-2 text-sm text-[#0A1A23]">
+      <span className="font-medium">{field.label}</span>
+      <span className="text-xs text-[#657782]">Unsupported field type</span>
     </label>
   );
 };

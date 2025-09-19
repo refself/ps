@@ -16,9 +16,9 @@ type BlockFieldEditorProps = {
 
 const FieldContainer = ({ title, description, children }: { title: string; description?: string; children: ReactNode }) => {
   return (
-    <div className="rounded-xl bg-white/6 p-3">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-white/70">{title}</div>
-      {description ? <p className="mt-1 text-[10px] text-slate-300">{description}</p> : null}
+    <div className="rounded-xl border border-[#0A1A2314] bg-white px-3 py-3 shadow-[0_10px_24px_rgba(10,26,35,0.06)]">
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-[#657782]">{title}</div>
+      {description ? <p className="mt-1 text-[11px] text-[#465764]">{description}</p> : null}
       <div className="mt-2">{children}</div>
     </div>
   );
@@ -40,10 +40,10 @@ const BlockFieldEditor = ({ field, value, onChange, blockId }: BlockFieldEditorP
         <button
           type="button"
           onClick={() => onChange(!checked)}
-          className="relative inline-flex h-7 w-14 items-center rounded-full bg-slate-800 transition focus:outline-none focus:ring-2 focus:ring-sky-400/60"
+          className="relative inline-flex h-7 w-14 items-center rounded-full border border-[#0A1A2314] bg-[#E4E9FF] transition focus:outline-none focus:ring-2 focus:ring-[#3A5AE580]"
         >
           <span
-            className={`pointer-events-none inline-flex h-5 w-5 transform items-center justify-center rounded-full bg-white text-[10px] font-semibold text-slate-700 transition ${
+            className={`pointer-events-none inline-flex h-5 w-5 transform items-center justify-center rounded-full bg-white text-[10px] font-semibold text-[#3A5AE5] shadow-sm transition ${
               checked ? "translate-x-7" : "translate-x-1"
             }`}
           >
@@ -78,7 +78,7 @@ const BlockFieldEditor = ({ field, value, onChange, blockId }: BlockFieldEditorP
             }
             onChange(Number(next));
           }}
-          className="w-full rounded-lg border border-white/10 bg-white/10 px-2.5 py-1.5 text-sm text-slate-100 outline-none placeholder:text-slate-300 focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
+          className="w-full rounded-lg border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4] focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
         />
       </FieldContainer>
     );
@@ -91,7 +91,7 @@ const BlockFieldEditor = ({ field, value, onChange, blockId }: BlockFieldEditorP
         <select
           value={stringValue}
           onChange={(event) => onChange(event.target.value)}
-          className="w-full rounded-lg border border-white/10 bg-white/10 px-2.5 py-1.5 text-sm text-slate-100 outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
+          className="w-full rounded-lg border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-sm text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
         >
           <option value="" disabled>
             Select…
@@ -116,7 +116,7 @@ const BlockFieldEditor = ({ field, value, onChange, blockId }: BlockFieldEditorP
           value={identifierValue}
           onChange={(event) => onChange(event.target.value)}
           placeholder="identifier"
-          className="w-full rounded-lg border border-white/10 bg-white/10 px-2.5 py-1.5 text-sm text-slate-100 outline-none placeholder:text-slate-300 focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
+          className="w-full rounded-lg border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4] focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
         />
         <datalist id={datalistId}>
           {identifiers.map((identifier) => (
@@ -137,7 +137,7 @@ const BlockFieldEditor = ({ field, value, onChange, blockId }: BlockFieldEditorP
             onChange={(event) => onChange(event.target.value)}
             rows={4}
             placeholder={input.placeholder}
-            className="w-full rounded-lg border border-white/10 bg-white/10 px-2.5 py-1.5 text-sm text-slate-100 outline-none placeholder:text-slate-300 focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
+            className="w-full rounded-lg border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4] focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
           />
         </FieldContainer>
       );
@@ -149,7 +149,7 @@ const BlockFieldEditor = ({ field, value, onChange, blockId }: BlockFieldEditorP
           value={stringValue}
           onChange={(event) => onChange(event.target.value)}
           placeholder={input.placeholder}
-          className="w-full rounded-lg border border-white/10 bg-white/10 px-2.5 py-1.5 text-sm text-slate-100 outline-none placeholder:text-slate-300 focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
+          className="w-full rounded-lg border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4] focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
         />
       </FieldContainer>
     );

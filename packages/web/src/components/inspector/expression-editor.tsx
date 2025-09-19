@@ -99,16 +99,16 @@ const ExpressionEditor = ({
   const [searchTerm, setSearchTerm] = useState("");
 
   const inputClass = isCompact
-    ? "w-full rounded-lg border border-white/10 bg-white/10 px-2.5 py-1.5 text-sm text-slate-100 placeholder:text-slate-400 outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
-    : "w-full rounded border border-slate-700 bg-slate-900 p-2 text-sm text-slate-100 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500";
+    ? "w-full rounded-lg border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-sm text-[#0A1A23] placeholder:text-[#9AA7B4] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+    : "w-full rounded-lg border border-[#0A1A2333] bg-white px-3 py-2 text-sm text-[#0A1A23] placeholder:text-[#9AA7B4] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]";
 
   const textAreaClass = isCompact
-    ? "w-full min-h-[120px] rounded-lg border border-white/10 bg-white/10 px-2.5 py-1.5 text-sm text-slate-100 outline-none placeholder:text-slate-400 focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
-    : "w-full min-h-[160px] rounded border border-slate-700 bg-slate-900 p-2 text-sm text-slate-100 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500";
+    ? "w-full min-h-[120px] rounded-lg border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4] focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+    : "w-full min-h-[160px] rounded-lg border border-[#0A1A2333] bg-white px-3 py-2 text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4] focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]";
 
   const selectClass = isCompact
-    ? "rounded-md border border-white/10 bg-white/10 px-2 py-1 text-[11px] text-slate-100 outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
-    : "rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500";
+    ? "rounded-md border border-[#0A1A2333] bg-white px-2 py-1 text-[11px] text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+    : "rounded-md border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-xs text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]";
 
   const getTokenClass = (identifier: string) => {
     if (isCompact) {
@@ -120,11 +120,11 @@ const ExpressionEditor = ({
       );
     }
 
-    return "rounded-full border border-slate-700 bg-slate-900 px-2 py-0.5 font-semibold text-slate-200 transition hover:border-blue-500 hover:text-blue-200";
+    return "rounded-full border border-[#0A1A2333] bg-white px-2 py-0.5 text-xs font-semibold text-[#3A5AE5] transition hover:border-[#3A5AE5] hover:bg-[#3A5AE510]";
   };
 
-  const headerTextClass = isCompact ? "font-medium text-slate-100" : "font-medium text-slate-100";
-  const descriptionTextClass = isCompact ? "text-xs text-slate-300" : "text-xs text-slate-400";
+  const headerTextClass = isCompact ? "font-medium text-[#0A1A23]" : "font-medium text-[#0A1A23]";
+  const descriptionTextClass = isCompact ? "text-xs text-[#657782]" : "text-xs text-[#657782]";
 
   const applyExpression = (nextKind: ExpressionKind, options?: { force?: boolean }) => {
     const targetKind = options?.force ? nextKind : kind;
@@ -195,7 +195,7 @@ const ExpressionEditor = ({
         );
       case "boolean":
         return (
-          <div className={clsx("flex items-center gap-3 text-sm", isCompact ? "text-slate-100" : "text-slate-100")}>
+          <div className={clsx("flex items-center gap-3 text-sm", isCompact ? "text-[#0A1A23]" : "text-[#0A1A23]")}>
             <label className="flex items-center gap-2">
               <input
                 type="radio"
@@ -205,7 +205,7 @@ const ExpressionEditor = ({
                   setBooleanValue(true);
                   onChange("true");
                 }}
-                className="text-blue-400 focus:ring-blue-500"
+                className="text-[#3A5AE5] focus:ring-[#3A5AE5]"
               />
               True
             </label>
@@ -218,7 +218,7 @@ const ExpressionEditor = ({
                   setBooleanValue(false);
                   onChange("false");
                 }}
-                className="text-blue-400 focus:ring-blue-500"
+                className="text-[#3A5AE5] focus:ring-[#3A5AE5]"
               />
               False
             </label>
@@ -276,23 +276,25 @@ const ExpressionEditor = ({
                 type="button"
                 onClick={() => setPaletteOpen((open) => !open)}
                 className={clsx(
-                  "rounded-md border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-100 transition",
-                  isPaletteOpen ? "border-sky-400/60 bg-sky-500/20" : "hover:border-sky-300/60 hover:bg-sky-500/15"
+                  "rounded-md border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide transition",
+                  isPaletteOpen
+                    ? "border-[#3A5AE5] bg-[#3A5AE510] text-[#3A5AE5]"
+                    : "border-[#0A1A2333] bg-white text-[#3A5AE5] hover:border-[#3A5AE5] hover:bg-[#3A5AE510]"
                 )}
               >
                 Variables
               </button>
               {isPaletteOpen ? (
-                <div className="absolute right-0 z-30 mt-2 w-56 rounded-xl border border-white/15 bg-slate-950/95 p-3 shadow-xl shadow-slate-950/60">
+                <div className="absolute right-0 z-30 mt-2 w-56 rounded-xl border border-[#0A1A2314] bg-white p-3 shadow-[0_18px_32px_rgba(10,26,35,0.12)]">
                   <input
                     value={searchTerm}
                     onChange={(event) => setSearchTerm(event.target.value)}
                     placeholder="Search variables"
-                    className="w-full rounded-md border border-white/10 bg-white/10 px-2 py-1 text-[12px] text-slate-100 outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
+                    className="w-full rounded-md border border-[#0A1A2333] bg-white px-2 py-1 text-[12px] text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
                   />
                   <div className="mt-2 max-h-48 overflow-y-auto pr-1">
                     {filteredIdentifiers.length === 0 ? (
-                      <div className="rounded-md border border-white/5 bg-white/5 px-2 py-1 text-[11px] text-slate-400">
+                      <div className="rounded-md border border-[#0A1A2314] bg-[#F5F6F9] px-2 py-1 text-[11px] text-[#657782]">
                         No matches
                       </div>
                     ) : null}

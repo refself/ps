@@ -22,10 +22,17 @@ const EditorCanvas = () => {
   });
 
   return (
-    <div ref={dropRef} className="flex-1 overflow-auto bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-      <div className="mx-auto flex max-w-5xl flex-col gap-6 px-10 py-10">
-        <div className="text-xs uppercase tracking-[0.35em] text-slate-400">Workflow</div>
-        <div className="flex flex-col gap-3">
+    <div ref={dropRef} className="flex-1 overflow-auto bg-transparent">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-10 py-10">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="rounded-full border border-[#3A5AE5] bg-[#3A5AE510] px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#3A5AE5]">
+              Canvas
+            </span>
+            <span className="text-sm text-[#657782]">Drag and drop blocks to compose your workflow.</span>
+          </div>
+        </div>
+        <div className="flex flex-col gap-4">
           <SlotDropZone
             parentId={document.root}
             slotId="body"

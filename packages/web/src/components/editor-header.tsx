@@ -3,6 +3,7 @@ import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { executeWorkflowScript } from "../services/execute-script-service";
 import { useEditorStore } from "../state/editor-store";
 import { useWorkspaceStore } from "../state/workspace-store";
+import { Icon, type IconName } from "./icon";
 
 type DemoOption = {
   file: string;
@@ -15,7 +16,12 @@ const DEMOS: DemoOption[] = [
   { file: "talent-search.rf", label: "Talent Search" }
 ];
 
-const EditorHeader = () => {
+type EditorHeaderProps = {
+  viewMode: "visual" | "code";
+  onViewModeChange: (mode: "visual" | "code") => void;
+};
+
+const EditorHeader = ({ viewMode, onViewModeChange }: EditorHeaderProps) => {
   const documentName = useEditorStore((state) => state.document.metadata.name);
   const renameDocument = useEditorStore((state) => state.renameDocument);
   const loadWorkflowFromCode = useEditorStore((state) => state.loadWorkflowFromCode);
@@ -181,22 +187,43 @@ const EditorHeader = () => {
     }
   };
 
+  const IconButton = ({
+    label,
+    icon,
+    onClick,
+    disabled
+  }: {
+    label: string;
+    icon: IconName;
+    onClick: () => void;
+    disabled?: boolean;
+  }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex h-9 w-9 items-center justify-center rounded-full border border-[#0A1A2333] bg-white text-[#0A1A23] shadow-sm transition hover:border-[#3A5AE5] hover:text-[#3A5AE5] disabled:cursor-not-allowed disabled:border-[#0A1A2314] disabled:text-[#9AA7B4]"
+      title={label}
+      aria-label={label}
+    >
+      <Icon name={icon} title={label} className="h-4 w-4" />
+    </button>
+  );
+
+  const toggleView = () => {
+    onViewModeChange(viewMode === "code" ? "visual" : "code");
+  };
+
   return (
-    <header className="flex items-center justify-between border-b border-slate-800 bg-slate-950 px-4 py-3">
+    <header className="flex items-center justify-between border-b border-[#0A1A2314] bg-white/95 px-8 py-3 backdrop-blur">
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={clearActiveWorkflow}
-            className="rounded border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-200 transition hover:border-blue-500 hover:text-blue-200"
-          >
-            Back to Workflows
-          </button>
-          <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">Workflow</span>
+        <IconButton label="Back to workflows" icon="back" onClick={clearActiveWorkflow} />
+        <div className="flex items-center gap-3 rounded-full border border-[#0A1A2333] bg-white px-4 py-2 shadow-sm">
+          <span className="text-sm font-semibold text-[#0A1A23]">{documentName}</span>
           <select
             value={activeWorkflowId ?? ""}
             onChange={handleWorkflowChange}
-            className="rounded border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-slate-100 outline-none focus:border-blue-500"
+            className="rounded-full border border-transparent bg-transparent px-2 py-1 text-sm text-[#657782] outline-none focus:border-[#3A5AE5]"
           >
             {workflows.map((workflow) => (
               <option key={workflow.id} value={workflow.id}>
@@ -204,21 +231,18 @@ const EditorHeader = () => {
               </option>
             ))}
           </select>
-          <button
-            type="button"
-            onClick={handleCreateWorkflow}
-            className="rounded border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-200 transition hover:border-emerald-500 hover:text-emerald-200"
-          >
-            New
-          </button>
-          <button
-            type="button"
+          <IconButton label="New workflow" icon="plus" onClick={handleCreateWorkflow} />
+          <IconButton
+            label="Delete workflow"
+            icon="trash"
             onClick={handleDeleteWorkflow}
             disabled={!activeWorkflowId || workflows.length <= 1}
-            className="rounded border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-200 transition hover:border-red-500 hover:text-red-200 disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-600"
-          >
-            Delete
-          </button>
+          />
+          <IconButton
+            label={viewMode === "code" ? "Visual mode" : "Code mode"}
+            icon={viewMode === "code" ? "workflow" : "expression"}
+            onClick={toggleView}
+          />
         </div>
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
           <input
@@ -226,79 +250,62 @@ const EditorHeader = () => {
             name="documentName"
             value={nameDraft}
             onChange={(event) => setNameDraft(event.target.value)}
-            className="w-64 rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-blue-500"
+            className="w-64 rounded border border-[#0A1A2333] bg-white px-3 py-2 text-sm text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
           />
           <button
             type="submit"
-            className="rounded border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-200 transition hover:border-blue-500 hover:text-blue-200"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-[#0A1A2333] bg-white text-[#0A1A23] shadow-sm transition hover:border-[#3A5AE5] hover:text-[#3A5AE5]"
+            aria-label="Save name"
+            title="Save name"
           >
-            Rename
+            <Icon name="rename" className="h-4 w-4" title="Save name" />
           </button>
         </form>
       </div>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={handleExecuteScript}
-          disabled={executionStatus.state === "running"}
-          className="rounded border border-emerald-500/60 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-100 transition hover:border-emerald-400 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:border-emerald-900 disabled:text-emerald-700"
-        >
-          {executionStatus.state === "running" ? "Running…" : "Execute Script"}
-        </button>
-        <button
-          type="button"
-          disabled={!selectedBlockId}
-          onClick={() => selectedBlockId && duplicateSelected(selectedBlockId)}
-          className="rounded border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-200 transition hover:border-emerald-500 hover:text-emerald-300 disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-600"
-        >
-          Duplicate Block
-        </button>
-        <label className="flex items-center gap-2 text-xs text-slate-400">
-          <span>Demos</span>
-          <select
-            value={selectedDemo}
-            onChange={handleDemoSelect}
-            disabled={isLoadingDemo}
-            className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100 outline-none focus:border-blue-500"
-          >
-            <option value="">Select…</option>
-            {DEMOS.map((demo) => (
-              <option key={demo.file} value={demo.file}>
-                {demo.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          type="button"
-          onClick={triggerFilePicker}
-          className="rounded border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-200 transition hover:border-blue-500 hover:text-blue-200"
-        >
-          Import
-        </button>
-        <button
-          type="button"
-          onClick={handleExport}
-          className="rounded border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-200 transition hover:border-blue-500 hover:text-blue-200"
-        >
-          Export
-        </button>
-        <button
-          type="button"
-          onClick={undo}
-          className="rounded border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-200 transition hover:border-blue-500 hover:text-blue-200"
-        >
-          Undo
-        </button>
-        <button
-          type="button"
-          onClick={redo}
-          className="rounded border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-200 transition hover:border-blue-500 hover:text-blue-200"
-        >
-          Redo
-        </button>
-        <span className="ml-3 hidden text-[11px] text-slate-500 lg:block">Alt+drag to pan • Ctrl/⌘+scroll to zoom</span>
-        <input ref={fileInputRef} type="file" accept=".rf" className="hidden" onChange={handleFileChange} />
+      <div className="flex items-center gap-2 text-[#0A1A23]">
+        {viewMode === "visual" ? (
+          <>
+            <IconButton
+              label={executionStatus.state === "running" ? "Running" : "Run script"}
+              icon="play"
+              onClick={handleExecuteScript}
+              disabled={executionStatus.state === "running"}
+            />
+            <IconButton
+              label="Duplicate block"
+              icon="copy"
+              onClick={() => selectedBlockId && duplicateSelected(selectedBlockId)}
+              disabled={!selectedBlockId}
+            />
+            <IconButton label="Import workflow" icon="upload" onClick={triggerFilePicker} />
+            <IconButton label="Export workflow" icon="download" onClick={handleExport} />
+            <IconButton label="Undo" icon="undo" onClick={undo} />
+            <IconButton label="Redo" icon="redo" onClick={redo} />
+            <select
+              value={selectedDemo}
+              onChange={handleDemoSelect}
+              disabled={isLoadingDemo}
+              className="rounded-full border border-[#0A1A2333] bg-white px-3 py-1 text-xs text-[#657782] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+              title="Load demo"
+            >
+              <option value="">Demo</option>
+              {DEMOS.map((demo) => (
+                <option key={demo.file} value={demo.file}>
+                  {demo.label}
+                </option>
+              ))}
+            </select>
+            <span className="ml-3 hidden text-[11px] text-[#9AA7B4] lg:block">Alt+drag to pan • Ctrl/⌘+scroll</span>
+            <input ref={fileInputRef} type="file" accept=".rf" className="hidden" onChange={handleFileChange} />
+          </>
+        ) : (
+          <IconButton
+            label={executionStatus.state === "running" ? "Running" : "Run script"}
+            icon="play"
+            onClick={handleExecuteScript}
+            disabled={executionStatus.state === "running"}
+          />
+        )}
       </div>
     </header>
   );
