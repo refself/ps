@@ -202,12 +202,11 @@ const EditorHeader = ({ viewMode, onViewModeChange }: EditorHeaderProps) => {
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="relative flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-white/40 text-[#0A1A23] shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition hover:shadow-[0_10px_30px_rgba(58,90,229,0.18)] disabled:cursor-not-allowed disabled:opacity-60"
+      className="flex h-10 w-10 items-center justify-center rounded-full border border-[#CED6E9] bg-white text-[#0A1A23] shadow-sm transition hover:border-[#3A5AE5] hover:shadow-[0_8px_20px_rgba(58,90,229,0.12)] disabled:cursor-not-allowed disabled:opacity-60"
       title={label}
       aria-label={label}
     >
-      <span className="absolute inset-0 rounded-full bg-gradient-to-br from-white/60 via-white/20 to-white/0" />
-      <Icon name={icon} title={label} className="relative h-4 w-4" />
+      <Icon name={icon} title={label} className="h-4 w-4" />
     </button>
   );
 
@@ -216,17 +215,15 @@ const EditorHeader = ({ viewMode, onViewModeChange }: EditorHeaderProps) => {
   };
 
   return (
-    <header className="relative flex items-center justify-between overflow-hidden border-b border-[#0A1A2314] bg-white/60 px-10 py-4 backdrop-blur-2xl">
-      <span className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/40 via-white/10 to-transparent" />
-      <span className="absolute inset-x-4 top-0 h-[1px] bg-gradient-to-r from-transparent via-[#3A5AE566] to-transparent" />
+    <header className="flex items-center justify-between border-b border-[#D8DEEE] bg-white px-10 py-4">
       <div className="flex items-center gap-4">
         <IconButton label="Back to workflows" icon="back" onClick={clearActiveWorkflow} />
-        <div className="flex items-center gap-3 rounded-full border border-[#0A1A2333] bg-white px-4 py-2 shadow-sm">
-          <span className="text-sm font-semibold text-[#0A1A23]">{documentName}</span>
+        <div className="flex items-center gap-3 rounded-full border border-[#CED6E9] bg-white px-4 py-2 shadow-sm">
+          <Icon name="workflow" className="h-4 w-4 text-[#3A5AE5]" title="Workflow" />
           <select
             value={activeWorkflowId ?? ""}
             onChange={handleWorkflowChange}
-            className="rounded-full border border-transparent bg-transparent px-2 py-1 text-sm text-[#657782] outline-none focus:border-[#3A5AE5]"
+            className="rounded-full border border-transparent bg-transparent px-2 py-1 text-sm text-[#0A1A23] outline-none focus:border-[#3A5AE5]"
           >
             {workflows.map((workflow) => (
               <option key={workflow.id} value={workflow.id}>
@@ -253,11 +250,11 @@ const EditorHeader = ({ viewMode, onViewModeChange }: EditorHeaderProps) => {
             name="documentName"
             value={nameDraft}
             onChange={(event) => setNameDraft(event.target.value)}
-            className="w-64 rounded border border-[#0A1A2333] bg-white px-3 py-2 text-sm text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+            className="w-64 rounded border border-[#CED6E9] bg-white px-3 py-2 text-sm text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
           />
           <button
             type="submit"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-[#0A1A2333] bg-white text-[#0A1A23] shadow-sm transition hover:border-[#3A5AE5] hover:text-[#3A5AE5]"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-[#CED6E9] bg-white text-[#0A1A23] shadow-sm transition hover:border-[#3A5AE5] hover:text-[#3A5AE5]"
             aria-label="Save name"
             title="Save name"
           >
