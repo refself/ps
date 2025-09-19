@@ -1,13 +1,11 @@
-
 let jobTitle = hasVar("input") ? getVar("input") : "human resource";
 let maxJobsToAnalyze = 5;
 
 log("Starting a search for " + jobTitle + " roles.");
-
 log("Opening Chrome and going to LinkedIn.");
 let chrome = open("Google Chrome");
 wait(1);
-press("t", ["command"]); // New tab
+press("t", ["command"]);
 wait(0.5);
 type("linkedin.com");
 press("return");
@@ -35,12 +33,11 @@ if (searchField.found) {
 
 let jobSummaries = [];
 let jobCount = 0;
-
 log("Results are loading, checking each job.");
 
 while (jobCount < maxJobsToAnalyze) {
     let jobScreen = screenshot();
-    let jobListings = vision(jobScreen.image, "Identify all clickable job listings visible on this LinkedIn jobs page. Return the names/titles of the jobs.", {
+    let jobListings = vision(jobScreen.image, "Identify all clickable job listings visible on this LinkedIn jobs page. Return the names or titles of the jobs.", {
         format: "json",
         schema: {
             type: "object",
@@ -58,18 +55,18 @@ while (jobCount < maxJobsToAnalyze) {
             }
         }
     });
-    
+
     if (jobListings && jobListings.jobs && jobListings.jobs.length > 0) {
         let targetJob = jobListings.jobs[0];
         let jobLink = locator({instruction: "Click on the job listing for '" + targetJob.title + "' at " + targetJob.company});
-        
+
         if (jobLink.found) {
             log("Opening '" + targetJob.title + "' at " + targetJob.company + " to see details.");
             click([jobLink.x, jobLink.y]);
             wait(2);
-            
+
             let jobScreenshot = screenshot();
-            let jobAnalysis = vision(jobScreenshot.image, "Analyze this LinkedIn job listing. Extract the key information including job title, company, requirements, responsibilities, and salary if mentioned. Provide a concise summary.", {
+            let jobAnalysis = vision(jobScreenshot.image, "Analyze this LinkedIn job listing. Extract key information including job title, company, requirements, responsibilities, and salary if mentioned. Provide a concise summary.", {
                 format: "json",
                 schema: {
                     type: "object",
@@ -84,17 +81,17 @@ while (jobCount < maxJobsToAnalyze) {
                     }
                 }
             });
-            
+
             if (jobAnalysis) {
                 jobSummaries = jobSummaries.push(jobAnalysis);
                 jobCount = jobCount + 1;
                 log("Finished reviewing " + jobAnalysis.jobTitle + " and saving it.");
             }
-            
+
             if (jobCount >= maxJobsToAnalyze) {
                 break;
             }
-            
+
             scroll([jobLink.x, jobLink.y], "down", 3);
             wait(1);
         } else {
@@ -108,9 +105,7 @@ while (jobCount < maxJobsToAnalyze) {
 }
 
 log("Have notes from " + jobCount + " roles, starting the report.");
-
 log("Opening Google Docs to write the report.");
-
 press("t", ["command"]);
 wait(0.5);
 type("docs.google.com/create");
@@ -140,25 +135,33 @@ let jobDataText = "";
 for (let i = 0; i < jobSummaries.length; i = i + 1) {
     let job = jobSummaries[i];
     let jobNumber = i + 1;
-    jobDataText = jobDataText + "Job " + jobNumber + ":\n" + stringifyJSON(job, true) + "\n\n";
+    jobDataText = jobDataText + "Job " + jobNumber + ": " + stringifyJSON(job, true) + " | ";
 }
 
 log("Turning these details into a summary.");
-let fullPrompt = "Create a professional job market analysis report for " + jobTitle + " positions based on this data:\n\n" + jobDataText + "\n\nFormat this as a clean Google Docs document with proper line spacing using \\n\\n between sections. Use simple text formatting suitable for Google Docs (no markdown). Include these sections: 1) EXECUTIVE SUMMARY (brief overview of findings), 2) JOB MARKET ANALYSIS (trends and insights from the " + jobCount + " analyzed positions), 3) DETAILED JOB BREAKDOWN (list each specific job with title, company, and key details), 4) COMMON REQUIREMENTS (skills and qualifications mentioned across positions), 5) SALARY INSIGHTS (compensation information if available), and 6) RECOMMENDATIONS (actionable advice for job seekers). Reference specific jobs by company name and title throughout the analysis.";
+let fullPrompt = "Create a professional job market analysis report for " + jobTitle + " positions based on this data: " + jobDataText + ". Format this as a clean Google Docs document with generous spacing between sections. Include these sections: 1) EXECUTIVE SUMMARY (brief overview of findings), 2) JOB MARKET ANALYSIS (trends and insights drawn from the " + jobCount + " analyzed positions), 3) DETAILED JOB BREAKDOWN (list each specific job with title, company, and key details), 4) COMMON REQUIREMENTS (skills and qualifications mentioned across positions), 5) SALARY INSIGHTS (compensation information if available), and 6) RECOMMENDATIONS (actionable advice for job seekers). Reference specific jobs by company name and title throughout the analysis and leave an empty line between sections.";
 let reportContent = ai(fullPrompt);
 if (reportContent && reportContent.text) {
     type(reportContent.text);
 } else {
     log("Summary helper failed, writing the basics myself.");
-    type("LinkedIn Job Analysis Report\n\n");
-    type("Search Query: " + jobTitle + "\n");
-    type("Jobs Analyzed: " + jobCount + "\n\n");
-    
+    type("LinkedIn Job Analysis Report");
+    press("return");
+    press("return");
+    type("Search Query: " + jobTitle);
+    press("return");
+    type("Jobs Analyzed: " + jobCount);
+    press("return");
+    press("return");
+
     for (let i = 0; i < jobSummaries.length; i = i + 1) {
         let job = jobSummaries[i];
         let jobNumber = i + 1;
-        type(jobNumber + ". " + job.jobTitle + " at " + job.company + "\n");
-        type("Summary: " + job.summary + "\n\n");
+        type(jobNumber + ". " + job.jobTitle + " at " + job.company);
+        press("return");
+        type("Summary: " + job.summary);
+        press("return");
+        press("return");
     }
 }
 
@@ -171,4 +174,4 @@ return {
     jobSummaries: jobSummaries,
     jobDataText: jobDataText,
     reportContent: reportContent
-};
+}

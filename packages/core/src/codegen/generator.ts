@@ -212,8 +212,15 @@ const blockToStatement = ({
     }
 
     case "type-call": {
-      const text = typeof block.data.text === "string" ? block.data.text : "";
-      return [t.expressionStatement(t.callExpression(t.identifier("type"), [t.stringLiteral(text)]))];
+      const rawText = typeof block.data.text === "string" ? block.data.text.trim() : "";
+      const candidate = rawText.length > 0 ? rawText : "\"\"";
+      let expression: t.Expression;
+      try {
+        expression = parseExpression(candidate);
+      } catch {
+        expression = parseExpression(JSON.stringify(rawText));
+      }
+      return [t.expressionStatement(t.callExpression(t.identifier("type"), [expression]))];
     }
 
     case "log-call": {
@@ -297,13 +304,19 @@ const blockToStatement = ({
 
     case "locator-call": {
       const identifier = typeof block.data.identifier === "string" ? block.data.identifier : "node";
-      const instruction = typeof block.data.instruction === "string" ? block.data.instruction : "";
+      const rawInstruction = typeof block.data.instruction === "string" ? block.data.instruction.trim() : "";
       const element = typeof block.data.element === "string" ? block.data.element : "";
       const waitTimeData = block.data.waitTime;
 
       const properties: t.ObjectProperty[] = [];
-      if (instruction) {
-        properties.push(t.objectProperty(t.identifier("instruction"), t.stringLiteral(instruction)));
+      if (rawInstruction.length > 0) {
+        let instructionExpression: Expression;
+        try {
+          instructionExpression = parseExpression(rawInstruction);
+        } catch {
+          instructionExpression = t.stringLiteral(rawInstruction);
+        }
+        properties.push(t.objectProperty(t.identifier("instruction"), instructionExpression));
       }
       if (element) {
         properties.push(t.objectProperty(t.identifier("element"), t.stringLiteral(element)));

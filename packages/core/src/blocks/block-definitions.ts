@@ -381,9 +381,7 @@ export const typeCallBlock: BlockSchema<"type-call"> = {
       label: "Text",
       required: true,
       input: {
-        kind: "string",
-        multiline: true,
-        placeholder: "Hello world"
+        kind: "expression"
       }
     }
   ],
@@ -636,9 +634,7 @@ export const locatorCallBlock: BlockSchema<"locator-call"> = {
       label: "Instruction",
       required: true,
       input: {
-        kind: "string",
-        multiline: true,
-        placeholder: "Explain what element to find"
+        kind: "expression"
       }
     },
     {

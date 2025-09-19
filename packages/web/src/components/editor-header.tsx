@@ -1,4 +1,4 @@
-import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
+import { type ChangeEvent, type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from "react";
 
 import { executeWorkflowScript } from "../services/execute-script-service";
 import { useEditorStore } from "../state/editor-store";
@@ -33,11 +33,6 @@ const EditorHeader = ({ viewMode, onViewModeChange }: EditorHeaderProps) => {
   const executionStatus = useEditorStore((state) => state.executionStatus);
   const setExecutionStatus = useEditorStore((state) => state.setExecutionStatus);
 
-  const workflows = useWorkspaceStore((state) => state.workflows);
-  const activeWorkflowId = useWorkspaceStore((state) => state.activeWorkflowId);
-  const createWorkflow = useWorkspaceStore((state) => state.createWorkflow);
-  const selectWorkflow = useWorkspaceStore((state) => state.selectWorkflow);
-  const deleteWorkflow = useWorkspaceStore((state) => state.deleteWorkflow);
   const clearActiveWorkflow = useWorkspaceStore((state) => state.clearActiveWorkflow);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -45,6 +40,7 @@ const EditorHeader = ({ viewMode, onViewModeChange }: EditorHeaderProps) => {
   const [selectedDemo, setSelectedDemo] = useState("");
   const [isLoadingDemo, setIsLoadingDemo] = useState(false);
   const [nameDraft, setNameDraft] = useState(documentName);
+  const [isEditingName, setIsEditingName] = useState(false);
 
   useEffect(() => {
     setNameDraft(documentName);
@@ -52,31 +48,6 @@ const EditorHeader = ({ viewMode, onViewModeChange }: EditorHeaderProps) => {
 
   const triggerFilePicker = () => {
     fileInputRef.current?.click();
-  };
-
-  const handleWorkflowChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const workflowId = event.target.value;
-    if (!workflowId) {
-      return;
-    }
-    selectWorkflow({ id: workflowId });
-  };
-
-  const handleCreateWorkflow = () => {
-    const nextIndex = workflows.length + 1;
-    const workflowName = `Workflow ${nextIndex}`;
-    createWorkflow({ name: workflowName });
-    setTimeout(() => {
-      nameInputRef.current?.focus();
-      nameInputRef.current?.select();
-    }, 0);
-  };
-
-  const handleDeleteWorkflow = () => {
-    if (!activeWorkflowId) {
-      return;
-    }
-    deleteWorkflow({ id: activeWorkflowId });
   };
 
   const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -96,9 +67,46 @@ const EditorHeader = ({ viewMode, onViewModeChange }: EditorHeaderProps) => {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    event.stopPropagation();
     const formData = new FormData(event.currentTarget);
     const name = ((formData.get("documentName") as string) ?? "Untitled Workflow").trim();
     renameDocument(name.length > 0 ? name : "Untitled Workflow");
+    setIsEditingName(false);
+  };
+
+  const commitNameDraft = () => {
+    const trimmed = nameDraft.trim();
+    renameDocument(trimmed.length > 0 ? trimmed : "Untitled Workflow");
+  };
+
+  const handleNameBlur = () => {
+    if (!isEditingName) {
+      return;
+    }
+    commitNameDraft();
+    setIsEditingName(false);
+  };
+
+  const handleNameKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Escape") {
+      setIsEditingName(false);
+      setNameDraft(documentName);
+      return;
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      commitNameDraft();
+      setIsEditingName(false);
+    }
+  };
+
+  const startEditingName = () => {
+    setNameDraft(documentName);
+    setIsEditingName(true);
+    requestAnimationFrame(() => {
+      nameInputRef.current?.focus();
+      nameInputRef.current?.select();
+    });
   };
 
   const handleExport = () => {
@@ -210,59 +218,73 @@ const EditorHeader = ({ viewMode, onViewModeChange }: EditorHeaderProps) => {
     </button>
   );
 
-  const toggleView = () => {
-    onViewModeChange(viewMode === "code" ? "visual" : "code");
-  };
-
   return (
-    <header className="flex items-center justify-between border-b border-[#D8DEEE] bg-white px-10 py-4">
-      <div className="flex items-center gap-4">
+    <header className="grid grid-cols-[1fr_auto_1fr] items-center border-b border-[#D8DEEE] bg-white px-10 py-4">
+      <div className="flex items-center gap-3">
         <IconButton label="Back to workflows" icon="back" onClick={clearActiveWorkflow} />
-        <div className="flex items-center gap-3 rounded-full border border-[#CED6E9] bg-white px-4 py-2 shadow-sm">
-          <Icon name="workflow" className="h-4 w-4 text-[#3A5AE5]" title="Workflow" />
-          <select
-            value={activeWorkflowId ?? ""}
-            onChange={handleWorkflowChange}
-            className="rounded-full border border-transparent bg-transparent px-2 py-1 text-sm text-[#0A1A23] outline-none focus:border-[#3A5AE5]"
-          >
-            {workflows.map((workflow) => (
-              <option key={workflow.id} value={workflow.id}>
-                {workflow.document.metadata.name}
-              </option>
-            ))}
-          </select>
-          <IconButton label="New workflow" icon="plus" onClick={handleCreateWorkflow} />
-          <IconButton
-            label="Delete workflow"
-            icon="trash"
-            onClick={handleDeleteWorkflow}
-            disabled={!activeWorkflowId || workflows.length <= 1}
-          />
-          <IconButton
-            label={viewMode === "code" ? "Visual mode" : "Code mode"}
-            icon={viewMode === "code" ? "workflow" : "expression"}
-            onClick={toggleView}
-          />
+        <div className="flex flex-col">
+          <span className="text-[11px] uppercase tracking-[0.3em] text-[#9AA7B4]">Workflow</span>
+          {isEditingName ? (
+            <form onSubmit={handleSubmit} className="mt-1 flex items-center gap-2">
+              <input
+                ref={nameInputRef}
+                name="documentName"
+                value={nameDraft}
+                onChange={(event) => setNameDraft(event.target.value)}
+                onBlur={handleNameBlur}
+                onKeyDown={handleNameKeyDown}
+                className="w-64 rounded border border-[#CED6E9] bg-white px-3 py-1.5 text-sm text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+              />
+              <button
+                type="submit"
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-[#CED6E9] bg-white text-[#0A1A23] shadow-sm transition hover:border-[#3A5AE5] hover:text-[#3A5AE5]"
+                aria-label="Save name"
+                title="Save name"
+              >
+                <Icon name="check" className="h-3.5 w-3.5" title="Save name" />
+              </button>
+            </form>
+          ) : (
+            <div className="mt-1 flex items-center gap-2">
+              <h1 className="text-lg font-semibold text-[#0A1A23]">{documentName}</h1>
+              <button
+                type="button"
+                onClick={startEditingName}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-[#CED6E9] bg-white text-[#0A1A23] shadow-sm transition hover:border-[#3A5AE5] hover:text-[#3A5AE5]"
+                aria-label="Rename workflow"
+                title="Rename workflow"
+              >
+                <Icon name="rename" className="h-3.5 w-3.5" title="Rename" />
+              </button>
+            </div>
+          )}
         </div>
-        <form onSubmit={handleSubmit} className="flex items-center gap-2">
-          <input
-            ref={nameInputRef}
-            name="documentName"
-            value={nameDraft}
-            onChange={(event) => setNameDraft(event.target.value)}
-            className="w-64 rounded border border-[#CED6E9] bg-white px-3 py-2 text-sm text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
-          />
-          <button
-            type="submit"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-[#CED6E9] bg-white text-[#0A1A23] shadow-sm transition hover:border-[#3A5AE5] hover:text-[#3A5AE5]"
-            aria-label="Save name"
-            title="Save name"
-          >
-            <Icon name="rename" className="h-4 w-4" title="Save name" />
-          </button>
-        </form>
       </div>
-      <div className="flex items-center gap-2 text-[#0A1A23]">
+      <div className="flex items-center justify-center">
+        <div className="flex items-center rounded-full border border-[#CED6E9] bg-[#F5F6FB] p-1 text-sm font-medium text-[#0A1A23]">
+          <button
+            type="button"
+            onClick={() => onViewModeChange("visual")}
+            className={`rounded-full px-4 py-1 transition ${
+              viewMode === "visual" ? "bg-white text-[#3A5AE5] shadow" : "text-[#657782]"
+            }`}
+            aria-pressed={viewMode === "visual"}
+          >
+            Canvas
+          </button>
+          <button
+            type="button"
+            onClick={() => onViewModeChange("code")}
+            className={`rounded-full px-4 py-1 transition ${
+              viewMode === "code" ? "bg-white text-[#3A5AE5] shadow" : "text-[#657782]"
+            }`}
+            aria-pressed={viewMode === "code"}
+          >
+            Code
+          </button>
+        </div>
+      </div>
+      <div className="flex items-center justify-end gap-2 text-[#0A1A23]">
         {viewMode === "visual" ? (
           <>
             <IconButton

@@ -23,7 +23,9 @@ export type IconName =
   | "box"
   | "arrowRight"
   | "check"
-  | "alert";
+  | "alert"
+  | "search"
+  | "close";
 
 type IconProps = {
   name: IconName;
@@ -204,6 +206,18 @@ const ICONS: Record<IconName, IconRenderer> = {
       <path {...strokeProps} d="M12 9v4" />
       <path {...strokeProps} d="M12 17h.01" />
       <path {...strokeProps} d="M10.29 3.86L2.82 16a2 2 0 0 0 1.71 3h14.94a2 2 0 0 0 1.71-3l-7.47-12.14a2 2 0 0 0-3.42 0Z" />
+    </>
+  ),
+  search: () => (
+    <>
+      <circle cx="11" cy="11" r="6" {...strokeProps} />
+      <path {...strokeProps} d="m20 20-3-3" />
+    </>
+  ),
+  close: () => (
+    <>
+      <path {...strokeProps} d="M18 6 6 18" />
+      <path {...strokeProps} d="M6 6l12 12" />
     </>
   )
 };

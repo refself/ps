@@ -204,7 +204,7 @@ const convertStatement = (statement: Statement, blocks: BlockInstance[]): BlockI
           optionsArg.properties.forEach((property) => {
             if (n.ObjectProperty.check(property) && n.Identifier.check(property.key)) {
               if (property.key.name === "instruction") {
-                instruction = stringLiteralValue(property.value) ?? sourceFor(property.value);
+                instruction = sourceFor(property.value);
               }
               if (property.key.name === "element") {
                 element = stringLiteralValue(property.value) ?? sourceFor(property.value);
@@ -378,7 +378,7 @@ const convertStatement = (statement: Statement, blocks: BlockInstance[]): BlockI
       }
 
       if (callee.name === "type") {
-        const textValue = call.arguments[0] ? stringLiteralValue(call.arguments[0]) ?? sourceFor(call.arguments[0]) : "";
+        const textValue = call.arguments[0] ? sourceFor(call.arguments[0]) : "\"\"";
         const block = createBlockInstance("type-call", {
           text: textValue
         });

@@ -12,6 +12,7 @@ import { useWorkspaceStore } from "./state/workspace-store";
 import InspectorPanel from "./components/inspector-panel";
 import CodeEditorPanel from "./components/code-editor-panel";
 import ExecutionResultOverlay from "./components/execution-result-overlay";
+import CommandPalette from "./components/command-palette";
 
 const App = () => {
   useWorkspaceSynchronization();
@@ -49,6 +50,7 @@ const App = () => {
             </div>
           )}
           <ExecutionResultOverlay />
+          <CommandPalette />
         </div>
       </EditorProvider>
     </DndProvider>

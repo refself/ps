@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { useMemo } from "react";
+import { useMemo, useState, type CSSProperties, type MouseEvent } from "react";
 import { useDrag } from "react-dnd";
 
 import { blockRegistry } from "@workflow-builder/core";
@@ -50,6 +50,7 @@ const BlockNode = ({ blockId, depth }: BlockNodeProps) => {
 
   const schema = useMemo(() => (block ? blockRegistry.get(block.kind) : null), [block]);
   const childSlots = schema?.childSlots ?? [];
+  const [isHovered, setIsHovered] = useState(false);
 
   const [{ isDragging }, dragRef] = useDrag(
     () => ({
@@ -76,15 +77,28 @@ const BlockNode = ({ blockId, depth }: BlockNodeProps) => {
       ? block.data.identifier.trim()
       : null;
   const cardClassName = clsx(
-    "relative flex flex-col gap-3 rounded-xl border border-[#0A1A2314] bg-white px-5 py-4 text-sm shadow-[0_18px_32px_rgba(10,26,35,0.08)] transition-all",
+    "relative flex cursor-pointer flex-col gap-3 rounded-xl border border-[#0A1A2314] bg-white px-5 py-4 text-sm shadow-[0_18px_32px_rgba(10,26,35,0.08)] transition-[box-shadow,transform] duration-150",
     isDragging ? "opacity-60 scale-[0.99]" : "opacity-100"
   );
 
-  const cardStyle = selectedBlockId === blockId
-    ? {
-        boxShadow: `0 0 0 2px ${accentColor}33, 0 28px 48px rgba(10,26,35,0.16)`
-      }
-    : undefined;
+  const cardStyle: CSSProperties = {};
+
+  if (selectedBlockId === blockId) {
+    cardStyle.boxShadow = `0 0 0 2px ${accentColor}33, 0 28px 48px rgba(10,26,35,0.16)`;
+  }
+
+  if (isHovered) {
+    cardStyle.boxShadow = selectedBlockId === blockId
+      ? `0 0 0 2px ${accentColor}66, 0 32px 52px rgba(10,26,35,0.18)`
+      : `0 0 0 1px ${accentColor}3d, 0 24px 40px rgba(10,26,35,0.12)`;
+    cardStyle.transform = "translateY(-2px)";
+    cardStyle.zIndex = 5;
+  }
+
+  const handleSelect = (event: MouseEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+    selectBlock(blockId);
+  };
 
   return (
     <div className="relative" style={{ marginLeft: depth * 18 }}>
@@ -95,7 +109,14 @@ const BlockNode = ({ blockId, depth }: BlockNodeProps) => {
           style={{ left: -12 }}
         />
       ) : null}
-      <div ref={dragRef} className={cardClassName} style={cardStyle} onClick={() => selectBlock(blockId)}>
+      <div
+        ref={dragRef}
+        className={cardClassName}
+        style={cardStyle}
+        onClick={handleSelect}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
         <header className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
             <span

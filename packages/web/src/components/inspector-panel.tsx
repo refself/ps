@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+
 import { blockRegistry } from "@workflow-builder/core";
 
 import { useEditorStore } from "../state/editor-store";
@@ -37,6 +39,53 @@ const InspectorPanel = () => {
   const updateBlockFields = useEditorStore((state) => state.updateBlockFields);
   const duplicateBlock = useEditorStore((state) => state.duplicateBlock);
   const deleteBlock = useEditorStore((state) => state.deleteBlock);
+  const selectBlock = useEditorStore((state) => state.selectBlock);
+
+  const effectiveSelectedId = selectedBlockId ?? document.root;
+
+  type PathSegment = {
+    blockId: string;
+    slotLabel?: string;
+  };
+
+  const pathSegments = useMemo<PathSegment[]>(() => {
+    const targetId = document.blocks[effectiveSelectedId] ? effectiveSelectedId : document.root;
+
+    const dfs = (blockId: string, trail: PathSegment[]): PathSegment[] | null => {
+      if (blockId === targetId) {
+        return trail;
+      }
+
+      const block = document.blocks[blockId];
+      if (!block) {
+        return null;
+      }
+
+      const schema = blockRegistry.get(block.kind);
+      const childSlots = schema?.childSlots ?? [];
+
+      for (const slot of childSlots) {
+        const childIds = block.children[slot.id] ?? [];
+        for (const childId of childIds) {
+          const nextTrail = [...trail, { blockId: childId, slotLabel: slot.label }];
+          const result = dfs(childId, nextTrail);
+          if (result) {
+            return result;
+          }
+        }
+      }
+
+      return null;
+    };
+
+    const rootTrail: PathSegment[] = [{ blockId: document.root }];
+    if (targetId === document.root) {
+      return rootTrail;
+    }
+
+    const result = dfs(document.root, rootTrail);
+    return result ?? rootTrail;
+  }, [document, effectiveSelectedId]);
 
   if (!selectedBlockId) {
     return (
@@ -105,13 +154,42 @@ const InspectorPanel = () => {
         </div>
       </div>
 
+      <nav className="flex flex-wrap items-center gap-2 border-b border-[#0A1A2314] bg-white/90 px-6 py-2 text-[11px] text-[#657782]">
+        {pathSegments.map((segment, index) => {
+          const blockInstance = document.blocks[segment.blockId];
+          const segmentSchema = blockInstance ? blockRegistry.get(blockInstance.kind) : null;
+          const label = segmentSchema?.label ?? blockInstance?.kind ?? segment.blockId;
+          const isCurrent = segment.blockId === effectiveSelectedId;
+
+          return (
+            <div key={segment.blockId} className="flex items-center gap-2">
+              {index > 0 ? <span className="text-[#CED6E9]">/</span> : null}
+              {segment.slotLabel ? (
+                <span className="rounded-full bg-[#EEF2FF] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#3A5AE5]">
+                  {segment.slotLabel}
+                </span>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => selectBlock(segment.blockId)}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                  isCurrent ? "bg-[#3A5AE5] text-white" : "bg-white text-[#0A1A23] hover:bg-[#E7EBFF]"
+                }`}
+              >
+                {label}
+              </button>
+            </div>
+          );
+        })}
+      </nav>
+
       {schema?.description ? (
         <div className="border-b border-[#0A1A2314] bg-white px-6 py-3 text-[12px] text-[#465764]">
           {schema.description}
         </div>
       ) : null}
 
-      <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-6 pb-8">
+      <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-6 pb-8 py-8">
         {fields.length === 0 ? (
           <p className="text-sm text-[#657782]">This block has no configurable fields.</p>
         ) : (
