@@ -115,7 +115,7 @@ const InspectorPanel = () => {
   const isRoot = block.id === document.root;
 
   return (
-    <section className="flex h-full flex-col overflow-hidden bg-white/85 backdrop-blur">
+    <section className="flex h-full min-h-0 flex-col overflow-y-auto bg-white/85 backdrop-blur">
       <div className="flex items-center justify-between border-b border-[#0A1A2314] px-6 py-4">
         <div className="flex items-center gap-3">
           <span
@@ -192,17 +192,20 @@ const InspectorPanel = () => {
 
       {outputs.length > 0 ? (
         <div className="flex flex-col gap-2 border-b border-[#0A1A2314] bg-white/85 px-6 py-3">
-          <h3 className="text-xs font-semibold uppercase tracking-[0.3em] text-[#9AA7B4]">Outputs</h3>
-          <ul className="flex flex-col gap-2">
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#9AA7B4]">Outputs</h3>
+          <div className="flex flex-wrap gap-1.5">
             {outputs.map((output) => (
-              <li key={output.id} className="flex flex-col rounded-lg border border-[#0A1A2314] bg-white px-3 py-2">
-                <span className="text-sm font-semibold text-[#0A1A23]">{output.label}</span>
+              <div
+                key={output.id}
+                className="flex min-w-[120px] flex-col gap-0.5 rounded-md border border-[#0A1A2314] bg-white px-2 py-1"
+              >
+                <span className="text-xs font-semibold text-[#0A1A23]">{output.label}</span>
                 {output.description ? (
-                  <span className="text-xs text-[#657782]">{output.description}</span>
+                  <span className="text-[10px] text-[#657782]">{output.description}</span>
                 ) : null}
-              </li>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
       ) : null}
 

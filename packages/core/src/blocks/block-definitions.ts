@@ -309,6 +309,7 @@ export const waitCallBlock: BlockSchema<"wait-call"> = {
   label: "Wait",
   description: "Pause execution for a specific number of seconds before continuing.",
   category: "automation",
+  icon: "clock",
   fields: [
     {
       id: "duration",
@@ -339,6 +340,7 @@ export const pressCallBlock: BlockSchema<"press-call"> = {
   label: "Press Key",
   description: "Simulate pressing a keyboard key with optional modifiers.",
   category: "automation",
+  icon: "keyboard",
   fields: [
     {
       id: "key",
@@ -376,6 +378,7 @@ export const clickCallBlock: BlockSchema<"click-call"> = {
   label: "Click",
   description: "Simulate a mouse click at the provided coordinates or on a locator result.",
   category: "automation",
+  icon: "mouse",
   fields: [
     {
       id: "target",
@@ -403,6 +406,7 @@ export const typeCallBlock: BlockSchema<"type-call"> = {
   label: "Type Text",
   description: "Type text or evaluated expressions at the current focus location.",
   category: "automation",
+  icon: "keyboard",
   fields: [
     {
       id: "text",
@@ -430,6 +434,7 @@ export const scrollCallBlock: BlockSchema<"scroll-call"> = {
   label: "Scroll",
   description: "Scroll the specified area in a direction by a given amount.",
   category: "automation",
+  icon: "mouse",
   fields: [
     {
       id: "origin",
@@ -485,6 +490,7 @@ export const selectAllCallBlock: BlockSchema<"select-all-call"> = {
   label: "Select All",
   description: "Select all text/content in the active context.",
   category: "automation",
+  icon: "keyboard",
   fields: [],
   ports: [flowPorts.input, flowPorts.output],
   childSlots: [],
@@ -585,6 +591,7 @@ export const visionCallBlock: BlockSchema<"vision-call"> = {
   label: "Vision Analysis",
   category: "ai",
   description: "Send screenshots to the vision model and capture structured responses.",
+  icon: "eye",
   fields: [
     {
       id: "identifier",
@@ -657,6 +664,7 @@ export const aiCallBlock: BlockSchema<"ai-call"> = {
   label: "AI Response",
   category: "ai",
   description: "Send a prompt to the AI model and capture text or JSON output.",
+  icon: "sparkles",
   fields: [
     {
       id: "identifier",
@@ -721,6 +729,7 @@ export const screenshotCallBlock: BlockSchema<"screenshot-call"> = {
   label: "Screenshot",
   category: "automation",
   description: "Capture the screen or a specific application window.",
+  icon: "eye",
   fields: [
     {
       id: "assignTo",
@@ -743,7 +752,14 @@ export const screenshotCallBlock: BlockSchema<"screenshot-call"> = {
     }
   ],
   ports: [flowPorts.input, flowPorts.output],
-  childSlots: []
+  childSlots: [],
+  outputs: [
+    { id: "image", label: "Image", description: "Base64 image data." },
+    { id: "originalWidth", label: "Original Width", description: "Width of the captured region." },
+    { id: "originalHeight", label: "Original Height", description: "Height of the captured region." },
+    { id: "resizedWidth", label: "Resized Width", description: "Normalized width used for AI operations." },
+    { id: "resizedHeight", label: "Resized Height", description: "Normalized height used for AI operations." }
+  ]
 };
 
 export const locatorCallBlock: BlockSchema<"locator-call"> = {
@@ -751,6 +767,7 @@ export const locatorCallBlock: BlockSchema<"locator-call"> = {
   label: "Locate Element",
   category: "automation",
   description: "Use vision or accessibility cues to locate an element on screen.",
+  icon: "eye",
   fields: [
     {
       id: "identifier",
@@ -795,11 +812,12 @@ export const locatorCallBlock: BlockSchema<"locator-call"> = {
   ports: [flowPorts.input, flowPorts.output],
   childSlots: [],
   outputs: [
-    {
-      id: "result",
-      label: "Locator Result",
-      description: "Object containing {found, x, y, width, height}."
-    }
+    { id: "found", label: "Found", description: "Boolean indicating if element was located." },
+    { id: "coordinates", label: "Coordinates", description: "[x, y] center point array." },
+    { id: "x", label: "X", description: "X coordinate of the element center." },
+    { id: "y", label: "Y", description: "Y coordinate of the element center." },
+    { id: "width", label: "Width", description: "Width of the detected element." },
+    { id: "height", label: "Height", description: "Height of the detected element." }
   ]
 };
 
@@ -808,6 +826,7 @@ export const readClipboardCallBlock: BlockSchema<"read-clipboard-call"> = {
   label: "Read Clipboard",
   category: "automation",
   description: "Read the current clipboard contents as text.",
+  icon: "clipboard",
   fields: [
     {
       id: "assignTo",
@@ -837,6 +856,7 @@ export const fileReaderCallBlock: BlockSchema<"file-reader-call"> = {
   label: "Read Files",
   category: "io",
   description: "Read up to 10 files and convert their contents to markdown.",
+  icon: "file",
   fields: [
     {
       id: "assignTo",
@@ -863,9 +883,19 @@ export const fileReaderCallBlock: BlockSchema<"file-reader-call"> = {
   childSlots: [],
   outputs: [
     {
-      id: "documents",
-      label: "Documents",
-      description: "Array with {name, data, tokens} for each file read."
+      id: "results",
+      label: "Results",
+      description: "Array of {name, data, tokens} for each processed file."
+    },
+    {
+      id: "errors",
+      label: "Errors",
+      description: "List of files that failed to process."
+    },
+    {
+      id: "tokenCount",
+      label: "Token Count",
+      description: "Estimated total tokens for all documents."
     }
   ]
 };

@@ -46,12 +46,14 @@ const BlockPaletteItem = ({ item, onAdd }: BlockPaletteItemProps) => {
       ref={drag}
       type="button"
       onClick={() => onAdd(item.kind)}
-      className="flex items-center gap-3 rounded-xl border border-[#0A1A2314] bg-white px-3 py-2 text-left text-sm text-[#0A1A23] shadow-sm transition hover:border-[#3A5AE5] hover:shadow-[0_12px_24px_rgba(58,90,229,0.12)]"
+      className="flex w-full items-start gap-3 rounded-xl border border-[#0A1A2314] bg-white px-3 py-3 text-left text-sm text-[#0A1A23] shadow-sm transition hover:border-[#3A5AE5] hover:shadow-[0_12px_24px_rgba(58,90,229,0.12)]"
       style={{ opacity: isDragging ? 0.4 : 1 }}
     >
-      <Icon name={item.icon} className="h-4 w-4 text-[#3A5AE5]" />
-      <div className="flex flex-col">
-        <span className="font-medium">{item.label}</span>
+      <span className="mt-1 flex h-7 w-7 items-center justify-center rounded-lg bg-[#3A5AE510] text-[#3A5AE5]">
+        <Icon name={item.icon} className="h-4 w-4" />
+      </span>
+      <div className="flex flex-1 flex-col gap-1">
+        <span className="font-semibold">{item.label}</span>
         {item.description ? <span className="text-xs text-[#657782]">{item.description}</span> : null}
       </div>
     </button>
@@ -90,7 +92,7 @@ const BlockLibraryPanel = () => {
             items: []
           });
         }
-        const icon = categoryIcons[schema.category] ?? "workflow";
+        const icon = (schema.icon as IconName | undefined) ?? categoryIcons[schema.category] ?? "workflow";
         byCategory.get(schema.category)?.items.push({
           kind: schema.kind,
           label: schema.label,

@@ -2,8 +2,11 @@ import clsx from "clsx";
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 
 import { useEditorStore } from "../../state/editor-store";
-import { collectIdentifiers, collectIdentifiersForBlock } from "../../utils/workflow-introspection";
-import { getIdentifierStyle } from "../../utils/identifier-colors";
+import {
+  collectIdentifierSuggestions,
+  collectIdentifierSuggestionsForBlock,
+  type IdentifierSuggestion
+} from "../../utils/workflow-introspection";
 
 type ExpressionKind = "string" | "number" | "boolean" | "identifier" | "custom";
 
@@ -59,11 +62,11 @@ const ExpressionEditor = ({
   contextBlockId
 }: ExpressionEditorProps) => {
   const document = useEditorStore((state) => state.document);
-  const identifiers = useMemo(() => {
+  const identifierSuggestions = useMemo<IdentifierSuggestion[]>(() => {
     if (!contextBlockId) {
-      return collectIdentifiers(document);
+      return collectIdentifierSuggestions(document);
     }
-    return collectIdentifiersForBlock({ document, blockId: contextBlockId });
+    return collectIdentifierSuggestionsForBlock({ document, blockId: contextBlockId });
   }, [contextBlockId, document]);
   const [kind, setKind] = useState<ExpressionKind>(() => detectExpressionKind(value));
   const [stringValue, setStringValue] = useState(() => unquoteString(value.trim()));
@@ -88,11 +91,11 @@ const ExpressionEditor = ({
   }, [value]);
 
   useEffect(() => {
-    if (identifiers.length === 0) {
+    if (identifierSuggestions.length === 0) {
       setPaletteOpen(false);
       setSearchTerm("");
     }
-  }, [identifiers.length]);
+  }, [identifierSuggestions.length]);
 
   const isCompact = variant === "compact";
   const [isPaletteOpen, setPaletteOpen] = useState(false);
@@ -109,19 +112,6 @@ const ExpressionEditor = ({
   const selectClass = isCompact
     ? "rounded-md border border-[#0A1A2333] bg-white px-2 py-1 text-[11px] text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
     : "rounded-md border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-xs text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]";
-
-  const getTokenClass = (identifier: string) => {
-    if (isCompact) {
-      const style = getIdentifierStyle(identifier);
-      return clsx(
-        "mb-1 w-full rounded-md px-2 py-1 text-left text-[12px] font-semibold uppercase tracking-wide last:mb-0",
-        style.chip,
-        style.text
-      );
-    }
-
-    return "rounded-full border border-[#0A1A2333] bg-white px-2 py-0.5 text-xs font-semibold text-[#3A5AE5] transition hover:border-[#3A5AE5] hover:bg-[#3A5AE510]";
-  };
 
   const headerTextClass = isCompact ? "font-medium text-[#0A1A23]" : "font-medium text-[#0A1A23]";
   const descriptionTextClass = isCompact ? "text-xs text-[#657782]" : "text-xs text-[#657782]";
@@ -153,13 +143,23 @@ const ExpressionEditor = ({
     applyExpression(nextKind, { force: true });
   };
 
-  const handleVariableInsert = (identifier: string) => {
+  const handleIdentifierInsert = (identifier: string) => {
     setKind("identifier");
     setIdentifierValue(identifier);
     setStringValue(identifier);
     setNumberValue(identifier);
     setBooleanValue(identifier.toLowerCase() === "true");
     onChange(identifier);
+  };
+
+  const handleExpressionInsert = (expression: string) => {
+    setKind("custom");
+    setCustomValue(expression);
+    setIdentifierValue(expression);
+    setStringValue(expression);
+    setNumberValue(expression);
+    setBooleanValue(expression.toLowerCase() === "true");
+    onChange(expression);
   };
 
   const renderEditor = () => {
@@ -251,13 +251,28 @@ const ExpressionEditor = ({
     }
   };
 
-  const filteredIdentifiers = useMemo(() => {
+  const filteredSuggestions = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
     if (!query) {
-      return identifiers;
+      return identifierSuggestions;
     }
-    return identifiers.filter((identifier) => identifier.toLowerCase().includes(query));
-  }, [identifiers, searchTerm]);
+    return identifierSuggestions.filter((suggestion) => {
+      if (suggestion.name.toLowerCase().includes(query)) {
+        return true;
+      }
+      return suggestion.outputs.some((output) => {
+        if (output.expression.toLowerCase().includes(query)) {
+          return true;
+        }
+        if (output.label.toLowerCase().includes(query)) {
+          return true;
+        }
+        return output.description ? output.description.toLowerCase().includes(query) : false;
+      });
+    });
+  }, [identifierSuggestions, searchTerm]);
+
+  const identifierNames = useMemo(() => identifierSuggestions.map((item) => item.name), [identifierSuggestions]);
 
   return (
     <div className="flex flex-col gap-2">
@@ -270,7 +285,7 @@ const ExpressionEditor = ({
           </div>
         ) : null}
         <div className="flex items-center gap-1.5">
-          {identifiers.length > 0 ? (
+          {identifierSuggestions.length > 0 ? (
             <div className="relative">
               <button
                 type="button"
@@ -292,25 +307,53 @@ const ExpressionEditor = ({
                     placeholder="Search variables"
                     className="w-full rounded-md border border-[#0A1A2333] bg-white px-2 py-1 text-[12px] text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
                   />
-                  <div className="mt-2 max-h-48 overflow-y-auto pr-1">
-                    {filteredIdentifiers.length === 0 ? (
+                  <div className="mt-2 max-h-48 space-y-2 overflow-y-auto pr-1">
+                    {filteredSuggestions.length === 0 ? (
                       <div className="rounded-md border border-[#0A1A2314] bg-[#F5F6F9] px-2 py-1 text-[11px] text-[#657782]">
                         No matches
                       </div>
                     ) : null}
-                    {filteredIdentifiers.map((identifier) => (
-                      <button
-                        key={`${identifier}-${baseId}`}
-                        type="button"
-                        onClick={() => {
-                          handleVariableInsert(identifier);
-                          setPaletteOpen(false);
-                          setSearchTerm("");
-                        }}
-                        className={getTokenClass(identifier)}
+                    {filteredSuggestions.map((suggestion) => (
+                      <div
+                        key={`${suggestion.name}-${baseId}`}
+                        className="flex flex-col gap-1 rounded-lg border border-[#E1E6F2] bg-white px-2 py-1.5"
                       >
-                        {identifier}
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleIdentifierInsert(suggestion.name);
+                            setPaletteOpen(false);
+                            setSearchTerm("");
+                          }}
+                          className="flex flex-col text-left"
+                        >
+                          <span className="text-sm font-semibold text-[#0A1A23]">{suggestion.name}</span>
+                          {suggestion.sourceLabel ? (
+                            <span className="text-[10px] uppercase tracking-[0.2em] text-[#9AA7B4]">
+                              {suggestion.sourceLabel}
+                            </span>
+                          ) : null}
+                        </button>
+                        {suggestion.outputs.length > 0 ? (
+                          <div className="flex flex-wrap gap-1.5 pl-2">
+                            {suggestion.outputs.map((output) => (
+                              <button
+                                key={`${suggestion.name}.${output.id}`}
+                                type="button"
+                                onClick={() => {
+                                  handleExpressionInsert(output.expression);
+                                  setPaletteOpen(false);
+                                  setSearchTerm("");
+                                }}
+                                className="rounded-full border border-[#0A1A2333] bg-white px-2 py-0.5 text-[10px] text-[#3A5AE5] transition hover:border-[#3A5AE5] hover:bg-[#3A5AE510]"
+                                title={output.description}
+                              >
+                                {output.expression}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -328,7 +371,7 @@ const ExpressionEditor = ({
       </div>
       {renderEditor()}
       <datalist id={datalistId}>
-        {identifiers.map((identifier) => (
+        {identifierNames.map((identifier) => (
           <option key={identifier} value={identifier} />
         ))}
       </datalist>

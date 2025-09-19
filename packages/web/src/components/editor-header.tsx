@@ -1,6 +1,7 @@
 import { type ChangeEvent, type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from "react";
 
 import { executeWorkflowScript } from "../services/execute-script-service";
+import { useExecuteConnection } from "../hooks/use-execute-connection";
 import { useEditorStore } from "../state/editor-store";
 import { useWorkspaceStore } from "../state/workspace-store";
 import { Icon, type IconName } from "./icon";

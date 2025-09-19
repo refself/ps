@@ -43,3 +43,14 @@ export const executeWorkflowScript = async (code: string): Promise<ExecuteScript
 
   return payload;
 };
+
+export const checkExecuteEndpoint = async (): Promise<boolean> => {
+  try {
+    const response = await fetch("/api/execute-script", {
+      method: "HEAD"
+    });
+    return response.ok;
+  } catch (error) {
+    return false;
+  }
+};

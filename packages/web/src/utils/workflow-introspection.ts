@@ -1,34 +1,61 @@
 import { blockRegistry } from "@workflow-builder/core";
 import type { BlockInstance, WorkflowDocument } from "@workflow-builder/core";
 
-const variableBlockKinds = new Set([
-  "variable-declaration",
-  "function-declaration",
-  "ai-call",
-  "locator-call",
-  "open-call",
-  "vision-call"
-]);
+const identifierFieldByKind: Record<string, string> = {
+  "variable-declaration": "identifier",
+  "function-declaration": "identifier",
+  "ai-call": "identifier",
+  "locator-call": "identifier",
+  "open-call": "identifier",
+  "vision-call": "identifier",
+  "screenshot-call": "assignTo",
+  "read-clipboard-call": "assignTo",
+  "file-reader-call": "assignTo",
+  "function-call": "assignTo"
+};
 
-const identifierFromBlock = (block: BlockInstance): string | null => {
-  if (!variableBlockKinds.has(block.kind)) {
-    return null;
-  }
+type IdentifierOutputSuggestion = {
+  id: string;
+  label: string;
+  description?: string;
+  expression: string;
+};
 
-  const raw = block.data?.identifier;
-  if (typeof raw !== "string") {
-    return null;
-  }
-
-  const trimmed = raw.trim();
-  return trimmed.length > 0 ? trimmed : null;
+export type IdentifierSuggestion = {
+  name: string;
+  sourceKind: string;
+  sourceLabel?: string;
+  outputs: IdentifierOutputSuggestion[];
 };
 
 type IdentifierIndex = Record<string, string[]>;
 
-const buildIdentifierIndex = (document: WorkflowDocument): IdentifierIndex => {
+type IdentifierIndexResult = {
+  scopes: IdentifierIndex;
+  suggestions: Map<string, IdentifierSuggestion>;
+};
+
+const buildIdentifierIndex = (document: WorkflowDocument): IdentifierIndexResult => {
   const cache: IdentifierIndex = {};
   const visited = new Set<string>();
+  const identifierSuggestions = new Map<string, IdentifierSuggestion>();
+
+  const registerIdentifier = (block: BlockInstance, identifier: string) => {
+    const schema = blockRegistry.get(block.kind);
+    const outputs = (schema?.outputs ?? []).map((output) => ({
+      id: output.id,
+      label: output.label ?? output.id,
+      description: output.description,
+      expression: `${identifier}.${output.id}`
+    }));
+
+    identifierSuggestions.set(identifier, {
+      name: identifier,
+      sourceKind: block.kind,
+      sourceLabel: schema?.label ?? block.kind,
+      outputs
+    });
+  };
 
   const traverseSlot = (blockIds: string[], incomingScope: string[]): string[] => {
     let currentScope = [...incomingScope];
@@ -61,15 +88,22 @@ const buildIdentifierIndex = (document: WorkflowDocument): IdentifierIndex => {
     visited.add(blockId);
     cache[blockId] = [...incomingScope];
 
-    const definedHere: string[] = [];
-    const identifier = identifierFromBlock(block);
+    const identifierField = identifierFieldByKind[block.kind];
     const scopeWithBlock = [...incomingScope];
     const scopeSet = new Set(scopeWithBlock);
 
-    if (identifier && !scopeSet.has(identifier)) {
-      scopeWithBlock.push(identifier);
-      scopeSet.add(identifier);
-      definedHere.push(identifier);
+    const definedHere: string[] = [];
+    if (identifierField) {
+      const raw = (block.data as Record<string, unknown>)[identifierField];
+      if (typeof raw === "string") {
+        const trimmed = raw.trim();
+        if (trimmed.length > 0 && !scopeSet.has(trimmed)) {
+          scopeWithBlock.push(trimmed);
+          scopeSet.add(trimmed);
+          definedHere.push(trimmed);
+          registerIdentifier(block, trimmed);
+        }
+      }
     }
 
     const schema = blockRegistry.get(block.kind);
@@ -96,15 +130,13 @@ const buildIdentifierIndex = (document: WorkflowDocument): IdentifierIndex => {
 
   traverseBlock(document.root, []);
 
-  return cache;
+  return { scopes: cache, suggestions: identifierSuggestions };
 };
 
 export const collectIdentifiers = (document: WorkflowDocument): string[] => {
-  const index = buildIdentifierIndex(document);
+  const { suggestions } = buildIdentifierIndex(document);
   const identifiers = new Set<string>();
-  Object.values(index).forEach((scoped) => {
-    scoped.forEach((identifier) => identifiers.add(identifier));
-  });
+  suggestions.forEach((value) => identifiers.add(value.name));
   return Array.from(identifiers).sort();
 };
 
@@ -117,7 +149,40 @@ export const collectIdentifiersForBlock = (params: {
     return collectIdentifiers(document);
   }
 
-  const index = buildIdentifierIndex(document);
-  const scoped = index[blockId];
+  const { scopes } = buildIdentifierIndex(document);
+  const scoped = scopes[blockId];
   return scoped ? [...scoped] : [];
+};
+
+export const collectIdentifierSuggestions = (document: WorkflowDocument): IdentifierSuggestion[] => {
+  const { suggestions } = buildIdentifierIndex(document);
+  return Array.from(suggestions.values()).sort((a, b) => a.name.localeCompare(b.name));
+};
+
+export const collectIdentifierSuggestionsForBlock = (params: {
+  document: WorkflowDocument;
+  blockId: string | null | undefined;
+}): IdentifierSuggestion[] => {
+  const { document, blockId } = params;
+  const { scopes, suggestions } = buildIdentifierIndex(document);
+
+  if (!blockId) {
+    return Array.from(suggestions.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  const scoped = scopes[blockId];
+  if (!scoped) {
+    return [];
+  }
+
+  const result: IdentifierSuggestion[] = [];
+  scoped.forEach((identifier) => {
+    const suggestion = suggestions.get(identifier);
+    if (suggestion) {
+      result.push(suggestion);
+    } else {
+      result.push({ name: identifier, sourceKind: "unknown", outputs: [] });
+    }
+  });
+  return result;
 };

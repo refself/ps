@@ -13,11 +13,14 @@ import InspectorPanel from "./components/inspector-panel";
 import CodeEditorPanel from "./components/code-editor-panel";
 import ExecutionResultOverlay from "./components/execution-result-overlay";
 import CommandPalette from "./components/command-palette";
+import { useExecuteShortcut } from "./hooks/use-execute-shortcut";
 
 const App = () => {
   useWorkspaceSynchronization();
   const activeWorkflowId = useWorkspaceStore((state) => state.activeWorkflowId);
   const [mode, setMode] = useState<"visual" | "code">("visual");
+
+  useExecuteShortcut();
 
   if (!activeWorkflowId) {
     return <WorkflowList />;
