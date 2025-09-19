@@ -23,6 +23,7 @@ type EditorHeaderProps = {
 };
 
 const EditorHeader = ({ viewMode, onViewModeChange }: EditorHeaderProps) => {
+  const isConnectionOnline = useExecuteConnection();
   const documentName = useEditorStore((state) => state.document.metadata.name);
   const renameDocument = useEditorStore((state) => state.renameDocument);
   const loadWorkflowFromCode = useEditorStore((state) => state.loadWorkflowFromCode);
@@ -42,6 +43,14 @@ const EditorHeader = ({ viewMode, onViewModeChange }: EditorHeaderProps) => {
   const [isLoadingDemo, setIsLoadingDemo] = useState(false);
   const [nameDraft, setNameDraft] = useState(documentName);
   const [isEditingName, setIsEditingName] = useState(false);
+
+  const connectionLabel = isConnectionOnline === false ? "Offline" : isConnectionOnline === true ? "Connected" : "Checking…";
+  const connectionTone = isConnectionOnline === false
+    ? "border-[#CD3A50] bg-[#CD3A5010] text-[#CD3A50]"
+    : isConnectionOnline === true
+    ? "border-[#32AA81] bg-[#32AA8110] text-[#32AA81]"
+    : "border-[#9AA7B4] bg-white text-[#9AA7B4]";
+  const connectionDotColor = isConnectionOnline === false ? "#CD3A50" : isConnectionOnline === true ? "#32AA81" : "#9AA7B4";
 
   useEffect(() => {
     setNameDraft(documentName);
@@ -286,6 +295,10 @@ const EditorHeader = ({ viewMode, onViewModeChange }: EditorHeaderProps) => {
         </div>
       </div>
       <div className="flex items-center justify-end gap-2 text-[#0A1A23]">
+        <span className={`flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${connectionTone}`}>
+          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: connectionDotColor }} />
+          {connectionLabel}
+        </span>
         {viewMode === "visual" ? (
           <>
             <IconButton

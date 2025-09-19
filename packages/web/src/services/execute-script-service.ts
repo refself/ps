@@ -49,7 +49,10 @@ export const checkExecuteEndpoint = async (): Promise<boolean> => {
     const response = await fetch("/api/execute-script", {
       method: "HEAD"
     });
-    return response.ok;
+    if (response.ok) {
+      return true;
+    }
+    return response.status === 405 || response.status === 404;
   } catch (error) {
     return false;
   }
