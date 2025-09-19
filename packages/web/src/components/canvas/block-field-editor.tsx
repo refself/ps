@@ -4,38 +4,34 @@ import type { ReactNode } from "react";
 import type { BlockFieldDefinition } from "@workflow-builder/core";
 
 import { useEditorStore } from "../../state/editor-store";
-import { collectIdentifiers } from "../../utils/workflow-introspection";
+import { collectIdentifiersForBlock } from "../../utils/workflow-introspection";
 import ExpressionEditor from "../inspector/expression-editor";
 
 type BlockFieldEditorProps = {
   field: BlockFieldDefinition;
   value: unknown;
   onChange: (value: unknown) => void;
+  blockId: string;
 };
 
-const FieldContainer = ({
-  title,
-  description,
-  children
-}: {
-  title: string;
-  description?: string;
-  children: ReactNode;
-}) => {
+const FieldContainer = ({ title, description, children }: { title: string; description?: string; children: ReactNode }) => {
   return (
-    <div className="rounded-2xl bg-white/5 p-4">
-      <div className="text-xs font-semibold uppercase tracking-wide text-white/70">{title}</div>
-      {description ? <p className="mt-1 text-[11px] text-slate-300">{description}</p> : null}
-      <div className="mt-3">{children}</div>
+    <div className="rounded-xl bg-white/6 p-3">
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-white/70">{title}</div>
+      {description ? <p className="mt-1 text-[10px] text-slate-300">{description}</p> : null}
+      <div className="mt-2">{children}</div>
     </div>
   );
 };
 
-const BlockFieldEditor = ({ field, value, onChange }: BlockFieldEditorProps) => {
+const BlockFieldEditor = ({ field, value, onChange, blockId }: BlockFieldEditorProps) => {
   const input = field.input;
   const fallbackValue = field.defaultValue;
   const document = useEditorStore((state) => state.document);
-  const identifiers = useMemo(() => collectIdentifiers(document), [document]);
+  const identifiers = useMemo(
+    () => collectIdentifiersForBlock({ document, blockId }),
+    [blockId, document]
+  );
 
   if (input.kind === "boolean") {
     const checked = typeof value === "boolean" ? value : Boolean(fallbackValue);
@@ -44,11 +40,11 @@ const BlockFieldEditor = ({ field, value, onChange }: BlockFieldEditorProps) => 
         <button
           type="button"
           onClick={() => onChange(!checked)}
-          className="relative inline-flex h-8 w-16 items-center rounded-full bg-slate-800 transition focus:outline-none focus:ring-2 focus:ring-sky-400"
+          className="relative inline-flex h-7 w-14 items-center rounded-full bg-slate-800 transition focus:outline-none focus:ring-2 focus:ring-sky-400/60"
         >
           <span
-            className={`pointer-events-none inline-flex h-6 w-6 transform items-center justify-center rounded-full bg-white text-xs font-semibold text-slate-700 transition ${
-              checked ? "translate-x-8" : "translate-x-1"
+            className={`pointer-events-none inline-flex h-5 w-5 transform items-center justify-center rounded-full bg-white text-[10px] font-semibold text-slate-700 transition ${
+              checked ? "translate-x-7" : "translate-x-1"
             }`}
           >
             {checked ? "On" : "Off"}
@@ -82,7 +78,7 @@ const BlockFieldEditor = ({ field, value, onChange }: BlockFieldEditorProps) => 
             }
             onChange(Number(next));
           }}
-          className="w-full rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-300 focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
+          className="w-full rounded-lg border border-white/10 bg-white/10 px-2.5 py-1.5 text-sm text-slate-100 outline-none placeholder:text-slate-300 focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
         />
       </FieldContainer>
     );
@@ -95,7 +91,7 @@ const BlockFieldEditor = ({ field, value, onChange }: BlockFieldEditorProps) => 
         <select
           value={stringValue}
           onChange={(event) => onChange(event.target.value)}
-          className="w-full rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-sm text-slate-100 outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
+          className="w-full rounded-lg border border-white/10 bg-white/10 px-2.5 py-1.5 text-sm text-slate-100 outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
         >
           <option value="" disabled>
             Select…
@@ -120,7 +116,7 @@ const BlockFieldEditor = ({ field, value, onChange }: BlockFieldEditorProps) => 
           value={identifierValue}
           onChange={(event) => onChange(event.target.value)}
           placeholder="identifier"
-          className="w-full rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-300 focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
+          className="w-full rounded-lg border border-white/10 bg-white/10 px-2.5 py-1.5 text-sm text-slate-100 outline-none placeholder:text-slate-300 focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
         />
         <datalist id={datalistId}>
           {identifiers.map((identifier) => (
@@ -141,7 +137,7 @@ const BlockFieldEditor = ({ field, value, onChange }: BlockFieldEditorProps) => 
             onChange={(event) => onChange(event.target.value)}
             rows={4}
             placeholder={input.placeholder}
-            className="w-full rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-300 focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
+            className="w-full rounded-lg border border-white/10 bg-white/10 px-2.5 py-1.5 text-sm text-slate-100 outline-none placeholder:text-slate-300 focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
           />
         </FieldContainer>
       );
@@ -153,7 +149,7 @@ const BlockFieldEditor = ({ field, value, onChange }: BlockFieldEditorProps) => 
           value={stringValue}
           onChange={(event) => onChange(event.target.value)}
           placeholder={input.placeholder}
-          className="w-full rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-300 focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
+          className="w-full rounded-lg border border-white/10 bg-white/10 px-2.5 py-1.5 text-sm text-slate-100 outline-none placeholder:text-slate-300 focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
         />
       </FieldContainer>
     );
@@ -169,6 +165,7 @@ const BlockFieldEditor = ({ field, value, onChange }: BlockFieldEditorProps) => 
           description={field.description}
           variant="compact"
           showHeader={false}
+          contextBlockId={blockId}
         />
       </FieldContainer>
     );

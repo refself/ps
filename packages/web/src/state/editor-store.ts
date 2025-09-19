@@ -14,6 +14,8 @@ import {
 } from "@workflow-builder/core";
 import type { BlockInstance, WorkflowDocument } from "@workflow-builder/core";
 
+import { useWorkspaceStore } from "./workspace-store";
+
 type HistoryState = {
   past: WorkflowDocument[];
   future: WorkflowDocument[];
@@ -34,14 +36,22 @@ type ReorderBlockOptions = {
   toIndex: number;
 };
 
+export type ExecutionStatus = {
+  state: "idle" | "running" | "success" | "error";
+  message: string | null;
+  output: string | null;
+  timestamp: number | null;
+};
+
 type EditorStore = {
   document: WorkflowDocument;
   code: string;
   selectedBlockId: string | null;
   lastError: string | null;
   history: HistoryState;
+  executionStatus: ExecutionStatus;
+  loadWorkflowDocument: (options: { document: WorkflowDocument; code: string }) => void;
   loadWorkflowFromCode: (code: string) => void;
-  createBlankWorkflow: (name?: string) => void;
   renameDocument: (name: string) => void;
   selectBlock: (blockId: string | null) => void;
   updateBlockFields: (blockId: string, updates: Record<string, unknown>) => void;
@@ -52,6 +62,7 @@ type EditorStore = {
   reorderBlock: (options: ReorderBlockOptions) => void;
   undo: () => void;
   redo: () => void;
+  setExecutionStatus: (status: ExecutionStatus) => void;
 };
 
 const HISTORY_LIMIT = 50;
@@ -96,9 +107,16 @@ const isDescendant = (document: WorkflowDocument, ancestorId: string, candidateI
   );
 };
 
+const cloneDocument = (document: WorkflowDocument): WorkflowDocument => {
+  if (typeof structuredClone === "function") {
+    return structuredClone(document);
+  }
+  return JSON.parse(JSON.stringify(document)) as WorkflowDocument;
+};
+
 export const useEditorStore = create<EditorStore>((set, get) => {
   const initialDocument = createDocument({ name: "Untitled Workflow" });
-  const { code } = safeGenerateCode(initialDocument);
+  const initialCode = safeGenerateCode(initialDocument).code;
 
   const applyDocument = (
     nextDocument: WorkflowDocument,
@@ -120,14 +138,32 @@ export const useEditorStore = create<EditorStore>((set, get) => {
         selectedBlockId: ensureSelection(nextDocument, selectionSource)
       };
     });
+    useWorkspaceStore.getState().updateActiveWorkflow({ document: nextDocument, code: nextCode });
   };
 
   return {
     document: initialDocument,
-    code,
+    code: initialCode,
     selectedBlockId: initialDocument.root,
     lastError: null,
     history: { past: [], future: [] },
+    executionStatus: {
+      state: "idle",
+      message: null,
+      output: null,
+      timestamp: null
+    },
+
+    loadWorkflowDocument: ({ document, code }) => {
+      const cloned = cloneDocument(document);
+      set({
+        document: cloned,
+        code,
+        lastError: null,
+        history: { past: [], future: [] },
+        selectedBlockId: ensureSelection(cloned, cloned.root)
+      });
+    },
 
     loadWorkflowFromCode: (source) => {
       try {
@@ -137,11 +173,6 @@ export const useEditorStore = create<EditorStore>((set, get) => {
         const message = error instanceof Error ? error.message : String(error);
         set({ lastError: message });
       }
-    },
-
-    createBlankWorkflow: (name = "Untitled Workflow") => {
-      const document = createDocument({ name });
-      applyDocument(document, { nextSelection: document.root });
     },
 
     renameDocument: (name) => {
@@ -363,7 +394,9 @@ export const useEditorStore = create<EditorStore>((set, get) => {
         },
         selectedBlockId: ensureSelection(nextDocument, selectedBlockId)
       });
-    }
+    },
+
+    setExecutionStatus: (status) => set({ executionStatus: status })
   };
 });
 

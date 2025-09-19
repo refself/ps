@@ -12,6 +12,7 @@
     "test": "vitest"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.18.1",
     "@workflow-builder/core": "workspace:*",
     "clsx": "^2.1.0",
     "immer": "^10.1.1",

@@ -121,50 +121,61 @@ const BlockNode = ({ blockId, depth }: BlockNodeProps) => {
       ? block.data.identifier.trim()
       : null;
   const cardClassName = clsx(
-    "flex flex-col gap-5 rounded-3xl px-6 py-6 text-sm shadow-[0_25px_60px_-30px_rgba(0,0,0,0.75)] transition-all backdrop-blur",
+    "flex flex-col gap-3 rounded-2xl px-4 py-3 text-sm shadow-[0_18px_45px_-28px_rgba(0,0,0,0.85)] transition-all backdrop-blur",
     colors.card,
     selectedBlockId === blockId ? "ring-2 ring-sky-400/70 shadow-sky-500/20" : "ring-0",
     isDragging ? "opacity-60 scale-[0.99]" : "opacity-100"
   );
 
   return (
-    <div style={{ marginLeft: depth * 28 }}>
+    <div style={{ marginLeft: depth * 20 }}>
       <div ref={dragRef} className={cardClassName} onClick={() => selectBlock(blockId)}>
-        <header className="flex items-start justify-between gap-6">
-          <div className="flex items-start gap-4">
+        <header className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
             <span
               className={clsx(
-                "flex h-12 w-12 items-center justify-center rounded-2xl text-2xl",
+                "flex h-9 w-9 items-center justify-center rounded-xl text-lg",
                 colors.iconBackground
               )}
             >
               {colors.icon}
             </span>
-            <div className="flex flex-col gap-2">
-              <div className="text-lg font-semibold text-slate-50">{schema?.label ?? block.kind}</div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className={clsx("rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide", colors.badge)}>
+            <div className="flex flex-col gap-1.5">
+              <div className="text-[15px] font-semibold text-slate-50">{schema?.label ?? block.kind}</div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className={clsx("rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide", colors.badge)}>
                   {block.kind}
                 </span>
                 {identifierLabel ? (
-                  <span className="rounded-full bg-sky-500/25 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-sky-100">
-                    Stores {identifierLabel}
-                  </span>
+                  (() => {
+                    const style = getIdentifierStyle(identifierLabel);
+                    return (
+                      <span
+                        className={clsx(
+                          "rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                          style.chip,
+                          style.text
+                        )}
+                      >
+                        Stores {identifierLabel}
+                      </span>
+                    );
+                  })()
                 ) : null}
               </div>
               {schema?.description ? (
-                <p className="text-xs text-slate-200/70">{schema.description}</p>
+                <p className="text-[11px] text-slate-200/70">{schema.description}</p>
               ) : null}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={(event) => {
                 event.stopPropagation();
                 duplicateBlock(blockId);
               }}
-              className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-50 transition hover:border-emerald-400/60 hover:bg-emerald-500/20 hover:text-emerald-100"
+              className="rounded-full border border-white/15 bg-white/8 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-50 transition hover:border-emerald-400/60 hover:bg-emerald-500/25 hover:text-emerald-100"
             >
               Duplicate
             </button>
@@ -174,7 +185,7 @@ const BlockNode = ({ blockId, depth }: BlockNodeProps) => {
                 event.stopPropagation();
                 deleteBlock(blockId);
               }}
-              className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-50 transition hover:border-red-400/60 hover:bg-red-500/20 hover:text-red-100"
+              className="rounded-full border border-white/15 bg-white/8 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-50 transition hover:border-red-400/60 hover:bg-red-500/25 hover:text-red-100"
             >
               Delete
             </button>
@@ -182,29 +193,30 @@ const BlockNode = ({ blockId, depth }: BlockNodeProps) => {
         </header>
 
         {fields.length > 0 ? (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3">
             {fields.map((field) => (
               <BlockFieldEditor
                 key={field.id}
                 field={field}
                 value={block.data[field.id] ?? field.defaultValue ?? ""}
                 onChange={(nextValue) => updateBlockFields(blockId, { [field.id]: nextValue })}
+                blockId={blockId}
               />
             ))}
           </div>
         ) : null}
 
         {childSlots.length > 0 ? (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3">
             {childSlots.map((slot) => {
               const childIds = block.children[slot.id] ?? [];
               return (
-                <div key={slot.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-white/70">
+                <div key={slot.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-white/70">
                     <span>{slot.label}</span>
                     <span className="text-white/40">{childIds.length} block{childIds.length === 1 ? "" : "s"}</span>
                   </div>
-                  <div className="mt-3 flex flex-col gap-3">
+                  <div className="mt-2 flex flex-col gap-2.5">
                     <SlotDropZone
                       parentId={blockId}
                       slotId={slot.id}
@@ -214,7 +226,7 @@ const BlockNode = ({ blockId, depth }: BlockNodeProps) => {
                       isEmpty={childIds.length === 0}
                     />
                     {childIds.map((childId, childIndex) => (
-                      <div key={childId} className="flex flex-col gap-3">
+                      <div key={childId} className="flex flex-col gap-2.5">
                         <BlockNode blockId={childId} depth={depth + 1} />
                         <SlotDropZone
                           parentId={blockId}

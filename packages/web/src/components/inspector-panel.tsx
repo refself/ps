@@ -52,6 +52,7 @@ const InspectorPanel = () => {
                 field={field}
                 value={block.data[field.id] ?? field.defaultValue ?? ""}
                 onChange={(nextValue) => updateBlockFields(selectedBlockId, { [field.id]: nextValue })}
+                contextBlockId={selectedBlockId}
               />
             ))
           )}

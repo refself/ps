@@ -8,9 +8,10 @@ type FieldEditorProps = {
   field: BlockFieldDefinition;
   value: unknown;
   onChange: (value: unknown) => void;
+  contextBlockId?: string;
 };
 
-const FieldEditor = ({ field, value, onChange }: FieldEditorProps) => {
+const FieldEditor = ({ field, value, onChange, contextBlockId }: FieldEditorProps) => {
   const input = field.input;
   const fallbackValue = field.defaultValue;
 
@@ -153,7 +154,8 @@ const FieldEditor = ({ field, value, onChange }: FieldEditorProps) => {
           onChange={(expression) => onChange(expression)}
           label={field.label}
           description={field.description}
-      />
+          contextBlockId={contextBlockId}
+        />
       </div>
     );
   }
