@@ -232,8 +232,9 @@ const EditorHeader = ({ viewMode, onViewModeChange }: EditorHeaderProps) => {
     <header className="grid grid-cols-[1fr_auto_1fr] items-center border-b border-[#D8DEEE] bg-white px-10 py-4">
       <div className="flex items-center gap-3">
         <IconButton label="Back to workflows" icon="back" onClick={clearActiveWorkflow} />
+        <img src="/image.png" alt="Workflow Builder" className="h-10 w-10 rounded-2xl border border-[#E5E9F2] bg-white p-1 shadow-sm" />
+
         <div className="flex flex-col">
-          <span className="text-[11px] uppercase tracking-[0.3em] text-[#9AA7B4]">Workflow</span>
           {isEditingName ? (
             <form onSubmit={handleSubmit} className="mt-1 flex items-center gap-2">
               <input
