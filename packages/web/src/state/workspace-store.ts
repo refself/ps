@@ -1,454 +1,501 @@
-import { nanoid } from "nanoid";
 import { createWithEqualityFn } from "zustand/traditional";
-import { createJSONStorage, persist } from "zustand/middleware";
 
 import { createDocument, generateCode } from "@workflow-builder/core";
 import type { WorkflowDocument } from "@workflow-builder/core";
 
-type WorkflowVersion = {
+import {
+  listWorkflows,
+  createWorkflow as createWorkflowApi,
+  getWorkflowDetail,
+  updateWorkflowState,
+  deleteWorkflow as deleteWorkflowApi,
+  saveWorkflowVersion as saveWorkflowVersionApi,
+  restoreWorkflowVersion as restoreWorkflowVersionApi,
+  renameWorkflowVersion as renameWorkflowVersionApi,
+  deleteWorkflowVersion as deleteWorkflowVersionApi,
+  type WorkerWorkflowDetail,
+  type WorkerWorkflowSummary,
+  type WorkerWorkflowVersionHeader
+} from "../services/workflow-api";
+
+type WorkflowListItem = {
   id: string;
   name: string;
-  createdAt: string;
-  document: WorkflowDocument;
-  code: string;
-  isNamed: boolean;
-  createdBy?: string;
-  note?: string;
-};
-
-type WorkspaceWorkflow = {
-  id: string;
-  document: WorkflowDocument;
-  code: string;
+  status: string;
+  type?: string;
   createdAt: string;
   updatedAt: string;
-  versions: WorkflowVersion[];
-  lastRestoredVersionId: string | null;
 };
 
-type CreateWorkflowOptions = {
-  name?: string;
-  document?: WorkflowDocument;
-  code?: string;
+type WorkflowVersion = WorkerWorkflowVersionHeader & {
+  createdAtIso: string;
 };
 
-type SelectWorkflowOptions = {
+type ActiveWorkflow = {
   id: string;
-};
-
-type UpdateActiveWorkflowOptions = {
-  document: WorkflowDocument;
-  code: string;
-};
-
-type DeleteWorkflowOptions = {
-  id: string;
-};
-
-type SaveVersionOptions = {
-  workflowId: string;
-  name?: string;
-  document: WorkflowDocument;
-  code: string;
-};
-
-type RestoreVersionOptions = {
-  workflowId: string;
-  versionId: string;
-};
-
-type RenameVersionOptions = {
-  workflowId: string;
-  versionId: string;
   name: string;
-};
-
-type DeleteVersionOptions = {
-  workflowId: string;
-  versionId: string;
+  status: string;
+  type?: string;
+  createdAt: string;
+  updatedAt: string;
+  document: WorkflowDocument;
+  code: string;
+  lastRestoredVersionId: string | null;
+  versions: WorkflowVersion[];
 };
 
 type WorkspaceState = {
-  workflows: WorkspaceWorkflow[];
+  workflows: WorkflowListItem[];
   activeWorkflowId: string | null;
+  activeWorkflow: ActiveWorkflow | null;
   initialized: boolean;
-  bootstrap: () => void;
-  createWorkflow: (options?: CreateWorkflowOptions) => WorkspaceWorkflow;
-  selectWorkflow: (options: SelectWorkflowOptions) => void;
-  updateActiveWorkflow: (options: UpdateActiveWorkflowOptions) => void;
-  deleteWorkflow: (options: DeleteWorkflowOptions) => void;
-  saveWorkflowVersion: (options: SaveVersionOptions) => void;
-  restoreWorkflowVersion: (options: RestoreVersionOptions) => void;
-  renameWorkflowVersion: (options: RenameVersionOptions) => void;
-  deleteWorkflowVersion: (options: DeleteVersionOptions) => void;
+  loadingList: boolean;
+  loadingDetail: boolean;
+  error?: string;
+  bootstrap: () => Promise<void>;
+  createWorkflow: (options?: { name?: string; type?: string }) => Promise<void>;
+  selectWorkflow: (options: { id: string }) => Promise<void>;
+  updateActiveWorkflow: (options: {
+    document: WorkflowDocument;
+    code: string;
+    type?: string;
+    name?: string;
+    status?: string;
+  }) => void;
+  deleteWorkflow: (options: { id: string }) => Promise<void>;
+  saveWorkflowVersion: (options: {
+    workflowId: string;
+    document: WorkflowDocument;
+    code: string;
+    name?: string;
+  }) => Promise<void>;
+  restoreWorkflowVersion: (options: { workflowId: string; versionId: string }) => Promise<void>;
+  renameWorkflowVersion: (options: { workflowId: string; versionId: string; name: string }) => Promise<void>;
+  deleteWorkflowVersion: (options: { workflowId: string; versionId: string }) => Promise<void>;
   clearActiveWorkflow: () => void;
 };
 
-const STORAGE_KEY = "workflow-builder:workflows";
-const MAX_VERSIONS = 50;
-
-const nowIso = () => new Date().toISOString();
-
-const cloneDocument = (document: WorkflowDocument): WorkflowDocument => {
-  if (typeof structuredClone === "function") {
-    return structuredClone(document);
+const deriveNameFromDocument = (document: WorkflowDocument): string => {
+  const metadataName = document.metadata?.name?.trim();
+  if (metadataName && metadataName.length > 0) {
+    return metadataName;
   }
-  return JSON.parse(JSON.stringify(document)) as WorkflowDocument;
+  return "Untitled Workflow";
 };
 
-const createVersionSnapshot = ({
-  document,
-  code,
-  name,
-  createdAt,
-  isNamed
-}: {
+const toIso = (value: number): string => new Date(value).toISOString();
+
+const mapSummary = (summary: WorkerWorkflowSummary): WorkflowListItem => {
+  const fallbackName = summary.name?.trim() ?? summary.id;
+  return {
+    id: summary.id,
+    name: fallbackName.length > 0 ? fallbackName : summary.id,
+    status: summary.status,
+    type: summary.type ?? undefined,
+    createdAt: toIso(summary.created_at),
+    updatedAt: toIso(summary.updated_at)
+  };
+};
+
+const mapVersion = (header: WorkerWorkflowVersionHeader): WorkflowVersion => ({
+  ...header,
+  createdAtIso: toIso(header.createdAt)
+});
+
+const mapDetail = (detail: WorkerWorkflowDetail): ActiveWorkflow => {
+  const nameFromDocument = deriveNameFromDocument(detail.document);
+  const trimmedName = detail.name?.trim();
+  return {
+    id: detail.workflowId,
+    name: trimmedName && trimmedName.length > 0 ? trimmedName : nameFromDocument,
+    status: detail.status,
+    type: detail.type ?? undefined,
+    createdAt: toIso(detail.createdAt),
+    updatedAt: toIso(detail.updatedAt),
+    document: detail.document,
+    code: detail.code,
+    lastRestoredVersionId: detail.lastRestoredVersionId,
+    versions: (detail.versions ?? []).map(mapVersion)
+  };
+};
+
+let pendingUpdateTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingUpdatePayload: {
+  workflowId: string;
   document: WorkflowDocument;
   code: string;
+  type?: string;
   name?: string;
-  createdAt: string;
-  isNamed: boolean;
-}): WorkflowVersion => {
-  const label = name?.trim();
-  return {
-    id: nanoid(),
-    name: label && label.length > 0 ? label : `Auto-save ${new Date(createdAt).toLocaleString()}`,
-    createdAt,
-    document: cloneDocument(document),
-    code,
-    isNamed: Boolean(label && label.length > 0)
-  };
-};
+  status?: string;
+} | null = null;
 
-const createStorage = () => {
-  if (typeof window === "undefined") {
-    const memory = new Map<string, string>();
-    return {
-      getItem: (key: string) => memory.get(key) ?? null,
-      setItem: (key: string, value: string) => {
-        memory.set(key, value);
-      },
-      removeItem: (key: string) => {
-        memory.delete(key);
-      }
-    };
+const flushPendingUpdate = async (get: () => WorkspaceState, set: (fn: (state: WorkspaceState) => WorkspaceState) => void) => {
+  const payload = pendingUpdatePayload;
+  pendingUpdatePayload = null;
+  pendingUpdateTimer = null;
+  if (!payload) {
+    return;
   }
-  return window.localStorage;
+  try {
+    const detail = await updateWorkflowState(payload.workflowId, {
+      document: payload.document,
+      code: payload.code,
+      type: payload.type,
+      name: payload.name,
+      status: payload.status
+    });
+    const mapped = mapDetail(detail);
+    set((state) => {
+      const workflows = state.workflows.map((item) =>
+        item.id === mapped.id
+          ? {
+              ...item,
+              name: mapped.name,
+              status: mapped.status,
+              type: mapped.type,
+              updatedAt: mapped.updatedAt
+            }
+          : item
+      );
+      const activeWorkflow = state.activeWorkflowId === mapped.id ? mapped : state.activeWorkflow;
+      return {
+        ...state,
+        workflows,
+        activeWorkflow
+      };
+    });
+  } catch (error) {
+    console.error("Failed to sync workflow state", error);
+  }
 };
 
-export const useWorkspaceStore = createWithEqualityFn<WorkspaceState>()(
-  persist(
-    (set, get) => ({
-      workflows: [],
-      activeWorkflowId: null,
-      initialized: false,
-      bootstrap: () => {
-        const state = get();
-        if (state.initialized) {
-          return;
-        }
-        if (state.workflows.length === 0) {
-          const name = "Untitled Workflow";
-          const document = createDocument({ name });
-          const code = generateCode(document);
-          const createdAt = document.metadata.createdAt ?? nowIso();
-          const updatedAt = document.metadata.updatedAt ?? nowIso();
-          const initialVersion = createVersionSnapshot({
-            document,
-            code,
-            name: "Initial version",
-            createdAt,
-            isNamed: true
-          });
-          const workflow: WorkspaceWorkflow = {
-            id: nanoid(),
-            document,
-            code,
-            createdAt,
-            updatedAt,
-            versions: [initialVersion],
-            lastRestoredVersionId: initialVersion.id
-          };
-          set({ workflows: [workflow], activeWorkflowId: null, initialized: true });
-          return;
-        }
-        const normalized = state.workflows.map((workflow) => {
-          if (workflow.versions && workflow.versions.length > 0) {
-            return workflow;
-          }
-          const code = workflow.code ?? generateCode(workflow.document);
-          const createdAt = workflow.createdAt ?? nowIso();
-          const initialVersion = createVersionSnapshot({
-            document: workflow.document,
-            code,
-            name: "Imported version",
-            createdAt,
-            isNamed: true
-          });
-          return {
-            ...workflow,
-            code,
-            versions: [initialVersion],
-            lastRestoredVersionId: initialVersion.id
-          };
-        });
-        set({
-          workflows: normalized,
-          activeWorkflowId: null,
-          initialized: true
-        });
-      },
-      createWorkflow: (options?: CreateWorkflowOptions) => {
-        const name = options?.name?.trim() && options?.name.trim().length > 0 ? options.name.trim() : "Untitled Workflow";
-        const baseDocument = options?.document ?? createDocument({ name });
-        const document = cloneDocument(baseDocument);
-        document.metadata = {
-          ...document.metadata,
-          name,
-          updatedAt: nowIso()
-        };
-        const storedCode = options?.code ?? generateCode(document);
-        const createdAt = document.metadata.createdAt ?? nowIso();
-        const updatedAt = document.metadata.updatedAt ?? nowIso();
-        const initialVersion = createVersionSnapshot({
-          document,
-          code: storedCode,
-          name: "Initial version",
-          createdAt,
-          isNamed: true
-        });
-        const workflow: WorkspaceWorkflow = {
-          id: nanoid(),
-          document,
-          code: storedCode,
-          createdAt,
-          updatedAt,
-          versions: [initialVersion],
-          lastRestoredVersionId: initialVersion.id
-        };
-
-        set((state) => ({
-          workflows: [...state.workflows, workflow],
-          activeWorkflowId: workflow.id
-        }));
-
-        return workflow;
-      },
-      selectWorkflow: ({ id }) => {
-        const state = get();
-        if (state.activeWorkflowId === id) {
-          return;
-        }
-        const exists = state.workflows.some((workflow) => workflow.id === id);
-        if (!exists) {
-          return;
-        }
-        set({ activeWorkflowId: id });
-      },
-      updateActiveWorkflow: ({ document, code }) => {
-        const state = get();
-        const activeId = state.activeWorkflowId;
-        if (!activeId) {
-          return;
-        }
-        const index = state.workflows.findIndex((workflow) => workflow.id === activeId);
-        if (index === -1) {
-          return;
-        }
-        const nextWorkflows = [...state.workflows];
-        const updatedAt = nowIso();
-        const nextDocument = cloneDocument(document);
-        nextWorkflows[index] = {
-          ...nextWorkflows[index],
-          document: nextDocument,
-          code,
-          updatedAt,
-          lastRestoredVersionId: null
-        };
-        set({ workflows: nextWorkflows });
-      },
-      deleteWorkflow: ({ id }) => {
-        set((state) => {
-          const remaining = state.workflows.filter((workflow) => workflow.id !== id);
-          if (remaining.length === 0) {
-            const name = "Untitled Workflow";
-            const document = createDocument({ name });
-            const code = generateCode(document);
-            const createdAt = document.metadata.createdAt ?? nowIso();
-            const initialVersion = createVersionSnapshot({
-              document,
-              code,
-              name: "Initial version",
-              createdAt,
-              isNamed: true
-            });
-            const replacement: WorkspaceWorkflow = {
-              id: nanoid(),
-              document,
-              code,
-              createdAt,
-              updatedAt: document.metadata.updatedAt ?? nowIso(),
-              versions: [initialVersion],
-              lastRestoredVersionId: initialVersion.id
-            };
-            return {
-              workflows: [replacement],
-              activeWorkflowId: null
-            };
-          }
-
-          const nextActive = state.activeWorkflowId === id ? null : state.activeWorkflowId;
-          return {
-            workflows: remaining,
-            activeWorkflowId: nextActive
-          };
-        });
-      },
-      saveWorkflowVersion: ({ workflowId, document, code, name }) => {
-        const state = get();
-        const index = state.workflows.findIndex((workflow) => workflow.id === workflowId);
-        if (index === -1) {
-          return;
-        }
-        const existing = state.workflows[index];
-        const existingVersions = existing.versions ?? [];
-        const createdAt = nowIso();
-        const version = createVersionSnapshot({
-          document,
-          code,
-          name,
-          createdAt,
-          isNamed: Boolean(name && name.trim().length > 0)
-        });
-        const versions = [version, ...existingVersions];
-        if (versions.length > MAX_VERSIONS) {
-          versions.pop();
-        }
-        const nextWorkflows = [...state.workflows];
-        nextWorkflows[index] = {
-          ...existing,
-          versions,
-          lastRestoredVersionId: version.id,
-          updatedAt: createdAt
-        };
-        set({ workflows: nextWorkflows });
-      },
-      restoreWorkflowVersion: ({ workflowId, versionId }) => {
-        const state = get();
-        const index = state.workflows.findIndex((workflow) => workflow.id === workflowId);
-        if (index === -1) {
-          return;
-        }
-        const workflow = state.workflows[index];
-        const version = workflow.versions.find((entry) => entry.id === versionId);
-        if (!version) {
-          return;
-        }
-        const restoredDocument = cloneDocument(version.document);
-        const restoredCode = version.code;
-        const updatedAt = nowIso();
-        restoredDocument.metadata = {
-          ...restoredDocument.metadata,
-          updatedAt
-        };
-        const nextWorkflows = [...state.workflows];
-        nextWorkflows[index] = {
-          ...workflow,
-          document: restoredDocument,
-          code: restoredCode,
-          updatedAt,
-          lastRestoredVersionId: version.id
-        };
-        set({ workflows: nextWorkflows });
-      },
-      renameWorkflowVersion: ({ workflowId, versionId, name }) => {
-        const label = name.trim();
-        const state = get();
-        const index = state.workflows.findIndex((workflow) => workflow.id === workflowId);
-        if (index === -1) {
-          return;
-        }
-        const workflow = state.workflows[index];
-        const versions = workflow.versions.map((entry) => {
-          if (entry.id !== versionId) {
-            return entry;
-          }
-          return {
-            ...entry,
-            name: label.length > 0 ? label : entry.name,
-            isNamed: label.length > 0 || entry.isNamed
-          };
-        });
-        const nextWorkflows = [...state.workflows];
-        nextWorkflows[index] = {
-          ...workflow,
-          versions
-        };
-        set({ workflows: nextWorkflows });
-      },
-      deleteWorkflowVersion: ({ workflowId, versionId }) => {
-        const state = get();
-        const index = state.workflows.findIndex((workflow) => workflow.id === workflowId);
-        if (index === -1) {
-          return;
-        }
-        const workflow = state.workflows[index];
-        if (workflow.versions.length <= 1) {
-          return;
-        }
-        const versions = workflow.versions.filter((entry) => entry.id !== versionId);
-        if (versions.length === workflow.versions.length) {
-          return;
-        }
-        const nextWorkflows = [...state.workflows];
-        const lastRestoredVersionId = workflow.lastRestoredVersionId === versionId ? null : workflow.lastRestoredVersionId;
-        nextWorkflows[index] = {
-          ...workflow,
-          versions,
-          lastRestoredVersionId
-        };
-        set({ workflows: nextWorkflows });
-      },
-      clearActiveWorkflow: () => {
-        set({ activeWorkflowId: null });
-      }
-    }),
-    {
-      name: STORAGE_KEY,
-      storage: createJSONStorage(() => createStorage()),
-      partialize: (state) => ({
-        workflows: state.workflows,
-        activeWorkflowId: state.activeWorkflowId,
-        initialized: state.initialized
-      })
+export const useWorkspaceStore = createWithEqualityFn<WorkspaceState>()((set, get) => ({
+  workflows: [],
+  activeWorkflowId: null,
+  activeWorkflow: null,
+  initialized: false,
+  loadingList: false,
+  loadingDetail: false,
+  error: undefined,
+  bootstrap: async () => {
+    const state = get();
+    if (state.initialized || state.loadingList) {
+      return;
     }
-  )
-);
+    set((prev) => ({ ...prev, loadingList: true, error: undefined }));
+    try {
+      const summaries = await listWorkflows();
+      const workflows = summaries.map(mapSummary);
+      set((prev) => ({
+        ...prev,
+        workflows,
+        loadingList: false,
+        initialized: true
+      }));
+    } catch (error) {
+      console.error("Failed to load workflows", error);
+      set((prev) => ({
+        ...prev,
+        loadingList: false,
+        initialized: true,
+        error: error instanceof Error ? error.message : "Failed to load workflows"
+      }));
+    }
+  },
+  createWorkflow: async ({ name, type } = {}) => {
+    const initialName = name?.trim() ?? "Untitled Workflow";
+    const document = createDocument({ name: initialName });
+    const code = generateCode(document);
+    try {
+      const detail = await createWorkflowApi({
+        name: initialName,
+        type,
+        document,
+        code
+      });
+      const mappedDetail = mapDetail(detail);
+      set((prev) => ({
+        ...prev,
+        workflows: [mapSummary({
+          id: detail.workflowId,
+          name: mappedDetail.name,
+          status: mappedDetail.status,
+          type: mappedDetail.type,
+          created_at: detail.createdAt,
+          updated_at: detail.updatedAt
+        }), ...prev.workflows],
+        activeWorkflowId: mappedDetail.id,
+        activeWorkflow: mappedDetail
+      }));
+    } catch (error) {
+      console.error("Failed to create workflow", error);
+      set((prev) => ({
+        ...prev,
+        error: error instanceof Error ? error.message : "Failed to create workflow"
+      }));
+    }
+  },
+  selectWorkflow: async ({ id }) => {
+    const state = get();
+    if (state.activeWorkflowId === id && state.activeWorkflow) {
+      return;
+    }
+    set((prev) => ({ ...prev, loadingDetail: true, error: undefined, activeWorkflowId: id }));
+    try {
+      const detail = await getWorkflowDetail(id);
+      const mapped = mapDetail(detail);
+      set((prev) => {
+        const workflows = prev.workflows.map((item) =>
+          item.id === mapped.id
+            ? {
+                ...item,
+                name: mapped.name,
+                status: mapped.status,
+                type: mapped.type,
+                updatedAt: mapped.updatedAt
+              }
+            : item
+        );
+        return {
+          ...prev,
+          workflows,
+          activeWorkflowId: mapped.id,
+          activeWorkflow: mapped,
+          loadingDetail: false
+        };
+      });
+    } catch (error) {
+      console.error("Failed to load workflow detail", error);
+      set((prev) => ({
+        ...prev,
+        loadingDetail: false,
+        error: error instanceof Error ? error.message : "Failed to load workflow",
+        activeWorkflow: null
+      }));
+    }
+  },
+  updateActiveWorkflow: ({ document, code, type, name, status }) => {
+    const state = get();
+    if (!state.activeWorkflowId || !state.activeWorkflow) {
+      return;
+    }
+    const workflowId = state.activeWorkflowId;
+    const derivedName = name?.trim() ?? deriveNameFromDocument(document);
+    const updatedAtIso = new Date().toISOString();
+
+    set((prev) => {
+      if (!prev.activeWorkflow || prev.activeWorkflow.id !== workflowId) {
+        return prev;
+      }
+      const updatedActive: ActiveWorkflow = {
+        ...prev.activeWorkflow,
+        document,
+        code,
+        type: type ?? prev.activeWorkflow.type,
+        status: status ?? prev.activeWorkflow.status,
+        name: derivedName,
+        updatedAt: updatedAtIso
+      };
+      const workflows = prev.workflows.map((item) =>
+        item.id === workflowId
+          ? {
+              ...item,
+              name: derivedName,
+              updatedAt: updatedAtIso,
+              status: updatedActive.status,
+              type: updatedActive.type
+            }
+          : item
+      );
+      return {
+        ...prev,
+        workflows,
+        activeWorkflow: updatedActive
+      };
+    });
+
+    pendingUpdatePayload = {
+      workflowId,
+      document,
+      code,
+      type,
+      name: derivedName,
+      status
+    };
+
+    if (pendingUpdateTimer) {
+      clearTimeout(pendingUpdateTimer);
+    }
+    pendingUpdateTimer = setTimeout(() => {
+      flushPendingUpdate(get, (updater) => set((current) => updater(current)));
+    }, 500);
+  },
+  deleteWorkflow: async ({ id }) => {
+    try {
+      await deleteWorkflowApi(id);
+      set((prev) => {
+        const workflows = prev.workflows.filter((item) => item.id !== id);
+        const isActive = prev.activeWorkflowId === id;
+        return {
+          ...prev,
+          workflows,
+          activeWorkflowId: isActive ? null : prev.activeWorkflowId,
+          activeWorkflow: isActive ? null : prev.activeWorkflow
+        };
+      });
+    } catch (error) {
+      console.error("Failed to delete workflow", error);
+      set((prev) => ({
+        ...prev,
+        error: error instanceof Error ? error.message : "Failed to delete workflow"
+      }));
+    }
+  },
+  saveWorkflowVersion: async ({ workflowId, document, code, name }) => {
+    try {
+      const version = await saveWorkflowVersionApi(workflowId, {
+        document,
+        code,
+        name
+      });
+      set((prev) => {
+        if (!prev.activeWorkflow || prev.activeWorkflow.id !== workflowId) {
+          return prev;
+        }
+        const versions = [mapVersion(version), ...prev.activeWorkflow.versions.filter((v) => v.id !== version.id)];
+        return {
+          ...prev,
+          activeWorkflow: {
+            ...prev.activeWorkflow,
+            document,
+            code,
+            versions,
+            lastRestoredVersionId: version.id,
+            updatedAt: toIso(Date.now())
+          }
+        };
+      });
+    } catch (error) {
+      console.error("Failed to save workflow version", error);
+      set((prev) => ({
+        ...prev,
+        error: error instanceof Error ? error.message : "Failed to save version"
+      }));
+    }
+  },
+  restoreWorkflowVersion: async ({ workflowId, versionId }) => {
+    try {
+      const detail = await restoreWorkflowVersionApi(workflowId, versionId);
+      const mapped = mapDetail(detail);
+      set((prev) => {
+        const workflows = prev.workflows.map((item) =>
+          item.id === mapped.id
+            ? {
+                ...item,
+                name: mapped.name,
+                status: mapped.status,
+                type: mapped.type,
+                updatedAt: mapped.updatedAt
+              }
+            : item
+        );
+        return {
+          ...prev,
+          workflows,
+          activeWorkflow: mapped
+        };
+      });
+    } catch (error) {
+      console.error("Failed to restore version", error);
+      set((prev) => ({
+        ...prev,
+        error: error instanceof Error ? error.message : "Failed to restore version"
+      }));
+    }
+  },
+  renameWorkflowVersion: async ({ workflowId, versionId, name }) => {
+    try {
+      const version = await renameWorkflowVersionApi(workflowId, versionId, name);
+      set((prev) => {
+        if (!prev.activeWorkflow || prev.activeWorkflow.id !== workflowId) {
+          return prev;
+        }
+        const versions = prev.activeWorkflow.versions.map((item) =>
+          item.id === version.id
+            ? {
+                ...item,
+                name: version.name,
+                isNamed: version.isNamed,
+                createdAt: version.createdAt,
+                createdAtIso: toIso(version.createdAt)
+              }
+            : item
+        );
+        return {
+          ...prev,
+          activeWorkflow: {
+            ...prev.activeWorkflow,
+            versions
+          }
+        };
+      });
+    } catch (error) {
+      console.error("Failed to rename version", error);
+      set((prev) => ({
+        ...prev,
+        error: error instanceof Error ? error.message : "Failed to rename version"
+      }));
+    }
+  },
+  deleteWorkflowVersion: async ({ workflowId, versionId }) => {
+    try {
+      await deleteWorkflowVersionApi(workflowId, versionId);
+      set((prev) => {
+        if (!prev.activeWorkflow || prev.activeWorkflow.id !== workflowId) {
+          return prev;
+        }
+        const versions = prev.activeWorkflow.versions.filter((item) => item.id !== versionId);
+        const lastRestoredVersionId = prev.activeWorkflow.lastRestoredVersionId === versionId
+          ? null
+          : prev.activeWorkflow.lastRestoredVersionId;
+        return {
+          ...prev,
+          activeWorkflow: {
+            ...prev.activeWorkflow,
+            versions,
+            lastRestoredVersionId
+          }
+        };
+      });
+    } catch (error) {
+      console.error("Failed to delete version", error);
+      set((prev) => ({
+        ...prev,
+        error: error instanceof Error ? error.message : "Failed to delete version"
+      }));
+    }
+  },
+  clearActiveWorkflow: () => {
+    if (pendingUpdateTimer) {
+      clearTimeout(pendingUpdateTimer);
+      pendingUpdateTimer = null;
+      pendingUpdatePayload = null;
+    }
+    set((prev) => ({
+      ...prev,
+      activeWorkflowId: null,
+      activeWorkflow: null
+    }));
+  }
+}));
 
 export const useActiveWorkflow = () => {
-  const getSignature = (workflow: WorkspaceWorkflow | null) => {
-    if (!workflow) {
-      return "";
-    }
-    const versions = (workflow.versions ?? [])
-      .map((version) => `${version.id}:${version.createdAt}:${version.name}`)
-      .join("|");
-    return `${workflow.updatedAt}|${workflow.lastRestoredVersionId ?? ""}|${versions}`;
-  };
-
   return useWorkspaceStore(
-    (state) => state.workflows.find((workflow) => workflow.id === state.activeWorkflowId) ?? null,
-    (a, b) => a?.id === b?.id && getSignature(a) === getSignature(b)
+    (state) => state.activeWorkflow,
+    (a, b) => a?.id === b?.id && a?.updatedAt === b?.updatedAt && a?.versions.length === b?.versions.length
   );
 };
 
 export const useWorkspaceList = () => {
-  return useWorkspaceStore((state) =>
-    state.workflows.map((workflow) => ({
-      id: workflow.id,
-      name: workflow.document.metadata.name,
-      updatedAt: workflow.updatedAt,
-      description: workflow.document.metadata.description ?? ""
-    }))
-  );
+  return useWorkspaceStore((state) => state.workflows);
 };

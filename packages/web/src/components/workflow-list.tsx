@@ -5,29 +5,19 @@ import { Icon } from "./icon";
 
 const WorkflowList = () => {
   const workflows = useWorkspaceStore((state) => state.workflows);
+  const loading = useWorkspaceStore((state) => state.loadingList);
   const selectWorkflow = useWorkspaceStore((state) => state.selectWorkflow);
   const createWorkflow = useWorkspaceStore((state) => state.createWorkflow);
   const deleteWorkflow = useWorkspaceStore((state) => state.deleteWorkflow);
 
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
-  const formattedWorkflows = useMemo(
-    () =>
-      workflows.map((workflow) => ({
-        id: workflow.id,
-        name: workflow.document.metadata.name,
-        updatedAt: workflow.updatedAt,
-        description: workflow.document.metadata.description ?? ""
-      })),
-    [workflows]
-  );
-
   const formatter = useMemo(() => new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }), []);
 
   const handleCreateWorkflow = () => {
     const index = workflows.length + 1;
     const name = `Workflow ${index}`;
-    createWorkflow({ name });
+    void createWorkflow({ name });
   };
 
   const handleDelete = (id: string) => {
@@ -35,7 +25,7 @@ const WorkflowList = () => {
       setPendingDeleteId(id);
       return;
     }
-    deleteWorkflow({ id });
+    void deleteWorkflow({ id });
     setPendingDeleteId(null);
   };
 
@@ -54,7 +44,11 @@ const WorkflowList = () => {
       </header>
 
       <main className="flex w-full max-w-4xl flex-1 flex-col px-10 py-10">
-        {formattedWorkflows.length === 0 ? (
+        {loading ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 text-[#657782]">
+            <p>Loading workflows…</p>
+          </div>
+        ) : workflows.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 text-[#657782]">
             <p>No workflows yet.</p>
             <button
@@ -67,7 +61,7 @@ const WorkflowList = () => {
           </div>
         ) : (
           <ul className="divide-y divide-[#E5E9F2] border border-[#E5E9F2] bg-white">
-            {formattedWorkflows.map((workflow) => (
+            {workflows.map((workflow) => (
               <li key={workflow.id} className="flex items-center justify-between px-5 py-4">
                 <div className="flex flex-col">
                   <span className="text-sm font-medium text-[#0A1A23]">{workflow.name}</span>
@@ -78,7 +72,9 @@ const WorkflowList = () => {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => selectWorkflow({ id: workflow.id })}
+                    onClick={() => {
+                      void selectWorkflow({ id: workflow.id });
+                    }}
                     className="rounded-full border border-[#3A5AE5] bg-[#3A5AE5] px-3 py-1.5 text-xs font-semibold text-white"
                   >
                     Open

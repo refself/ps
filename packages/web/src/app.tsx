@@ -59,7 +59,7 @@ const App = () => {
     return activeWorkflow.versions.map((version) => ({
       id: version.id,
       name: version.name,
-      createdAt: version.createdAt,
+      createdAt: version.createdAtIso,
       isNamed: version.isNamed
     }));
   }, [activeWorkflow]);
@@ -69,7 +69,7 @@ const App = () => {
       if (!activeWorkflow) {
         return;
       }
-      saveWorkflowVersion({ workflowId: activeWorkflow.id, name, document, code });
+      void saveWorkflowVersion({ workflowId: activeWorkflow.id, name, document, code });
     },
     [activeWorkflow, saveWorkflowVersion]
   );
@@ -79,7 +79,7 @@ const App = () => {
       if (!activeWorkflow) {
         return;
       }
-      restoreWorkflowVersion({ workflowId: activeWorkflow.id, versionId });
+      void restoreWorkflowVersion({ workflowId: activeWorkflow.id, versionId });
     },
     [activeWorkflow, restoreWorkflowVersion]
   );
@@ -89,7 +89,7 @@ const App = () => {
       if (!activeWorkflow) {
         return;
       }
-      renameWorkflowVersion({ workflowId: activeWorkflow.id, versionId, name });
+      void renameWorkflowVersion({ workflowId: activeWorkflow.id, versionId, name });
     },
     [activeWorkflow, renameWorkflowVersion]
   );
@@ -99,7 +99,7 @@ const App = () => {
       if (!activeWorkflow) {
         return;
       }
-      deleteWorkflowVersion({ workflowId: activeWorkflow.id, versionId });
+      void deleteWorkflowVersion({ workflowId: activeWorkflow.id, versionId });
     },
     [activeWorkflow, deleteWorkflowVersion]
   );
@@ -138,6 +138,6 @@ const useWorkspaceSynchronization = () => {
   const bootstrap = useWorkspaceStore((state) => state.bootstrap);
 
   useEffect(() => {
-    bootstrap();
+    void bootstrap();
   }, [bootstrap]);
 };
