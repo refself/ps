@@ -258,10 +258,6 @@ export const useWorkspaceStore = createWithEqualityFn<WorkspaceState>()(
         const nextWorkflows = [...state.workflows];
         const updatedAt = nowIso();
         const nextDocument = cloneDocument(document);
-        nextDocument.metadata = {
-          ...nextDocument.metadata,
-          updatedAt
-        };
         nextWorkflows[index] = {
           ...nextWorkflows[index],
           document: nextDocument,

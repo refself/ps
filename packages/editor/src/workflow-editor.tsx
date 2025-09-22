@@ -108,6 +108,13 @@ const WorkflowEditor = ({
   const lastLoadedSignatureRef = useRef<string | null>(null);
 
   useEffect(() => {
+    const unsubscribe = useEditorStore.subscribe((state) => {
+      lastLoadedSignatureRef.current = JSON.stringify(state.document);
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
     setEditorExternalListeners({
       onDocumentChange,
       onCodeChange
