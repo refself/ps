@@ -2,6 +2,8 @@ import { ChangeEvent } from "react";
 
 import type { BlockFieldDefinition } from "@workflow-builder/core";
 
+import { useEditorStore } from "../../state/editor-store";
+
 import ExpressionEditor from "./expression-editor";
 import JsonSchemaEditor from "./json-schema-editor";
 
@@ -15,6 +17,11 @@ type FieldEditorProps = {
 const FieldEditor = ({ field, value, onChange, contextBlockId }: FieldEditorProps) => {
   const input = field.input;
   const fallbackValue = field.defaultValue;
+  const contextBlock = useEditorStore((state) =>
+    contextBlockId ? state.document.blocks[contextBlockId] : null
+  );
+  const enableQuickSchemaBuilder =
+    contextBlock?.kind === "ai-call" || contextBlock?.kind === "vision-call";
 
   if (input.kind === "boolean") {
     const checked = typeof value === "boolean" ? value : Boolean(fallbackValue);
@@ -176,6 +183,7 @@ const FieldEditor = ({ field, value, onChange, contextBlockId }: FieldEditorProp
           onChange={(next) => onChange(next)}
           label={field.label}
           description={field.description}
+          enableQuickBuilder={enableQuickSchemaBuilder}
         />
       </div>
     );

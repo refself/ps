@@ -7,11 +7,14 @@ type PrimitiveSchemaNode = {
   kind: "string" | "number" | "boolean";
 };
 
+type SchemaNode = PrimitiveSchemaNode | ObjectSchemaNode | ArraySchemaNode;
+
 type SchemaProperty = {
   id: string;
   name: string;
   required: boolean;
   schema: SchemaNode;
+  description?: string;
 };
 
 type ObjectSchemaNode = {
@@ -24,16 +27,7 @@ type ArraySchemaNode = {
   items: SchemaNode;
 };
 
-type SchemaNode = PrimitiveSchemaNode | ObjectSchemaNode | ArraySchemaNode;
-
 type RootKind = SchemaNodeKind | "none";
-
-type JsonSchemaEditorProps = {
-  value: string;
-  onChange: (next: string) => void;
-  label: string;
-  description?: string;
-};
 
 type ParseResult = {
   kind: RootKind;
@@ -45,6 +39,33 @@ type TransformResult = {
   node: SchemaNode | null;
   warnings: string[];
 };
+
+type JsonSchemaEditorProps = {
+  value: string;
+  onChange: (next: string) => void;
+  label: string;
+  description?: string;
+  enableQuickBuilder?: boolean;
+};
+
+type QuickFieldType = "string" | "number" | "boolean" | "string-array" | "number-array" | "boolean-array";
+
+type QuickField = {
+  id: string;
+  name: string;
+  type: QuickFieldType;
+  required: boolean;
+  description: string;
+};
+
+const QUICK_FIELD_OPTIONS: Array<{ value: QuickFieldType; label: string }> = [
+  { value: "string", label: "Text" },
+  { value: "number", label: "Number" },
+  { value: "boolean", label: "True/False" },
+  { value: "string-array", label: "Text List" },
+  { value: "number-array", label: "Number List" },
+  { value: "boolean-array", label: "True/False List" }
+];
 
 const defaultObjectSchema = (): ObjectSchemaNode => ({
   kind: "object",
@@ -68,6 +89,29 @@ const createDefaultNode = (kind: SchemaNodeKind): SchemaNode => {
   }
 };
 
+const safeParseSchema = (raw: string): unknown => {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(trimmed);
+  } catch (jsonError) {
+    if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+      throw jsonError;
+    }
+
+    try {
+      // eslint-disable-next-line no-new-func
+      const evaluated = new Function(`return (${trimmed});`)();
+      return evaluated;
+    } catch {
+      throw jsonError;
+    }
+  }
+};
+
 const fromJsonSchema = (input: unknown): TransformResult => {
   if (!input || typeof input !== "object") {
     return { node: null, warnings: ["Schema must be an object with a type."] };
@@ -88,11 +132,16 @@ const fromJsonSchema = (input: unknown): TransformResult => {
       Object.entries(propertiesValue as Record<string, unknown>).forEach(([name, value]) => {
         const child = fromJsonSchema(value);
         const propertySchema = child.node ?? { kind: "string" };
+        const description =
+          value && typeof value === "object" && typeof (value as Record<string, unknown>).description === "string"
+            ? ((value as Record<string, unknown>).description as string)
+            : undefined;
         properties.push({
           id: nanoid(),
           name,
           required: requiredValue.includes(name),
-          schema: propertySchema
+          schema: propertySchema,
+          description
         });
       });
     }
@@ -141,7 +190,7 @@ const parseSchemaValue = (raw: string): ParseResult => {
   }
 
   try {
-    const json = JSON.parse(raw);
+    const json = safeParseSchema(raw);
     const transformed = fromJsonSchema(json);
     if (!transformed.node) {
       return {
@@ -173,18 +222,27 @@ const toJsonSchema = (node: SchemaNode): Record<string, unknown> => {
       if (!property.name) {
         return;
       }
-      properties[property.name] = toJsonSchema(property.schema);
+
+      const propertySchema = toJsonSchema(property.schema);
+      if (property.description?.trim()) {
+        propertySchema.description = property.description.trim();
+      }
+      properties[property.name] = propertySchema;
+
       if (property.required) {
         required.push(property.name);
       }
     });
+
     const result: Record<string, unknown> = {
       type: "object",
       properties
     };
+
     if (required.length > 0) {
       result.required = required;
     }
+
     return result;
   }
 
@@ -200,6 +258,342 @@ const toJsonSchema = (node: SchemaNode): Record<string, unknown> => {
 
 const serializeSchema = (node: SchemaNode): string => {
   return JSON.stringify(toJsonSchema(node), null, 2);
+};
+
+const createQuickField = (): QuickField => ({
+  id: nanoid(),
+  name: "",
+  type: "string",
+  required: false,
+  description: ""
+});
+
+const quickTypeFromSchema = (node: SchemaNode): QuickFieldType | null => {
+  if (node.kind === "string") {
+    return "string";
+  }
+  if (node.kind === "number") {
+    return "number";
+  }
+  if (node.kind === "boolean") {
+    return "boolean";
+  }
+  if (node.kind === "array") {
+    if (node.items.kind === "string") {
+      return "string-array";
+    }
+    if (node.items.kind === "number") {
+      return "number-array";
+    }
+    if (node.items.kind === "boolean") {
+      return "boolean-array";
+    }
+    return null;
+  }
+  return null;
+};
+
+const schemaNodeFromQuickType = (type: QuickFieldType): SchemaNode => {
+  switch (type) {
+    case "string":
+      return { kind: "string" };
+    case "number":
+      return { kind: "number" };
+    case "boolean":
+      return { kind: "boolean" };
+    case "string-array":
+      return { kind: "array", items: { kind: "string" } };
+    case "number-array":
+      return { kind: "array", items: { kind: "number" } };
+    case "boolean-array":
+      return { kind: "array", items: { kind: "boolean" } };
+    default:
+      return { kind: "string" };
+  }
+};
+
+const extractQuickFields = (node: SchemaNode): QuickField[] | null => {
+  if (node.kind !== "object") {
+    return null;
+  }
+
+  const fields: QuickField[] = [];
+  for (const property of node.properties) {
+    const type = quickTypeFromSchema(property.schema);
+    if (!type) {
+      return null;
+    }
+    fields.push({
+      id: property.id,
+      name: property.name,
+      type,
+      required: property.required,
+      description: property.description ?? ""
+    });
+  }
+  return fields;
+};
+
+const schemaFromQuickFields = (fields: QuickField[]): SchemaNode => {
+  const properties: SchemaProperty[] = fields
+    .map((field) => ({
+      id: field.id,
+      name: field.name.trim(),
+      required: field.required,
+      schema: schemaNodeFromQuickType(field.type),
+      description: field.description.trim() ? field.description.trim() : undefined
+    }))
+    .filter((field) => field.name.length > 0);
+
+  return {
+    kind: "object",
+    properties
+  };
+};
+
+const JsonSchemaEditor = ({ value, onChange, label, description, enableQuickBuilder = false }: JsonSchemaEditorProps) => {
+  const initialParse = parseSchemaValue(value);
+  const [schemaState, setSchemaState] = useState<ParseResult>(initialParse);
+  const [parseError, setParseError] = useState<string | undefined>(initialParse.error);
+  const initialQuickFields = enableQuickBuilder && initialParse.kind === "object" ? extractQuickFields(initialParse.schema) ?? [] : [];
+  const [quickFields, setQuickFields] = useState<QuickField[]>(initialQuickFields);
+  const initialMode: "quick" | "advanced" =
+    enableQuickBuilder && initialParse.kind === "object" && extractQuickFields(initialParse.schema) !== null
+      ? "quick"
+      : "advanced";
+  const [editorMode, setEditorMode] = useState<"quick" | "advanced">(initialMode);
+
+  useEffect(() => {
+    const next = parseSchemaValue(value);
+    setSchemaState(next);
+    setParseError(next.error);
+  }, [value]);
+
+  const quickBuilderExtraction = useMemo(() => {
+    if (!enableQuickBuilder || schemaState.kind !== "object") {
+      return null;
+    }
+    return extractQuickFields(schemaState.schema);
+  }, [enableQuickBuilder, schemaState]);
+
+  useEffect(() => {
+    if (quickBuilderExtraction) {
+      setQuickFields(quickBuilderExtraction);
+    }
+
+    if (!quickBuilderExtraction && editorMode === "quick") {
+      setEditorMode("advanced");
+    }
+  }, [quickBuilderExtraction, editorMode]);
+
+  const commitSchema = (nextSchema: SchemaNode, nextKind: RootKind = "object") => {
+    setSchemaState({ kind: nextKind, schema: nextSchema });
+    setParseError(undefined);
+    if (nextKind === "none") {
+      onChange("");
+    } else {
+      onChange(serializeSchema(nextSchema));
+    }
+  };
+
+  const handleRootKindChange = (nextKind: RootKind) => {
+    if (nextKind === "none") {
+      setQuickFields([]);
+      setEditorMode(enableQuickBuilder ? "quick" : "advanced");
+      commitSchema(defaultObjectSchema(), "none");
+      return;
+    }
+
+    const nextSchema = createDefaultNode(nextKind);
+    commitSchema(nextSchema, nextKind);
+  };
+
+  const handleSchemaNodeChange = (updater: (current: SchemaNode) => SchemaNode) => {
+    setSchemaState((current) => {
+      if (current.kind === "none") {
+        const nextSchema = updater(defaultObjectSchema());
+        commitSchema(nextSchema, "object");
+        return { kind: "object", schema: nextSchema };
+      }
+      const nextSchema = updater(current.schema);
+      commitSchema(nextSchema, current.kind);
+      return { kind: current.kind, schema: nextSchema };
+    });
+  };
+
+  const handleQuickFieldsCommit = (nextFields: QuickField[]) => {
+    setQuickFields(nextFields);
+    const nextSchema = schemaFromQuickFields(nextFields);
+    commitSchema(nextSchema, "object");
+  };
+
+  const quickBuilderAvailable = Boolean(enableQuickBuilder && schemaState.kind === "object" && quickBuilderExtraction);
+
+  const renderQuickBuilder = () => {
+    return (
+      <div className="flex flex-col gap-3">
+        {quickFields.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-[#0A1A2333] bg-[#F8FAFF] px-3 py-4 text-xs text-[#657782]">
+            No fields defined. Add fields to describe the response structure you expect from the model.
+          </div>
+        ) : null}
+        {quickFields.map((field) => (
+          <div key={field.id} className="flex flex-col gap-3 rounded-xl border border-[#E1E6F2] bg-white p-3 shadow-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                value={field.name}
+                onChange={(event) =>
+                  handleQuickFieldsCommit(
+                    quickFields.map((candidate) =>
+                      candidate.id === field.id ? { ...candidate, name: event.target.value } : candidate
+                    )
+                  )
+                }
+                placeholder="fieldName"
+                className="flex-1 rounded-md border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4] focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+              />
+              <select
+                value={field.type}
+                onChange={(event) =>
+                  handleQuickFieldsCommit(
+                    quickFields.map((candidate) =>
+                      candidate.id === field.id
+                        ? { ...candidate, type: event.target.value as QuickFieldType }
+                        : candidate
+                    )
+                  )
+                }
+                className="rounded-md border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-xs uppercase tracking-[0.2em] text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+              >
+                {QUICK_FIELD_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <label className="flex items-center gap-1 rounded-full border border-[#0A1A2333] px-2 py-0.5 text-[10px] uppercase tracking-[0.15em] text-[#657782]">
+                <input
+                  type="checkbox"
+                  checked={field.required}
+                  onChange={(event) =>
+                    handleQuickFieldsCommit(
+                      quickFields.map((candidate) =>
+                        candidate.id === field.id ? { ...candidate, required: event.target.checked } : candidate
+                      )
+                    )
+                  }
+                  className="h-3 w-3 rounded border-[#0A1A2333] text-[#3A5AE5] focus:ring-[#3A5AE5]"
+                />
+                Required
+              </label>
+              <button
+                type="button"
+                onClick={() => handleQuickFieldsCommit(quickFields.filter((candidate) => candidate.id !== field.id))}
+                className="flex items-center rounded-full border border-[#CD3A50] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#CD3A50] transition hover:bg-[#CD3A5014]"
+              >
+                Remove
+              </button>
+            </div>
+            <textarea
+              value={field.description}
+              onChange={(event) =>
+                handleQuickFieldsCommit(
+                  quickFields.map((candidate) =>
+                    candidate.id === field.id ? { ...candidate, description: event.target.value } : candidate
+                  )
+                )
+              }
+              placeholder="Describe this field (optional)"
+              rows={2}
+              className="w-full rounded-md border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4] focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+            />
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={() => handleQuickFieldsCommit([...quickFields, createQuickField()])}
+          className="self-start rounded-md border border-[#3A5AE5] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#3A5AE5] transition hover:bg-[#3A5AE510]"
+        >
+          Add field
+        </button>
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <span className="text-sm font-medium text-[#0A1A23]">{label}</span>
+        {description ? <span className="text-xs text-[#657782]">{description}</span> : null}
+      </div>
+
+      <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-[#657782]">
+        <span>Schema Mode</span>
+        <select
+          value={schemaState.kind}
+          onChange={(event) => handleRootKindChange(event.target.value as RootKind)}
+          className="rounded-md border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-xs text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+        >
+          <option value="none">No schema</option>
+          <option value="object">Object</option>
+          <option value="array">Array</option>
+          <option value="string">String</option>
+          <option value="number">Number</option>
+          <option value="boolean">Boolean</option>
+        </select>
+      </label>
+
+      {schemaState.kind === "object" && enableQuickBuilder ? (
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setEditorMode("quick")}
+            disabled={!quickBuilderAvailable}
+            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] transition ${
+              editorMode === "quick"
+                ? "border border-[#3A5AE5] bg-[#3A5AE510] text-[#3A5AE5]"
+                : quickBuilderAvailable
+                ? "border border-[#0A1A2333] bg-white text-[#657782] hover:border-[#3A5AE5] hover:text-[#3A5AE5]"
+                : "border border-dashed border-[#0A1A2333] bg-white text-[#9AA7B4] cursor-not-allowed"
+            }`}
+          >
+            Quick Builder
+          </button>
+          <button
+            type="button"
+            onClick={() => setEditorMode("advanced")}
+            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] transition ${
+              editorMode === "advanced"
+                ? "border border-[#3A5AE5] bg-[#3A5AE510] text-[#3A5AE5]"
+                : "border border-[#0A1A2333] bg-white text-[#657782] hover:border-[#3A5AE5] hover:text-[#3A5AE5]"
+            }`}
+          >
+            Advanced
+          </button>
+        </div>
+      ) : null}
+
+      {parseError ? (
+        <div className="rounded-lg border border-[#F9D4D8] bg-[#FDF2F3] px-3 py-2 text-xs text-[#CD3A50]">{parseError}</div>
+      ) : null}
+
+      {schemaState.kind === "none" ? (
+        <div className="rounded-lg border border-dashed border-[#0A1A2333] bg-[#F8FAFF] px-3 py-4 text-xs text-[#657782]">
+          No schema configured. Select a schema type to start describing the AI response.
+        </div>
+      ) : editorMode === "quick" && quickBuilderAvailable ? (
+        renderQuickBuilder()
+      ) : (
+        <SchemaNodeEditor node={schemaState.schema} onChange={handleSchemaNodeChange} depth={0} />
+      )}
+
+      {!quickBuilderAvailable && editorMode === "quick" ? (
+        <div className="rounded-lg border border-[#F9D4D8] bg-[#FDF2F3] px-3 py-2 text-xs text-[#CD3A50]">
+          Quick builder is available for objects with primitive or list fields. Switch to Advanced to edit complex schemas.
+        </div>
+      ) : null}
+    </div>
+  );
 };
 
 type SchemaNodeEditorProps = {
@@ -237,13 +631,8 @@ const SchemaNodeEditor = ({ node, onChange, depth }: SchemaNodeEditorProps) => {
         </label>
       </div>
 
-      {node.kind === "object" ? (
-        <ObjectNodeEditor node={node} onChange={onChange} depth={depth} />
-      ) : null}
-
-      {node.kind === "array" ? (
-        <ArrayNodeEditor node={node} onChange={onChange} depth={depth} />
-      ) : null}
+      {node.kind === "object" ? <ObjectNodeEditor node={node} onChange={onChange} depth={depth} /> : null}
+      {node.kind === "array" ? <ArrayNodeEditor node={node} onChange={onChange} depth={depth} /> : null}
     </div>
   );
 };
@@ -256,9 +645,7 @@ type ObjectNodeEditorProps = {
 
 const ObjectNodeEditor = ({ node, onChange, depth }: ObjectNodeEditorProps) => {
   const handlePropertyUpdate = (propertyId: string, updater: (property: SchemaProperty) => SchemaProperty) => {
-    const nextProperties = node.properties.map((property) =>
-      property.id === propertyId ? updater(property) : property
-    );
+    const nextProperties = node.properties.map((property) => (property.id === propertyId ? updater(property) : property));
     onChange({
       kind: "object",
       properties: nextProperties
@@ -275,7 +662,7 @@ const ObjectNodeEditor = ({ node, onChange, depth }: ObjectNodeEditorProps) => {
   const handleAddProperty = () => {
     const nextProperty: SchemaProperty = {
       id: nanoid(),
-      name: `property${node.properties.length + 1}`,
+      name: `field${node.properties.length + 1}`,
       required: false,
       schema: { kind: "string" }
     };
@@ -313,7 +700,7 @@ const ObjectNodeEditor = ({ node, onChange, depth }: ObjectNodeEditorProps) => {
                       name: event.target.value
                     }))
                   }
-                  placeholder="propertyName"
+                  placeholder="fieldName"
                   className="flex-1 rounded-md border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4] focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
                 />
                 <label className="flex items-center gap-1 rounded-full border border-[#0A1A2333] px-2 py-0.5 text-[10px] uppercase tracking-[0.15em] text-[#657782]">
@@ -338,6 +725,18 @@ const ObjectNodeEditor = ({ node, onChange, depth }: ObjectNodeEditorProps) => {
                   Remove
                 </button>
               </div>
+              <textarea
+                value={property.description ?? ""}
+                onChange={(event) =>
+                  handlePropertyUpdate(property.id, (current) => ({
+                    ...current,
+                    description: event.target.value
+                  }))
+                }
+                placeholder="Describe this field (optional)"
+                rows={2}
+                className="w-full rounded-md border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4] focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+              />
               <SchemaNodeEditor
                 node={property.schema}
                 onChange={(nextSchema) => handlePropertySchemaChange(property.id, nextSchema)}
@@ -382,98 +781,6 @@ const ArrayNodeEditor = ({ node, onChange, depth }: ArrayNodeEditorProps) => {
           depth={depth + 1}
         />
       </div>
-    </div>
-  );
-};
-
-const JsonSchemaEditor = ({ value, onChange, label, description }: JsonSchemaEditorProps) => {
-  const initialState = useMemo(() => parseSchemaValue(value), [value]);
-  const [schemaState, setSchemaState] = useState<ParseResult>(initialState);
-  const [parseError, setParseError] = useState<string | undefined>(initialState.error);
-
-  useEffect(() => {
-    const next = parseSchemaValue(value);
-    setSchemaState(next);
-    setParseError(next.error);
-  }, [value]);
-
-  const handleRootKindChange = (nextKind: RootKind) => {
-    if (nextKind === "none") {
-      setSchemaState((current) => ({
-        kind: "none",
-        schema: current.schema
-      }));
-      setParseError(undefined);
-      onChange("");
-      return;
-    }
-
-    setSchemaState((current) => {
-      const schemaForKind = current.schema.kind === nextKind ? current.schema : createDefaultNode(nextKind);
-      onChange(serializeSchema(schemaForKind));
-      setParseError(undefined);
-      return {
-        kind: nextKind,
-        schema: schemaForKind
-      };
-    });
-  };
-
-  const handleSchemaNodeChange = (updater: (current: SchemaNode) => SchemaNode) => {
-    setSchemaState((current) => {
-      if (current.kind === "none") {
-        return current;
-      }
-      const nextSchema = updater(current.schema);
-      onChange(serializeSchema(nextSchema));
-      setParseError(undefined);
-      return {
-        kind: current.kind,
-        schema: nextSchema
-      };
-    });
-  };
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
-        <span className="text-sm font-medium text-[#0A1A23]">{label}</span>
-        {description ? <span className="text-xs text-[#657782]">{description}</span> : null}
-      </div>
-
-      <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-[#657782]">
-        <span>Schema Mode</span>
-        <select
-          value={schemaState.kind}
-          onChange={(event) => handleRootKindChange(event.target.value as RootKind)}
-          className="rounded-md border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-xs text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
-        >
-          <option value="none">No schema</option>
-          <option value="object">Object</option>
-          <option value="array">Array</option>
-          <option value="string">String</option>
-          <option value="number">Number</option>
-          <option value="boolean">Boolean</option>
-        </select>
-      </label>
-
-      {parseError ? (
-        <div className="rounded-lg border border-[#F9D4D8] bg-[#FDF2F3] px-3 py-2 text-xs text-[#CD3A50]">
-          {parseError}
-        </div>
-      ) : null}
-
-      {schemaState.kind === "none" ? (
-        <div className="rounded-lg border border-dashed border-[#0A1A2333] bg-[#F8FAFF] px-3 py-4 text-xs text-[#657782]">
-          No schema configured. Select a schema type to start describing the AI response.
-        </div>
-      ) : (
-        <SchemaNodeEditor
-          node={schemaState.schema}
-          onChange={(nextSchema) => handleSchemaNodeChange(() => nextSchema)}
-          depth={0}
-        />
-      )}
     </div>
   );
 };
