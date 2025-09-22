@@ -1,12 +1,16 @@
 import { parse as babelParse } from "@babel/parser";
 import type {
+  AssignmentExpression,
+  BinaryExpression,
+  CallExpression,
   CatchClause,
   ExpressionStatement,
   File,
   ForStatement,
   FunctionDeclaration,
-  IfStatement,
   Identifier,
+  IfStatement,
+  MemberExpression,
   Node,
   ReturnStatement,
   Statement,
@@ -102,6 +106,201 @@ const numberLiteralValue = (node: Node | null | undefined): number | null => {
     return node.value;
   }
   return null;
+};
+
+const binaryOperatorOperationMap: Record<string, "add" | "subtract" | "multiply" | "divide" | "modulo"> = {
+  "+": "add",
+  "-": "subtract",
+  "*": "multiply",
+  "/": "divide",
+  "%": "modulo"
+};
+
+const compoundAssignmentOperationMap: Record<string, "add" | "subtract" | "multiply" | "divide" | "modulo"> = {
+  "+=": "add",
+  "-=": "subtract",
+  "*=": "multiply",
+  "/=": "divide",
+  "%=": "modulo"
+};
+
+const isIdentifierNode = (node: Node | null | undefined, name: string): boolean => {
+  if (!node) {
+    return false;
+  }
+  return n.Identifier.check(node) && node.name === name;
+};
+
+const flattenBinaryOperands = ({
+  expression,
+  operator
+}: {
+  expression: BinaryExpression;
+  operator: string;
+}): Node[] => {
+  const operands: Node[] = [];
+  const visit = (node: Node) => {
+    if (n.BinaryExpression.check(node) && node.operator === operator) {
+      visit(node.left as Node);
+      visit(node.right as Node);
+      return;
+    }
+    operands.push(node);
+  };
+  visit(expression);
+  return operands;
+};
+
+const extractBinaryAugmentedValue = ({
+  identifier,
+  expression
+}: {
+  identifier: string;
+  expression: BinaryExpression;
+}): { operation: "add" | "subtract" | "multiply" | "divide" | "modulo"; valueCode: string } | null => {
+  const operation = binaryOperatorOperationMap[expression.operator];
+  if (!operation) {
+    return null;
+  }
+
+  if (expression.operator === "+") {
+    const operands = flattenBinaryOperands({ expression, operator: expression.operator });
+    if (operands.length > 1) {
+      const [first, ...rest] = operands;
+      if (isIdentifierNode(first, identifier)) {
+        const valueCode = rest.map((node) => sourceFor(node)).join(" + ");
+        if (valueCode.trim() !== "") {
+          return { operation, valueCode };
+        }
+      }
+    }
+  }
+
+  if (isIdentifierNode(expression.left as Node, identifier)) {
+    return {
+      operation,
+      valueCode: sourceFor(expression.right as Node)
+    };
+  }
+
+  return null;
+};
+
+type PushCallInfo = {
+  arrayName: string;
+  argument: Node;
+};
+
+const extractPushCallInfo = (call: CallExpression): PushCallInfo | null => {
+  if (!n.MemberExpression.check(call.callee)) {
+    return null;
+  }
+
+  const member = call.callee as MemberExpression;
+  if (member.computed) {
+    return null;
+  }
+  if (!n.Identifier.check(member.property) || member.property.name !== "push") {
+    return null;
+  }
+  if (!n.Identifier.check(member.object)) {
+    return null;
+  }
+
+  if (call.arguments.length !== 1) {
+    return null;
+  }
+  const argumentNode = call.arguments[0];
+  if (!argumentNode) {
+    return null;
+  }
+  if ((argumentNode as Node).type === "SpreadElement") {
+    return null;
+  }
+
+  return {
+    arrayName: member.object.name,
+    argument: argumentNode as Node
+  };
+};
+
+const createVariableUpdateBlockFromAssignment = (assignment: AssignmentExpression): BlockInstance | null => {
+  if (!n.Identifier.check(assignment.left)) {
+    return null;
+  }
+
+  const identifier = assignment.left.name;
+
+  if (assignment.operator === "=") {
+    if (n.BinaryExpression.check(assignment.right)) {
+      const extracted = extractBinaryAugmentedValue({ identifier, expression: assignment.right });
+      if (extracted) {
+        const block = createBlockInstance("variable-update", {
+          identifier,
+          operation: extracted.operation,
+          value: extracted.valueCode,
+          operatorStyle: "binary"
+        });
+        return block;
+      }
+    }
+
+    const block = createBlockInstance("variable-update", {
+      identifier,
+      operation: "assign",
+      value: sourceFor(assignment.right)
+    });
+    return block;
+  }
+
+  const operation = compoundAssignmentOperationMap[assignment.operator];
+  if (!operation) {
+    return null;
+  }
+
+  const block = createBlockInstance("variable-update", {
+    identifier,
+    operation,
+    value: sourceFor(assignment.right),
+    operatorStyle: "compound"
+  });
+  return block;
+};
+
+const createArrayPushBlockFromAssignment = (assignment: AssignmentExpression): BlockInstance | null => {
+  if (assignment.operator !== "=") {
+    return null;
+  }
+  if (!n.Identifier.check(assignment.left)) {
+    return null;
+  }
+  if (!n.CallExpression.check(assignment.right)) {
+    return null;
+  }
+
+  const info = extractPushCallInfo(assignment.right);
+  if (!info || info.arrayName !== assignment.left.name) {
+    return null;
+  }
+
+  return createBlockInstance("array-push", {
+    array: info.arrayName,
+    value: sourceFor(info.argument),
+    storeResult: true
+  });
+};
+
+const createArrayPushBlockFromCall = (call: CallExpression): BlockInstance | null => {
+  const info = extractPushCallInfo(call);
+  if (!info) {
+    return null;
+  }
+
+  return createBlockInstance("array-push", {
+    array: info.arrayName,
+    value: sourceFor(info.argument),
+    storeResult: false
+  });
 };
 
 const convertStatement = (statement: Statement, blocks: BlockInstance[]): BlockInstance => {
@@ -349,189 +548,225 @@ const convertStatement = (statement: Statement, blocks: BlockInstance[]): BlockI
 
   if (n.ExpressionStatement.check(statement)) {
     const expressionNode = statement as ExpressionStatement;
-    if (n.CallExpression.check(expressionNode.expression) && n.Identifier.check(expressionNode.expression.callee)) {
-      const call = expressionNode.expression;
-      const callee = call.callee as Identifier;
+    const expression = expressionNode.expression;
 
-      if (callee.name === "wait") {
-        const durationValue = call.arguments[0]
-          ? numberLiteralValue(call.arguments[0]) ?? Number(sourceFor(call.arguments[0]))
-          : 1;
-        const block = createBlockInstance("wait-call", {
-          duration: Number.isFinite(durationValue) ? durationValue : 1
-        });
-        attachMetadata(block, expressionNode);
-        blocks.push(block);
-        return block;
+    if (n.AssignmentExpression.check(expression)) {
+      const assignment = expression as AssignmentExpression;
+
+      const pushBlock = createArrayPushBlockFromAssignment(assignment);
+      if (pushBlock) {
+        attachMetadata(pushBlock, expressionNode);
+        blocks.push(pushBlock);
+        return pushBlock;
       }
 
-      if (callee.name === "press") {
-        const keyValue = call.arguments[0] ? stringLiteralValue(call.arguments[0]) ?? sourceFor(call.arguments[0]) : "return";
-        let modifiers = "";
-        const modifiersArg = call.arguments[1];
-        if (modifiersArg) {
-          if (n.ArrayExpression.check(modifiersArg)) {
-            const entries = modifiersArg.elements
-              .map((element) => (element ? stringLiteralValue(element as Node) ?? sourceFor(element as Node) : ""))
-              .filter(Boolean);
-            modifiers = entries.join(", ");
-          } else {
-            modifiers = sourceFor(modifiersArg);
-          }
+      const updateBlock = createVariableUpdateBlockFromAssignment(assignment);
+      if (updateBlock) {
+        attachMetadata(updateBlock, expressionNode);
+        blocks.push(updateBlock);
+        return updateBlock;
+      }
+    }
+
+    if (n.CallExpression.check(expression)) {
+      const callExpression = expression as CallExpression;
+
+      const pushBlock = createArrayPushBlockFromCall(callExpression);
+      if (pushBlock) {
+        attachMetadata(pushBlock, expressionNode);
+        blocks.push(pushBlock);
+        return pushBlock;
+      }
+
+      if (n.Identifier.check(callExpression.callee)) {
+        const callee = callExpression.callee as Identifier;
+
+        if (callee.name === "wait") {
+          const durationValue = callExpression.arguments[0]
+            ? numberLiteralValue(callExpression.arguments[0]) ?? Number(sourceFor(callExpression.arguments[0]))
+            : 1;
+          const block = createBlockInstance("wait-call", {
+            duration: Number.isFinite(durationValue) ? durationValue : 1
+          });
+          attachMetadata(block, expressionNode);
+          blocks.push(block);
+          return block;
         }
-        const block = createBlockInstance("press-call", {
-          key: keyValue,
-          modifiers
-        });
-        attachMetadata(block, expressionNode);
-        blocks.push(block);
-        return block;
-      }
 
-      if (callee.name === "scroll") {
-        const originArg = call.arguments[0] ? sourceFor(call.arguments[0]) : "[0, 0]";
-        const directionArg = call.arguments[1] ? stringLiteralValue(call.arguments[1]) ?? sourceFor(call.arguments[1]) : "down";
-        const amountLiteral = call.arguments[2] ? numberLiteralValue(call.arguments[2]) : null;
-        const amountFallback = call.arguments[2] ? Number(sourceFor(call.arguments[2])) : 1;
-        const amountValue = amountLiteral ?? (Number.isFinite(amountFallback) ? amountFallback : 1);
-        const block = createBlockInstance("scroll-call", {
-          origin: originArg,
-          direction: directionArg,
-          amount: amountValue
-        });
-        attachMetadata(block, expressionNode);
-        blocks.push(block);
-        return block;
-      }
+        if (callee.name === "press") {
+          const keyValue = callExpression.arguments[0]
+            ? stringLiteralValue(callExpression.arguments[0]) ?? sourceFor(callExpression.arguments[0])
+            : "return";
+          let modifiers = "";
+          const modifiersArg = callExpression.arguments[1];
+          if (modifiersArg) {
+            if (n.ArrayExpression.check(modifiersArg)) {
+              const entries = modifiersArg.elements
+                .map((element) => (element ? stringLiteralValue(element as Node) ?? sourceFor(element as Node) : ""))
+                .filter(Boolean);
+              modifiers = entries.join(", ");
+            } else {
+              modifiers = sourceFor(modifiersArg);
+            }
+          }
+          const block = createBlockInstance("press-call", {
+            key: keyValue,
+            modifiers
+          });
+          attachMetadata(block, expressionNode);
+          blocks.push(block);
+          return block;
+        }
 
-      if (callee.name === "selectAll") {
-        const block = createBlockInstance("select-all-call", {});
-        attachMetadata(block, expressionNode);
-        blocks.push(block);
-        return block;
-      }
+        if (callee.name === "scroll") {
+          const originArg = callExpression.arguments[0] ? sourceFor(callExpression.arguments[0]) : "[0, 0]";
+          const directionArg = callExpression.arguments[1]
+            ? stringLiteralValue(callExpression.arguments[1]) ?? sourceFor(callExpression.arguments[1])
+            : "down";
+          const amountLiteral = callExpression.arguments[2] ? numberLiteralValue(callExpression.arguments[2]) : null;
+          const amountFallback = callExpression.arguments[2] ? Number(sourceFor(callExpression.arguments[2])) : 1;
+          const amountValue = amountLiteral ?? (Number.isFinite(amountFallback) ? amountFallback : 1);
+          const block = createBlockInstance("scroll-call", {
+            origin: originArg,
+            direction: directionArg,
+            amount: amountValue
+          });
+          attachMetadata(block, expressionNode);
+          blocks.push(block);
+          return block;
+        }
 
-      if (callee.name === "click") {
-        const targetExpression = call.arguments[0] ? sourceFor(call.arguments[0]) : "[0, 0]";
-        const block = createBlockInstance("click-call", {
-          target: targetExpression
-        });
-        attachMetadata(block, expressionNode);
-        blocks.push(block);
-        return block;
-      }
+        if (callee.name === "selectAll") {
+          const block = createBlockInstance("select-all-call", {});
+          attachMetadata(block, expressionNode);
+          blocks.push(block);
+          return block;
+        }
 
-      if (callee.name === "type") {
-        const textValue = call.arguments[0] ? sourceFor(call.arguments[0]) : "\"\"";
-        const block = createBlockInstance("type-call", {
-          text: textValue
-        });
-        attachMetadata(block, expressionNode);
-        blocks.push(block);
-        return block;
-      }
+        if (callee.name === "click") {
+          const targetExpression = callExpression.arguments[0] ? sourceFor(callExpression.arguments[0]) : "[0, 0]";
+          const block = createBlockInstance("click-call", {
+            target: targetExpression
+          });
+          attachMetadata(block, expressionNode);
+          blocks.push(block);
+          return block;
+        }
 
-      if (callee.name === "log") {
-        const messageExpression = call.arguments[0] ? sourceFor(call.arguments[0]) : "";
-        const block = createBlockInstance("log-call", {
-          message: messageExpression
-        });
-        attachMetadata(block, expressionNode);
-        blocks.push(block);
-        return block;
-      }
+        if (callee.name === "type") {
+          const textValue = callExpression.arguments[0] ? sourceFor(callExpression.arguments[0]) : "\"\"";
+          const block = createBlockInstance("type-call", {
+            text: textValue
+          });
+          attachMetadata(block, expressionNode);
+          blocks.push(block);
+          return block;
+        }
 
-      if (callee.name === "open") {
-        const args = call.arguments;
-        const appName = args[0] ? stringLiteralValue(args[0]) ?? sourceFor(args[0]) : "";
-        const bringToFrontArg = args[1];
-        const waitArg = args[2];
+        if (callee.name === "log") {
+          const messageExpression = callExpression.arguments[0] ? sourceFor(callExpression.arguments[0]) : "";
+          const block = createBlockInstance("log-call", {
+            message: messageExpression
+          });
+          attachMetadata(block, expressionNode);
+          blocks.push(block);
+          return block;
+        }
 
-        const bringToFront =
-          bringToFrontArg && n.BooleanLiteral.check(bringToFrontArg)
-            ? bringToFrontArg.value
-            : bringToFrontArg
-            ? bringToFrontArg.type === "Identifier" && bringToFrontArg.name === "true"
-              ? true
-              : bringToFrontArg.type === "Identifier" && bringToFrontArg.name === "false"
-              ? false
-              : true
-            : true;
+        if (callee.name === "open") {
+          const args = callExpression.arguments;
+          const appName = args[0] ? stringLiteralValue(args[0]) ?? sourceFor(args[0]) : "";
+          const bringToFrontArg = args[1];
+          const waitArg = args[2];
 
-        const waitSeconds = waitArg ? numberLiteralValue(waitArg) ?? Number(sourceFor(waitArg)) : 5;
+          const bringToFront =
+            bringToFrontArg && n.BooleanLiteral.check(bringToFrontArg)
+              ? bringToFrontArg.value
+              : bringToFrontArg
+              ? bringToFrontArg.type === "Identifier" && bringToFrontArg.name === "true"
+                ? true
+                : bringToFrontArg.type === "Identifier" && bringToFrontArg.name === "false"
+                ? false
+                : true
+              : true;
 
-        const block = createBlockInstance("open-call", {
-          appName,
-          bringToFront,
-          waitSeconds: Number.isFinite(waitSeconds) ? waitSeconds : 5
-        });
-        attachMetadata(block, expressionNode);
-        blocks.push(block);
-        return block;
-      }
+          const waitSeconds = waitArg ? numberLiteralValue(waitArg) ?? Number(sourceFor(waitArg)) : 5;
 
-      if (callee.name === "openUrl") {
-        const url = call.arguments[0] ? stringLiteralValue(call.arguments[0]) ?? sourceFor(call.arguments[0]) : "";
-        const block = createBlockInstance("open-url-call", {
-          url
-        });
-        attachMetadata(block, expressionNode);
-        blocks.push(block);
-        return block;
-      }
+          const block = createBlockInstance("open-call", {
+            appName,
+            bringToFront,
+            waitSeconds: Number.isFinite(waitSeconds) ? waitSeconds : 5
+          });
+          attachMetadata(block, expressionNode);
+          blocks.push(block);
+          return block;
+        }
 
-      if (callee.name === "vision") {
-        const args = call.arguments;
-        const target = args[0] ? sourceFor(args[0]) : "";
-        const prompt = args[1] ? stringLiteralValue(args[1]) ?? sourceFor(args[1]) : "";
-        let format = "json";
-        let schema = "";
+        if (callee.name === "openUrl") {
+          const url = callExpression.arguments[0]
+            ? stringLiteralValue(callExpression.arguments[0]) ?? sourceFor(callExpression.arguments[0])
+            : "";
+          const block = createBlockInstance("open-url-call", {
+            url
+          });
+          attachMetadata(block, expressionNode);
+          blocks.push(block);
+          return block;
+        }
 
-        const optionsArg = args[2];
-        if (optionsArg && n.ObjectExpression.check(optionsArg)) {
-          optionsArg.properties.forEach((property) => {
-            if (n.ObjectProperty.check(property) && n.Identifier.check(property.key)) {
-              if (property.key.name === "format") {
-                const formatValue = stringLiteralValue(property.value);
-                if (formatValue) {
-                  format = formatValue;
+        if (callee.name === "vision") {
+          const args = callExpression.arguments;
+          const target = args[0] ? sourceFor(args[0]) : "";
+          const prompt = args[1] ? stringLiteralValue(args[1]) ?? sourceFor(args[1]) : "";
+          let format = "json";
+          let schema = "";
+
+          const optionsArg = args[2];
+          if (optionsArg && n.ObjectExpression.check(optionsArg)) {
+            optionsArg.properties.forEach((property) => {
+              if (n.ObjectProperty.check(property) && n.Identifier.check(property.key)) {
+                if (property.key.name === "format") {
+                  const formatValue = stringLiteralValue(property.value);
+                  if (formatValue) {
+                    format = formatValue;
+                  }
+                }
+                if (property.key.name === "schema") {
+                  schema = sourceFor(property.value);
                 }
               }
-              if (property.key.name === "schema") {
-                schema = sourceFor(property.value);
-              }
-            }
+            });
+          }
+
+          const block = createBlockInstance("vision-call", {
+            target,
+            prompt,
+            format,
+            schema
           });
+          attachMetadata(block, expressionNode);
+          blocks.push(block);
+          return block;
         }
 
-        const block = createBlockInstance("vision-call", {
-          target,
-          prompt,
-          format,
-          schema
-        });
-        attachMetadata(block, expressionNode);
-        blocks.push(block);
-        return block;
-      }
+        if (callee.name === "screenshot") {
+          const target = callExpression.arguments[0] ? sourceFor(callExpression.arguments[0]) : "";
+          const block = createBlockInstance("screenshot-call", {
+            target
+          });
+          attachMetadata(block, expressionNode);
+          blocks.push(block);
+          return block;
+        }
 
-      if (callee.name === "screenshot") {
-        const target = call.arguments[0] ? sourceFor(call.arguments[0]) : "";
-        const block = createBlockInstance("screenshot-call", {
-          target
+        const genericCallBlock = createFunctionCallBlock({
+          functionName: callee.name,
+          args: callExpression.arguments
         });
-        attachMetadata(block, expressionNode);
-        blocks.push(block);
-        return block;
+        attachMetadata(genericCallBlock, expressionNode);
+        blocks.push(genericCallBlock);
+        return genericCallBlock;
       }
-
-      const genericCallBlock = createFunctionCallBlock({
-        functionName: callee.name,
-        args: call.arguments
-      });
-      attachMetadata(genericCallBlock, expressionNode);
-      blocks.push(genericCallBlock);
-      return genericCallBlock;
     }
 
     const block = createBlockInstance("expression-statement", {

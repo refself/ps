@@ -45,6 +45,9 @@ export type FieldInputConfiguration =
       kind: "code";
       language?: "reflow" | "json" | "text";
       placeholder?: string;
+    }
+  | {
+      kind: "json-schema";
     };
 
 export type BlockFieldDefinition = {

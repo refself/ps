@@ -10,6 +10,8 @@ import {
 
 type ExpressionKind = "string" | "number" | "boolean" | "identifier" | "custom";
 
+type EditorLanguage = "reflow" | "json" | "text" | undefined;
+
 type ExpressionEditorProps = {
   value: string;
   onChange: (expression: string) => void;
@@ -18,6 +20,9 @@ type ExpressionEditorProps = {
   variant?: "default" | "compact";
   showHeader?: boolean;
   contextBlockId?: string;
+  preferCustomEditor?: boolean;
+  language?: EditorLanguage;
+  placeholder?: string;
 };
 
 const quoteString = (input: string) => {
@@ -59,7 +64,10 @@ const ExpressionEditor = ({
   description,
   variant = "default",
   showHeader = true,
-  contextBlockId
+  contextBlockId,
+  preferCustomEditor = false,
+  language,
+  placeholder
 }: ExpressionEditorProps) => {
   const document = useEditorStore((state) => state.document);
   const identifierSuggestions = useMemo<IdentifierSuggestion[]>(() => {
@@ -68,7 +76,12 @@ const ExpressionEditor = ({
     }
     return collectIdentifierSuggestionsForBlock({ document, blockId: contextBlockId });
   }, [contextBlockId, document]);
-  const [kind, setKind] = useState<ExpressionKind>(() => detectExpressionKind(value));
+  const [kind, setKind] = useState<ExpressionKind>(() => {
+    if (preferCustomEditor && value.trim() === "") {
+      return "custom";
+    }
+    return detectExpressionKind(value);
+  });
   const [stringValue, setStringValue] = useState(() => unquoteString(value.trim()));
   const [numberValue, setNumberValue] = useState(() => (Number.isNaN(Number(value.trim())) ? "" : value.trim()));
   const [identifierValue, setIdentifierValue] = useState(() => value.trim());
@@ -82,13 +95,19 @@ const ExpressionEditor = ({
   const datalistId = `identifier-options-${baseId}`;
 
   useEffect(() => {
-    setKind(detectExpressionKind(value));
+    const trimmed = value.trim();
+    const detected = detectExpressionKind(value);
+    if (preferCustomEditor && trimmed === "") {
+      setKind("custom");
+    } else {
+      setKind(detected);
+    }
     setStringValue(unquoteString(value.trim()));
     setNumberValue(Number.isNaN(Number(value.trim())) ? "" : value.trim());
     setIdentifierValue(value.trim());
     setBooleanValue(value.trim().toLowerCase() === "true");
     setCustomValue(value);
-  }, [value]);
+  }, [preferCustomEditor, value]);
 
   useEffect(() => {
     if (identifierSuggestions.length === 0) {
@@ -105,9 +124,11 @@ const ExpressionEditor = ({
     ? "w-full rounded-lg border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-sm text-[#0A1A23] placeholder:text-[#9AA7B4] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
     : "w-full rounded-lg border border-[#0A1A2333] bg-white px-3 py-2 text-sm text-[#0A1A23] placeholder:text-[#9AA7B4] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]";
 
-  const textAreaClass = isCompact
+  const baseTextAreaClass = isCompact
     ? "w-full min-h-[120px] rounded-lg border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4] focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
     : "w-full min-h-[160px] rounded-lg border border-[#0A1A2333] bg-white px-3 py-2 text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4] focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]";
+
+  const textAreaClass = clsx(baseTextAreaClass, language === "json" || language === "reflow" ? "font-mono" : null);
 
   const selectClass = isCompact
     ? "rounded-md border border-[#0A1A2333] bg-white px-2 py-1 text-[11px] text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
@@ -246,6 +267,7 @@ const ExpressionEditor = ({
               onChange(event.target.value);
             }}
             className={textAreaClass}
+            placeholder={placeholder}
           />
         );
     }

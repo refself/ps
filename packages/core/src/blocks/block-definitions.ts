@@ -82,6 +82,94 @@ export const variableDeclarationBlock: BlockSchema<"variable-declaration"> = {
   childSlots: []
 };
 
+export const variableUpdateBlock: BlockSchema<"variable-update"> = {
+  kind: "variable-update",
+  label: "Update Variable",
+  category: "variables",
+  description: "Assign or update an existing variable using common operations.",
+  fields: [
+    {
+      id: "identifier",
+      label: "Variable",
+      required: true,
+      input: {
+        kind: "identifier",
+        scope: "variable",
+        allowCreation: true
+      }
+    },
+    {
+      id: "operation",
+      label: "Operation",
+      required: true,
+      defaultValue: "assign",
+      input: {
+        kind: "enum",
+        options: [
+          { label: "Set To", value: "assign" },
+          { label: "Add / Concatenate", value: "add" },
+          { label: "Subtract", value: "subtract" },
+          { label: "Multiply", value: "multiply" },
+          { label: "Divide", value: "divide" },
+          { label: "Modulo", value: "modulo" }
+        ]
+      }
+    },
+    {
+      id: "value",
+      label: "Value",
+      required: true,
+      input: {
+        kind: "code",
+        language: "reflow",
+        placeholder: "value"
+      }
+    }
+  ],
+  ports: [flowPorts.input, flowPorts.output],
+  childSlots: []
+};
+
+export const arrayPushBlock: BlockSchema<"array-push"> = {
+  kind: "array-push",
+  label: "Append To Array",
+  category: "variables",
+  description: "Push a value onto an array variable and optionally overwrite it with the push result.",
+  fields: [
+    {
+      id: "array",
+      label: "Array",
+      required: true,
+      input: {
+        kind: "identifier",
+        scope: "variable",
+        allowCreation: true
+      }
+    },
+    {
+      id: "value",
+      label: "Item",
+      required: true,
+      input: {
+        kind: "code",
+        language: "reflow",
+        placeholder: "value"
+      }
+    },
+    {
+      id: "storeResult",
+      label: "Store push() result",
+      description: "Assign the numeric push return value back to the array variable.",
+      defaultValue: false,
+      input: {
+        kind: "boolean"
+      }
+    }
+  ],
+  ports: [flowPorts.input, flowPorts.output],
+  childSlots: []
+};
+
 export const functionCallBlock: BlockSchema<"function-call"> = {
   kind: "function-call",
   label: "Function Call",
@@ -642,9 +730,7 @@ export const visionCallBlock: BlockSchema<"vision-call"> = {
       label: "JSON Schema",
       description: "Optional JSON schema describing the AI response shape.",
       input: {
-        kind: "code",
-        language: "json",
-        placeholder: "{ \"type\": \"object\", ... }"
+        kind: "json-schema"
       }
     }
   ],
@@ -707,9 +793,7 @@ export const aiCallBlock: BlockSchema<"ai-call"> = {
       label: "JSON Schema",
       description: "Provide when requesting structured JSON output",
       input: {
-        kind: "code",
-        language: "json",
-        placeholder: "{ \"type\": \"object\", ... }"
+        kind: "json-schema"
       }
     }
   ],
@@ -1030,6 +1114,8 @@ export const knownBlockSchemas: BlockSchema[] = [
   programBlock,
   expressionStatementBlock,
   variableDeclarationBlock,
+  variableUpdateBlock,
+  arrayPushBlock,
   returnStatementBlock,
   ifStatementBlock,
   functionDeclarationBlock,

@@ -3,6 +3,7 @@ import { ChangeEvent } from "react";
 import type { BlockFieldDefinition } from "@workflow-builder/core";
 
 import ExpressionEditor from "./expression-editor";
+import JsonSchemaEditor from "./json-schema-editor";
 
 type FieldEditorProps = {
   field: BlockFieldDefinition;
@@ -147,6 +148,9 @@ const FieldEditor = ({ field, value, onChange, contextBlockId }: FieldEditorProp
   }
 
   if (input.kind === "code" || input.kind === "expression") {
+    const preferCustomEditor = input.kind === "code";
+    const language = input.kind === "code" ? input.language : undefined;
+    const placeholder = input.kind === "code" ? input.placeholder : undefined;
     return (
       <div className="rounded-xl border border-[#0A1A2314] bg-white p-3 shadow-[0_18px_32px_rgba(10,26,35,0.08)]">
         <ExpressionEditor
@@ -155,6 +159,23 @@ const FieldEditor = ({ field, value, onChange, contextBlockId }: FieldEditorProp
           label={field.label}
           description={field.description}
           contextBlockId={contextBlockId}
+          preferCustomEditor={preferCustomEditor}
+          language={language}
+          placeholder={placeholder}
+        />
+      </div>
+    );
+  }
+
+  if (input.kind === "json-schema") {
+    const schemaValue = typeof value === "string" ? value : typeof fallbackValue === "string" ? fallbackValue : "";
+    return (
+      <div className="rounded-xl border border-[#0A1A2314] bg-white p-3 shadow-[0_18px_32px_rgba(10,26,35,0.08)]">
+        <JsonSchemaEditor
+          value={schemaValue}
+          onChange={(next) => onChange(next)}
+          label={field.label}
+          description={field.description}
         />
       </div>
     );

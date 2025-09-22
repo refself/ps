@@ -112,6 +112,22 @@ const parseCallArguments = (code: string): Array<Expression | SpreadElement> => 
   return [parseExpression(code)];
 };
 
+const updateOperationToBinaryOperator: Record<string, t.BinaryExpression["operator"]> = {
+  add: "+",
+  subtract: "-",
+  multiply: "*",
+  divide: "/",
+  modulo: "%"
+};
+
+const updateOperationToCompoundOperator: Record<string, "+=" | "-=" | "*=" | "/=" | "%="> = {
+  add: "+=",
+  subtract: "-=",
+  multiply: "*=",
+  divide: "/=",
+  modulo: "%="
+};
+
 const parameterIdentifiers = (parameters: string | undefined): Identifier[] => {
   if (!parameters) {
     return [];
@@ -150,6 +166,48 @@ const blockToStatement = ({
       const declarator = t.variableDeclarator(t.identifier(identifier), initExpression ?? null);
       const declaration = t.variableDeclaration("let", [declarator]);
       return [declaration];
+    }
+
+    case "variable-update": {
+      const identifier = typeof block.data.identifier === "string" ? block.data.identifier : "result";
+      const operation = typeof block.data.operation === "string" ? block.data.operation : "assign";
+      const valueCode = typeof block.data.value === "string" ? block.data.value : "";
+      const operatorStyle = typeof block.data.operatorStyle === "string" ? block.data.operatorStyle : null;
+      const valueExpression = parseExpression(valueCode);
+
+      if (operation === "assign" || !updateOperationToBinaryOperator[operation]) {
+        const assignment = t.assignmentExpression("=", t.identifier(identifier), valueExpression);
+        return [t.expressionStatement(assignment)];
+      }
+
+      const compoundOperator = updateOperationToCompoundOperator[operation];
+      if (compoundOperator && operatorStyle === "compound") {
+        const assignment = t.assignmentExpression(compoundOperator, t.identifier(identifier), valueExpression);
+        return [t.expressionStatement(assignment)];
+      }
+
+      const binaryOperator = updateOperationToBinaryOperator[operation];
+      const augmentedExpression = t.binaryExpression(binaryOperator, t.identifier(identifier), valueExpression);
+      const assignment = t.assignmentExpression("=", t.identifier(identifier), augmentedExpression);
+      return [t.expressionStatement(assignment)];
+    }
+
+    case "array-push": {
+      const arrayName = typeof block.data.array === "string" ? block.data.array : "items";
+      const valueCode = typeof block.data.value === "string" ? block.data.value : "";
+      const valueExpression = parseExpression(valueCode);
+      const storeResult = Boolean(block.data.storeResult);
+      const call = t.callExpression(
+        t.memberExpression(t.identifier(arrayName), t.identifier("push")),
+        [valueExpression]
+      );
+
+      if (storeResult) {
+        const assignment = t.assignmentExpression("=", t.identifier(arrayName), call);
+        return [t.expressionStatement(assignment)];
+      }
+
+      return [t.expressionStatement(call)];
     }
 
     case "expression-statement": {
