@@ -1,62 +1,134 @@
-import { useEffect, useRef, useState } from "react";
-import { DndProvider } from "react-dnd";
-import { HTML5Backend } from "react-dnd-html5-backend";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
-import { EditorProvider } from "./state/editor-provider";
-import EditorCanvas from "./components/editor-canvas";
-import BlockLibraryPanel from "./components/block-library-panel";
-import { EditorHeader } from "./components/editor-header";
+import { WorkflowEditor } from "@workflow-builder/editor";
+import type { WorkflowDocument } from "@workflow-builder/core";
+
 import WorkflowList from "./components/workflow-list";
-import { useEditorStore } from "./state/editor-store";
-import { useWorkspaceStore } from "./state/workspace-store";
-import InspectorPanel from "./components/inspector-panel";
-import CodeEditorPanel from "./components/code-editor-panel";
-import ExecutionResultOverlay from "./components/execution-result-overlay";
-import CommandPalette from "./components/command-palette";
-import { useExecuteShortcut } from "./hooks/use-execute-shortcut";
+import { useWorkspaceStore, useActiveWorkflow } from "./state/workspace-store";
+import { executeWorkflowScript } from "./services/execute-script-service";
+import { useExecuteConnection } from "./hooks/use-execute-connection";
 
 const App = () => {
   useWorkspaceSynchronization();
-  const activeWorkflowId = useWorkspaceStore((state) => state.activeWorkflowId);
-  const [mode, setMode] = useState<"visual" | "code">("visual");
+  const activeWorkflow = useActiveWorkflow();
+  const connectionState = useExecuteConnection();
+  const updateActiveWorkflow = useWorkspaceStore((state) => state.updateActiveWorkflow);
+  const clearActiveWorkflow = useWorkspaceStore((state) => state.clearActiveWorkflow);
+  const saveWorkflowVersion = useWorkspaceStore((state) => state.saveWorkflowVersion);
+  const restoreWorkflowVersion = useWorkspaceStore((state) => state.restoreWorkflowVersion);
+  const renameWorkflowVersion = useWorkspaceStore((state) => state.renameWorkflowVersion);
+  const deleteWorkflowVersion = useWorkspaceStore((state) => state.deleteWorkflowVersion);
 
-  useExecuteShortcut();
+  const latestDocumentRef = useRef(activeWorkflow?.document ?? null);
+  const latestCodeRef = useRef(activeWorkflow?.code ?? "");
 
-  if (!activeWorkflowId) {
+  useEffect(() => {
+    latestDocumentRef.current = activeWorkflow?.document ?? null;
+    latestCodeRef.current = activeWorkflow?.code ?? "";
+  }, [activeWorkflow?.document, activeWorkflow?.code, activeWorkflow?.id]);
+
+  const handleDocumentChange = useCallback(
+    (next: WorkflowDocument) => {
+      latestDocumentRef.current = next;
+      updateActiveWorkflow({ document: next, code: latestCodeRef.current });
+    },
+    [updateActiveWorkflow]
+  );
+
+  const handleCodeChange = useCallback(
+    (next: string) => {
+      latestCodeRef.current = next;
+      const document = latestDocumentRef.current ?? activeWorkflow?.document;
+      if (document) {
+        updateActiveWorkflow({ document, code: next });
+      }
+    },
+    [activeWorkflow?.document, updateActiveWorkflow]
+  );
+
+  const handleRunScript = useCallback(async (workflowCode: string) => {
+    return executeWorkflowScript(workflowCode);
+  }, []);
+
+  const connectionStatus = connectionState === null ? "checking" : connectionState ? "online" : "offline";
+
+  const versionDescriptors = useMemo(() => {
+    if (!activeWorkflow || !activeWorkflow.versions) {
+      return [];
+    }
+    return activeWorkflow.versions.map((version) => ({
+      id: version.id,
+      name: version.name,
+      createdAt: version.createdAt,
+      isNamed: version.isNamed
+    }));
+  }, [activeWorkflow]);
+
+  const handleSaveVersion = useCallback(
+    ({ name, document, code }: { name?: string; document: WorkflowDocument; code: string }) => {
+      if (!activeWorkflow) {
+        return;
+      }
+      saveWorkflowVersion({ workflowId: activeWorkflow.id, name, document, code });
+    },
+    [activeWorkflow, saveWorkflowVersion]
+  );
+
+  const handleRestoreVersion = useCallback(
+    (versionId: string) => {
+      if (!activeWorkflow) {
+        return;
+      }
+      restoreWorkflowVersion({ workflowId: activeWorkflow.id, versionId });
+    },
+    [activeWorkflow, restoreWorkflowVersion]
+  );
+
+  const handleRenameVersion = useCallback(
+    ({ versionId, name }: { versionId: string; name: string }) => {
+      if (!activeWorkflow) {
+        return;
+      }
+      renameWorkflowVersion({ workflowId: activeWorkflow.id, versionId, name });
+    },
+    [activeWorkflow, renameWorkflowVersion]
+  );
+
+  const handleDeleteVersion = useCallback(
+    (versionId: string) => {
+      if (!activeWorkflow) {
+        return;
+      }
+      deleteWorkflowVersion({ workflowId: activeWorkflow.id, versionId });
+    },
+    [activeWorkflow, deleteWorkflowVersion]
+  );
+
+  if (!activeWorkflow) {
     return <WorkflowList />;
   }
 
   return (
-    <DndProvider backend={HTML5Backend}>
-      <EditorProvider>
-        <div
-          className="flex h-screen w-screen flex-col overflow-hidden bg-[#F5F6F9] text-[#0A1A23]"
-          style={{
-            background:
-              "linear-gradient(0deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.15) 100%), linear-gradient(176deg, #EDEEF6 3%, #F2F0F9 45%, #F0F1F7 100%)"
-          }}
-        >
-          <EditorHeader viewMode={mode} onViewModeChange={setMode} />
-          {mode === "code" ? (
-            <div className="flex flex-1 overflow-hidden px-10 py-8">
-              <div className="flex w-full flex-col overflow-hidden rounded-2xl border border-[#0A1A2314] bg-white shadow-[0_30px_60px_rgba(10,26,35,0.15)]">
-                <CodeEditorPanel variant="full" />
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-1 overflow-hidden">
-              <BlockLibraryPanel />
-              <EditorCanvas />
-              <div className="flex w-[420px] flex-col overflow-hidden border-l border-[#0A1A2314] bg-white/80 backdrop-blur">
-                <InspectorPanel />
-              </div>
-            </div>
-          )}
-          <ExecutionResultOverlay />
-          <CommandPalette />
-        </div>
-      </EditorProvider>
-    </DndProvider>
+    <WorkflowEditor
+      document={activeWorkflow.document}
+      code={activeWorkflow.code}
+      onDocumentChange={handleDocumentChange}
+      onCodeChange={handleCodeChange}
+      onRunScript={handleRunScript}
+      onBack={clearActiveWorkflow}
+      connectionStatus={connectionStatus}
+      versioning={{
+        versions: versionDescriptors,
+        activeVersionId: activeWorkflow.lastRestoredVersionId,
+        onSaveVersion: handleSaveVersion,
+        onRestoreVersion: handleRestoreVersion,
+        onRenameVersion: handleRenameVersion,
+        onDeleteVersion: handleDeleteVersion
+      }}
+      enableCommandPalette
+      enableUndoRedo
+      className="h-screen w-screen"
+    />
   );
 };
 
@@ -64,29 +136,8 @@ export default App;
 
 const useWorkspaceSynchronization = () => {
   const bootstrap = useWorkspaceStore((state) => state.bootstrap);
-  const activeWorkflowId = useWorkspaceStore((state) => state.activeWorkflowId);
-  const workflows = useWorkspaceStore((state) => state.workflows);
-  const loadWorkflowDocument = useEditorStore((state) => state.loadWorkflowDocument);
 
   useEffect(() => {
     bootstrap();
   }, [bootstrap]);
-
-  const lastLoadedId = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!activeWorkflowId) {
-      lastLoadedId.current = null;
-      return;
-    }
-    if (lastLoadedId.current === activeWorkflowId) {
-      return;
-    }
-    const workflow = workflows.find((item) => item.id === activeWorkflowId);
-    if (!workflow) {
-      return;
-    }
-    lastLoadedId.current = activeWorkflowId;
-    loadWorkflowDocument({ document: workflow.document, code: workflow.code });
-  }, [activeWorkflowId, workflows, loadWorkflowDocument]);
 };

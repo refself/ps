@@ -20,6 +20,7 @@ const SlotDropZone = ({ parentId, slotId, index, depth, label, isEmpty }: SlotDr
   const hasContent = !isEmpty;
   const addBlock = useEditorStore((state) => state.addBlock);
   const moveBlock = useEditorStore((state) => state.moveBlock);
+
   const openPalette = usePaletteStore((state) => state.openPalette);
 
   const [{ isOver, canDrop, isDragging }, drop] = useDrop({

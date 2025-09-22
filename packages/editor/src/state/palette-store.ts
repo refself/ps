@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { createWithEqualityFn } from "zustand/traditional";
 
 type PaletteContext = {
   parentId: string;
@@ -13,7 +13,7 @@ type PaletteState = {
   closePalette: () => void;
 };
 
-export const usePaletteStore = create<PaletteState>((set) => ({
+export const usePaletteStore = createWithEqualityFn<PaletteState>()((set) => ({
   isOpen: false,
   context: null,
   openPalette: (context) => set({ isOpen: true, context: context ?? null }),

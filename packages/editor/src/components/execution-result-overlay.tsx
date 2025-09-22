@@ -110,7 +110,7 @@ const ExecutionResultOverlay = () => {
           </button>
         </div>
 
-        <div className="space-y-4 px-6 py-5">
+        <div className="workflow-editor-scrollable space-y-4 px-6 py-5">
           {executionStatus.state === "running" ? (
             <div className="flex items-center gap-3 text-sm text-[#0A1A23]">
               <span className="flex h-8 w-8 items-center justify-center">
@@ -122,7 +122,7 @@ const ExecutionResultOverlay = () => {
             <p className="text-sm text-[#0A1A23]">{executionStatus.message}</p>
           ) : null}
           {executionStatus.output && executionStatus.state !== "running" ? (
-            <div className="rounded-xl border border-[#0A1A2314] bg-[#F5F6F9] p-3">
+            <div className="workflow-editor-scrollable rounded-xl border border-[#0A1A2314] bg-[#F5F6F9] p-3">
               <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-wide text-[#657782]">
                 <span>Output</span>
               </div>

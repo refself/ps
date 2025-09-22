@@ -6,7 +6,9 @@
     "types": ["vite/client"],
     "paths": {
       "@workflow-builder/core": ["../core/src/index.ts"],
-      "@workflow-builder/core/*": ["../core/src/*"]
+      "@workflow-builder/core/*": ["../core/src/*"],
+      "@workflow-builder/editor": ["../editor/src/index.ts"],
+      "@workflow-builder/editor/*": ["../editor/src/*"]
     }
   },
   "include": [

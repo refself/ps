@@ -2,29 +2,35 @@ import { useEffect, useState } from "react";
 
 import { checkExecuteEndpoint } from "../services/execute-script-service";
 
-export const useExecuteConnection = () => {
-  const [isOnline, setIsOnline] = useState<boolean | null>(null);
+type ConnectionStatus = boolean | null;
+
+export const useExecuteConnection = (): ConnectionStatus => {
+  const [status, setStatus] = useState<ConnectionStatus>(null);
 
   useEffect(() => {
     let cancelled = false;
-
-    const ping = async () => {
-      const result = await checkExecuteEndpoint();
-      if (!cancelled) {
-        setIsOnline(result);
+    const check = async () => {
+      try {
+        const ok = await checkExecuteEndpoint();
+        if (!cancelled) {
+          setStatus(ok);
+        }
+      } catch {
+        if (!cancelled) {
+          setStatus(false);
+        }
       }
     };
 
-    ping();
-
-    const interval = window.setInterval(ping, 10000);
+    check();
+    const interval = window.setInterval(check, 10_000);
     return () => {
       cancelled = true;
       window.clearInterval(interval);
     };
   }, []);
 
-  return isOnline;
+  return status;
 };
 
 export default useExecuteConnection;

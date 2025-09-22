@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { nanoid } from "nanoid";
 
 type SchemaNodeKind = "string" | "number" | "boolean" | "object" | "array";
@@ -260,9 +260,9 @@ const serializeSchema = (node: SchemaNode): string => {
   return JSON.stringify(toJsonSchema(node), null, 2);
 };
 
-const createQuickField = (): QuickField => ({
+const createQuickField = ({ name }: { name?: string } = {}): QuickField => ({
   id: nanoid(),
-  name: "",
+  name: name ?? "field",
   type: "string",
   required: false,
   description: ""
@@ -318,13 +318,16 @@ const extractQuickFields = (node: SchemaNode): QuickField[] | null => {
   }
 
   const fields: QuickField[] = [];
-  for (const property of node.properties) {
+  for (let index = 0; index < node.properties.length; index += 1) {
+    const property = node.properties[index];
     const type = quickTypeFromSchema(property.schema);
     if (!type) {
       return null;
     }
+    const baseName = property.name.trim();
+    const derivedId = `${index}-${baseName || "field"}`;
     fields.push({
-      id: property.id,
+      id: derivedId,
       name: property.name,
       type,
       required: property.required,
@@ -335,15 +338,19 @@ const extractQuickFields = (node: SchemaNode): QuickField[] | null => {
 };
 
 const schemaFromQuickFields = (fields: QuickField[]): SchemaNode => {
-  const properties: SchemaProperty[] = fields
-    .map((field) => ({
+  const properties: SchemaProperty[] = fields.map((field, index) => {
+    const trimmedName = field.name.trim();
+    const finalName = trimmedName.length > 0 ? trimmedName : `field${index + 1}`;
+    const rawDescription = field.description;
+    const trimmedDescription = rawDescription.trim();
+    return {
       id: field.id,
-      name: field.name.trim(),
+      name: finalName,
       required: field.required,
       schema: schemaNodeFromQuickType(field.type),
-      description: field.description.trim() ? field.description.trim() : undefined
-    }))
-    .filter((field) => field.name.length > 0);
+      description: trimmedDescription.length > 0 ? rawDescription : undefined
+    };
+  });
 
   return {
     kind: "object",
@@ -351,20 +358,57 @@ const schemaFromQuickFields = (fields: QuickField[]): SchemaNode => {
   };
 };
 
+const quickFieldsEqual = (first: QuickField[], second: QuickField[]): boolean => {
+  if (first.length !== second.length) {
+    return false;
+  }
+  return first.every((field, index) => {
+    const other = second[index];
+    return (
+      field.name === other.name &&
+      field.type === other.type &&
+      field.required === other.required &&
+      field.description === other.description
+    );
+  });
+};
+
+const QUICK_COMMIT_DELAY = 400;
+
 const JsonSchemaEditor = ({ value, onChange, label, description, enableQuickBuilder = false }: JsonSchemaEditorProps) => {
   const initialParse = parseSchemaValue(value);
   const [schemaState, setSchemaState] = useState<ParseResult>(initialParse);
   const [parseError, setParseError] = useState<string | undefined>(initialParse.error);
-  const initialQuickFields = enableQuickBuilder && initialParse.kind === "object" ? extractQuickFields(initialParse.schema) ?? [] : [];
+  const initialQuickFields =
+    enableQuickBuilder && initialParse.kind === "object"
+      ? extractQuickFields(initialParse.schema) ?? []
+      : [];
   const [quickFields, setQuickFields] = useState<QuickField[]>(initialQuickFields);
+  const skipExtractionRef = useRef(false);
+  const pendingCommitRef = useRef<{ schema: SchemaNode; kind: RootKind } | null>(null);
+  const [commitTick, setCommitTick] = useState(0);
   const initialMode: "quick" | "advanced" =
-    enableQuickBuilder && initialParse.kind === "object" && extractQuickFields(initialParse.schema) !== null
+    enableQuickBuilder &&
+    (initialParse.kind === "none" ||
+      (initialParse.kind === "object" && extractQuickFields(initialParse.schema) !== null))
       ? "quick"
       : "advanced";
   const [editorMode, setEditorMode] = useState<"quick" | "advanced">(initialMode);
 
   useEffect(() => {
+    if (skipExtractionRef.current) {
+      return;
+    }
     const next = parseSchemaValue(value);
+    if (next.kind === "object") {
+      setQuickFields((current) => {
+        const extracted = extractQuickFields(next.schema);
+        if (!extracted) {
+          return current;
+        }
+        return quickFieldsEqual(current, extracted) ? current : extracted;
+      });
+    }
     setSchemaState(next);
     setParseError(next.error);
   }, [value]);
@@ -377,14 +421,40 @@ const JsonSchemaEditor = ({ value, onChange, label, description, enableQuickBuil
   }, [enableQuickBuilder, schemaState]);
 
   useEffect(() => {
-    if (quickBuilderExtraction) {
-      setQuickFields(quickBuilderExtraction);
+    if (editorMode !== "quick") {
+      return;
     }
 
-    if (!quickBuilderExtraction && editorMode === "quick") {
-      setEditorMode("advanced");
+    if (skipExtractionRef.current) {
+      skipExtractionRef.current = false;
+      return;
     }
-  }, [quickBuilderExtraction, editorMode]);
+
+    if (schemaState.kind !== "object") {
+      setEditorMode("advanced");
+      return;
+    }
+
+    if (!quickBuilderExtraction) {
+      setEditorMode("advanced");
+      return;
+    }
+
+    if (quickFields.some((field) => field.name.trim() === "")) {
+      return;
+    }
+
+    setQuickFields((current) => {
+      const equals = quickFieldsEqual(current, quickBuilderExtraction);
+      return equals ? current : quickBuilderExtraction;
+    });
+  }, [editorMode, schemaState.kind, quickBuilderExtraction, quickFields]);
+
+  useEffect(() => {
+    if (schemaState.kind === "object" && !quickBuilderExtraction) {
+      skipExtractionRef.current = false;
+    }
+  }, [schemaState.kind, quickBuilderExtraction]);
 
   const commitSchema = (nextSchema: SchemaNode, nextKind: RootKind = "object") => {
     setSchemaState({ kind: nextKind, schema: nextSchema });
@@ -400,11 +470,15 @@ const JsonSchemaEditor = ({ value, onChange, label, description, enableQuickBuil
     if (nextKind === "none") {
       setQuickFields([]);
       setEditorMode(enableQuickBuilder ? "quick" : "advanced");
+      skipExtractionRef.current = false;
       commitSchema(defaultObjectSchema(), "none");
       return;
     }
 
     const nextSchema = createDefaultNode(nextKind);
+    if (nextKind === "object" && enableQuickBuilder) {
+      setEditorMode("quick");
+    }
     commitSchema(nextSchema, nextKind);
   };
 
@@ -421,13 +495,71 @@ const JsonSchemaEditor = ({ value, onChange, label, description, enableQuickBuil
     });
   };
 
-  const handleQuickFieldsCommit = (nextFields: QuickField[]) => {
-    setQuickFields(nextFields);
-    const nextSchema = schemaFromQuickFields(nextFields);
-    commitSchema(nextSchema, "object");
-  };
+  const quickFieldCommitTimerRef = useRef<number | null>(null);
 
-  const quickBuilderAvailable = Boolean(enableQuickBuilder && schemaState.kind === "object" && quickBuilderExtraction);
+  useEffect(() => {
+    return () => {
+      if (quickFieldCommitTimerRef.current !== null) {
+        window.clearTimeout(quickFieldCommitTimerRef.current);
+        quickFieldCommitTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  const scheduleQuickSchemaCommit = useCallback(
+    (fields: QuickField[]) => {
+      if (!enableQuickBuilder || editorMode !== "quick") {
+        return;
+      }
+      if (fields.some((field) => field.name.trim() === "")) {
+        if (quickFieldCommitTimerRef.current !== null) {
+          window.clearTimeout(quickFieldCommitTimerRef.current);
+          quickFieldCommitTimerRef.current = null;
+        }
+        skipExtractionRef.current = false;
+        return;
+      }
+      if (quickFieldCommitTimerRef.current !== null) {
+        window.clearTimeout(quickFieldCommitTimerRef.current);
+      }
+      skipExtractionRef.current = true;
+      quickFieldCommitTimerRef.current = window.setTimeout(() => {
+        pendingCommitRef.current = {
+          schema: schemaFromQuickFields(fields),
+          kind: "object"
+        };
+        quickFieldCommitTimerRef.current = null;
+        setCommitTick((tick) => tick + 1);
+      }, QUICK_COMMIT_DELAY);
+    },
+    [commitSchema, editorMode, enableQuickBuilder]
+  );
+
+  const handleQuickFieldsCommit = useCallback(
+    (updater: (current: QuickField[]) => QuickField[]) => {
+      setQuickFields((current) => {
+        const next = updater(current);
+        scheduleQuickSchemaCommit(next);
+        return next;
+      });
+    },
+    [scheduleQuickSchemaCommit]
+  );
+
+  useEffect(() => {
+    if (!pendingCommitRef.current) {
+      return;
+    }
+    const pending = pendingCommitRef.current;
+    pendingCommitRef.current = null;
+    skipExtractionRef.current = false;
+    commitSchema(pending.schema, pending.kind);
+  }, [commitTick]);
+
+  const quickBuilderAvailable = Boolean(
+    enableQuickBuilder &&
+      (schemaState.kind === "none" || (schemaState.kind === "object" && quickBuilderExtraction !== null))
+  );
 
   const renderQuickBuilder = () => {
     return (
@@ -441,29 +573,36 @@ const JsonSchemaEditor = ({ value, onChange, label, description, enableQuickBuil
           <div key={field.id} className="flex flex-col gap-3 rounded-xl border border-[#E1E6F2] bg-white p-3 shadow-sm">
             <div className="flex flex-wrap items-center gap-2">
               <input
+                id={`schema-field-name-${field.id}`}
+                name={`schema-field-name-${field.id}`}
                 value={field.name}
                 onChange={(event) =>
                   handleQuickFieldsCommit(
-                    quickFields.map((candidate) =>
-                      candidate.id === field.id ? { ...candidate, name: event.target.value } : candidate
-                    )
+                    (current) =>
+                      current.map((candidate) =>
+                        candidate.id === field.id
+                          ? { ...candidate, name: event.target.value }
+                          : candidate
+                      )
                   )
                 }
                 placeholder="fieldName"
                 className="flex-1 rounded-md border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4] focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
               />
               <select
+                id={`schema-field-type-${field.id}`}
+                name={`schema-field-type-${field.id}`}
                 value={field.type}
                 onChange={(event) =>
-                  handleQuickFieldsCommit(
-                    quickFields.map((candidate) =>
+                  handleQuickFieldsCommit((current) =>
+                    current.map((candidate) =>
                       candidate.id === field.id
                         ? { ...candidate, type: event.target.value as QuickFieldType }
                         : candidate
                     )
                   )
                 }
-                className="rounded-md border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-xs uppercase tracking-[0.2em] text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+                className="rounded-md border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-xs text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
               >
                 {QUICK_FIELD_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -471,35 +610,50 @@ const JsonSchemaEditor = ({ value, onChange, label, description, enableQuickBuil
                   </option>
                 ))}
               </select>
-              <label className="flex items-center gap-1 rounded-full border border-[#0A1A2333] px-2 py-0.5 text-[10px] uppercase tracking-[0.15em] text-[#657782]">
+              <label
+                className="flex items-center gap-1 rounded-full border border-[#0A1A2333] px-2 py-0.5 text-[10px] text-[#657782]"
+                htmlFor={`schema-field-required-${field.id}`}
+              >
                 <input
                   type="checkbox"
+                  id={`schema-field-required-${field.id}`}
+                  name={`schema-field-required-${field.id}`}
                   checked={field.required}
                   onChange={(event) =>
-                    handleQuickFieldsCommit(
-                      quickFields.map((candidate) =>
-                        candidate.id === field.id ? { ...candidate, required: event.target.checked } : candidate
+                    handleQuickFieldsCommit((current) =>
+                      current.map((candidate) =>
+                        candidate.id === field.id
+                          ? { ...candidate, required: event.target.checked }
+                          : candidate
                       )
                     )
                   }
                   className="h-3 w-3 rounded border-[#0A1A2333] text-[#3A5AE5] focus:ring-[#3A5AE5]"
                 />
-                Required
+                required
               </label>
               <button
                 type="button"
-                onClick={() => handleQuickFieldsCommit(quickFields.filter((candidate) => candidate.id !== field.id))}
-                className="flex items-center rounded-full border border-[#CD3A50] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#CD3A50] transition hover:bg-[#CD3A5014]"
+                onClick={() =>
+                  handleQuickFieldsCommit((current) =>
+                    current.filter((candidate) => candidate.id !== field.id)
+                  )
+                }
+                className="flex items-center rounded-full border border-[#CD3A50] px-2 py-0.5 text-[10px] font-semibold text-[#CD3A50] transition hover:bg-[#CD3A5014]"
               >
-                Remove
+                remove
               </button>
             </div>
             <textarea
+              id={`schema-field-description-${field.id}`}
+              name={`schema-field-description-${field.id}`}
               value={field.description}
               onChange={(event) =>
-                handleQuickFieldsCommit(
-                  quickFields.map((candidate) =>
-                    candidate.id === field.id ? { ...candidate, description: event.target.value } : candidate
+                handleQuickFieldsCommit((current) =>
+                  current.map((candidate) =>
+                    candidate.id === field.id
+                      ? { ...candidate, description: event.target.value }
+                      : candidate
                   )
                 )
               }
@@ -511,10 +665,15 @@ const JsonSchemaEditor = ({ value, onChange, label, description, enableQuickBuil
         ))}
         <button
           type="button"
-          onClick={() => handleQuickFieldsCommit([...quickFields, createQuickField()])}
-          className="self-start rounded-md border border-[#3A5AE5] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#3A5AE5] transition hover:bg-[#3A5AE510]"
+          onClick={() =>
+            handleQuickFieldsCommit((current) => [
+              ...current,
+              createQuickField({ name: `field${current.length + 1}` })
+            ])
+          }
+          className="self-start rounded-md border border-[#3A5AE5] px-2.5 py-1 text-[11px] font-semibold text-[#3A5AE5] transition hover:bg-[#3A5AE510]"
         >
-          Add field
+          add field
         </button>
       </div>
     );
@@ -527,7 +686,7 @@ const JsonSchemaEditor = ({ value, onChange, label, description, enableQuickBuil
         {description ? <span className="text-xs text-[#657782]">{description}</span> : null}
       </div>
 
-      <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-[#657782]">
+      <label className="flex flex-col gap-1 text-xs font-semibold text-[#657782]">
         <span>Schema Mode</span>
         <select
           value={schemaState.kind}
@@ -549,7 +708,7 @@ const JsonSchemaEditor = ({ value, onChange, label, description, enableQuickBuil
             type="button"
             onClick={() => setEditorMode("quick")}
             disabled={!quickBuilderAvailable}
-            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] transition ${
+            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
               editorMode === "quick"
                 ? "border border-[#3A5AE5] bg-[#3A5AE510] text-[#3A5AE5]"
                 : quickBuilderAvailable
@@ -557,18 +716,18 @@ const JsonSchemaEditor = ({ value, onChange, label, description, enableQuickBuil
                 : "border border-dashed border-[#0A1A2333] bg-white text-[#9AA7B4] cursor-not-allowed"
             }`}
           >
-            Quick Builder
+            quick builder
           </button>
           <button
             type="button"
             onClick={() => setEditorMode("advanced")}
-            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] transition ${
+            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
               editorMode === "advanced"
                 ? "border border-[#3A5AE5] bg-[#3A5AE510] text-[#3A5AE5]"
                 : "border border-[#0A1A2333] bg-white text-[#657782] hover:border-[#3A5AE5] hover:text-[#3A5AE5]"
             }`}
           >
-            Advanced
+            advanced
           </button>
         </div>
       ) : null}
@@ -578,18 +737,26 @@ const JsonSchemaEditor = ({ value, onChange, label, description, enableQuickBuil
       ) : null}
 
       {schemaState.kind === "none" ? (
-        <div className="rounded-lg border border-dashed border-[#0A1A2333] bg-[#F8FAFF] px-3 py-4 text-xs text-[#657782]">
-          No schema configured. Select a schema type to start describing the AI response.
-        </div>
+        editorMode === "quick" ? (
+          renderQuickBuilder()
+        ) : (
+          <div className="rounded-lg border border-dashed border-[#0A1A2333] bg-[#F8FAFF] px-3 py-4 text-xs text-[#657782]">
+            No schema configured. Select a schema type to start describing the AI response.
+          </div>
+        )
       ) : editorMode === "quick" && quickBuilderAvailable ? (
         renderQuickBuilder()
       ) : (
-        <SchemaNodeEditor node={schemaState.schema} onChange={handleSchemaNodeChange} depth={0} />
+        <SchemaNodeEditor
+          node={schemaState.schema}
+          onChange={(nextSchema) => handleSchemaNodeChange(() => nextSchema)}
+          depth={0}
+        />
       )}
 
       {!quickBuilderAvailable && editorMode === "quick" ? (
         <div className="rounded-lg border border-[#F9D4D8] bg-[#FDF2F3] px-3 py-2 text-xs text-[#CD3A50]">
-          Quick builder is available for objects with primitive or list fields. Switch to Advanced to edit complex schemas.
+          quick builder is available for objects with primitive or list fields. switch to advanced to edit complex schemas.
         </div>
       ) : null}
     </div>
@@ -615,7 +782,7 @@ const SchemaNodeEditor = ({ node, onChange, depth }: SchemaNodeEditorProps) => {
   return (
     <div className={containerClass}>
       <div className="flex items-center gap-2">
-        <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-[#657782]">
+        <label className="flex flex-col gap-1 text-xs font-semibold text-[#657782]">
           <span>Type</span>
           <select
             value={node.kind}
@@ -684,7 +851,7 @@ const ObjectNodeEditor = ({ node, onChange, depth }: ObjectNodeEditorProps) => {
   return (
     <div className="flex flex-col gap-3">
       <div className={containerClass}>
-        <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.25em] text-[#657782]">
+        <div className="flex items-center justify-between text-[10px] font-semibold text-[#657782]">
           <span>Properties</span>
           <span className="text-[#9AA7B4]">{node.properties.length}</span>
         </div>
@@ -703,7 +870,7 @@ const ObjectNodeEditor = ({ node, onChange, depth }: ObjectNodeEditorProps) => {
                   placeholder="fieldName"
                   className="flex-1 rounded-md border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4] focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
                 />
-                <label className="flex items-center gap-1 rounded-full border border-[#0A1A2333] px-2 py-0.5 text-[10px] uppercase tracking-[0.15em] text-[#657782]">
+                <label className="flex items-center gap-1 rounded-full border border-[#0A1A2333] px-2 py-0.5 text-[10px] text-[#657782]">
                   <input
                     type="checkbox"
                     checked={property.required}
@@ -715,12 +882,12 @@ const ObjectNodeEditor = ({ node, onChange, depth }: ObjectNodeEditorProps) => {
                     }
                     className="h-3 w-3 rounded border-[#0A1A2333] text-[#3A5AE5] focus:ring-[#3A5AE5]"
                   />
-                  Required
+                required
                 </label>
                 <button
                   type="button"
                   onClick={() => handleRemoveProperty(property.id)}
-                  className="flex items-center rounded-full border border-[#CD3A50] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#CD3A50] transition hover:bg-[#CD3A5014]"
+                  className="flex items-center rounded-full border border-[#CD3A50] px-2 py-0.5 text-[10px] font-semibold text-[#CD3A50] transition hover:bg-[#CD3A5014]"
                 >
                   Remove
                 </button>
@@ -747,7 +914,7 @@ const ObjectNodeEditor = ({ node, onChange, depth }: ObjectNodeEditorProps) => {
           <button
             type="button"
             onClick={handleAddProperty}
-            className="self-start rounded-md border border-[#3A5AE5] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#3A5AE5] transition hover:bg-[#3A5AE510]"
+            className="self-start rounded-md border border-[#3A5AE5] px-2.5 py-1 text-[11px] font-semibold text-[#3A5AE5] transition hover:bg-[#3A5AE510]"
           >
             Add property
           </button>
@@ -768,7 +935,7 @@ const ArrayNodeEditor = ({ node, onChange, depth }: ArrayNodeEditorProps) => {
 
   return (
     <div className={containerClass}>
-      <div className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#657782]">Items</div>
+      <div className="text-[10px] font-semibold text-[#657782]">Items</div>
       <div className="mt-3 flex flex-col gap-3">
         <SchemaNodeEditor
           node={node.items}

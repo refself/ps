@@ -127,13 +127,13 @@ const CommandPalette = () => {
       event.preventDefault();
       if (isOpen) {
         closePalette();
-        return;
+      } else {
+        openPalette();
       }
-      openPalette(context ?? null);
     };
     window.addEventListener("keydown", handleGlobalHotkey);
     return () => window.removeEventListener("keydown", handleGlobalHotkey);
-  }, [closePalette, context, isOpen, openPalette]);
+  }, [closePalette, isOpen, openPalette]);
 
   if (!isOpen) {
     return null;
@@ -170,7 +170,7 @@ const CommandPalette = () => {
           </button>
         </div>
 
-        <div className="max-h-[420px] overflow-auto rounded-xl border border-[#0A1A2314] bg-white">
+        <div className="workflow-editor-scrollable max-h-[420px] overflow-auto rounded-xl border border-[#0A1A2314] bg-white">
           {filtered.length === 0 ? (
             <div className="flex items-center justify-center px-6 py-12 text-sm text-[#657782]">
               No blocks match "{query}".
@@ -235,6 +235,7 @@ const ShortcutChip = ({ label, description }: { label: string; description: stri
 );
 
 export default CommandPalette;
+
 const categoryIcons: Record<string, IconName> = {
   program: "workflow",
   control: "branch",

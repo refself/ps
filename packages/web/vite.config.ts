@@ -75,7 +75,8 @@ export default defineConfig({
   plugins: [executeScriptApi(), react()],
   resolve: {
     alias: {
-      "@workflow-builder/core": path.resolve(__dirname, "../core/src")
+      "@workflow-builder/core": path.resolve(__dirname, "../core/src"),
+      "@workflow-builder/editor": path.resolve(__dirname, "../editor/src")
     }
   },
   define: {

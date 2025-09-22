@@ -113,7 +113,7 @@ const BlockLibraryPanel = () => {
   };
 
   return (
-    <aside className="flex h-full w-72 flex-col border-r border-[#0A1A2314] bg-white/85 backdrop-blur">
+    <aside className="workflow-editor-scrollable flex h-full w-72 flex-col border-r border-[#0A1A2314] bg-white/85 backdrop-blur">
       <div className="border-b border-[#0A1A2314] bg-white/90 px-4 py-4">
         <h2 className="text-sm font-semibold uppercase tracking-[0.35em] text-[#657782]">Blocks</h2>
       </div>

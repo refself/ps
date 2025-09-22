@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { createWithEqualityFn } from "zustand/traditional";
 
 import {
   createBlockInstance,
@@ -14,7 +14,7 @@ import {
 } from "@workflow-builder/core";
 import type { BlockInstance, WorkflowDocument } from "@workflow-builder/core";
 
-import { useWorkspaceStore } from "./workspace-store";
+import { notifyExternalListeners } from "./external-listeners";
 
 type HistoryState = {
   past: WorkflowDocument[];
@@ -114,7 +114,9 @@ const cloneDocument = (document: WorkflowDocument): WorkflowDocument => {
   return JSON.parse(JSON.stringify(document)) as WorkflowDocument;
 };
 
-export const useEditorStore = create<EditorStore>((set, get) => {
+let suppressExternalNotification = false;
+
+export const useEditorStore = createWithEqualityFn<EditorStore>()((set, get) => {
   const initialDocument = createDocument({ name: "Untitled Workflow" });
   const initialCode = safeGenerateCode(initialDocument).code;
 
@@ -138,7 +140,10 @@ export const useEditorStore = create<EditorStore>((set, get) => {
         selectedBlockId: ensureSelection(nextDocument, selectionSource)
       };
     });
-    useWorkspaceStore.getState().updateActiveWorkflow({ document: nextDocument, code: nextCode });
+
+    if (!suppressExternalNotification) {
+      notifyExternalListeners(nextDocument, nextCode);
+    }
   };
 
   return {
@@ -156,6 +161,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
 
     loadWorkflowDocument: ({ document, code }) => {
       const cloned = cloneDocument(document);
+      suppressExternalNotification = true;
       set({
         document: cloned,
         code,
@@ -163,6 +169,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
         history: { past: [], future: [] },
         selectedBlockId: ensureSelection(cloned, cloned.root)
       });
+      suppressExternalNotification = false;
     },
 
     loadWorkflowFromCode: (source) => {
@@ -201,7 +208,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
           blockId,
           updates
         });
-        applyDocument(nextDocument, { nextSelection: blockId });
+        applyDocument(nextDocument, { pushToHistory: true });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         set({ lastError: message });
@@ -209,39 +216,48 @@ export const useEditorStore = create<EditorStore>((set, get) => {
     },
 
     addBlock: ({ kind, parentId, slotId, index, initialData }) => {
-      try {
-        const block = createBlockInstance(kind, initialData ?? {});
-        const nextDocument = insertBlock({
-          document: get().document,
-          parentId,
-          slotId,
-          block,
-          index
-        });
-        applyDocument(nextDocument, { nextSelection: block.id });
-        return block.id;
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        set({ lastError: message });
-        throw error;
+      const workingDocument = get().document;
+      const block = createBlockInstance(kind, initialData ?? {});
+      const targetParent = workingDocument.blocks[parentId];
+      if (!targetParent) {
+        throw new Error(`Parent block not found: ${parentId}`);
       }
+
+      const position = index ?? targetParent.children[slotId]?.length ?? 0;
+      const nextDocument = insertBlock({
+        document: workingDocument,
+        parentId,
+        slotId,
+        block,
+        index: position
+      });
+      applyDocument(nextDocument, { pushToHistory: true, nextSelection: block.id });
+      return block.id;
     },
 
     deleteBlock: (blockId) => {
       const document = get().document;
-      const location = findBlockLocation(document, blockId);
-      if (!location) {
+      if (!document.blocks[blockId]) {
+        return;
+      }
+
+      const rootId = document.root;
+      if (blockId === rootId) {
         return;
       }
 
       try {
+        const location = findBlockLocation(document, blockId);
+        if (!location) {
+          return;
+        }
         const nextDocument = removeBlock({
           document,
           blockId,
           parentId: location.parentId,
           slotId: location.slotId
         });
-        applyDocument(nextDocument, { nextSelection: location.parentId });
+        applyDocument(nextDocument, { pushToHistory: true, nextSelection: null });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         set({ lastError: message });
@@ -250,15 +266,6 @@ export const useEditorStore = create<EditorStore>((set, get) => {
 
     moveBlock: ({ blockId, targetParentId, slotId, index }) => {
       const document = get().document;
-      const location = findBlockLocation(document, blockId);
-      if (!location) {
-        return;
-      }
-
-      if (location.parentId === targetParentId && location.slotId === slotId && index === location.index) {
-        return;
-      }
-
       if (isDescendant(document, blockId, targetParentId)) {
         return;
       }
@@ -271,7 +278,7 @@ export const useEditorStore = create<EditorStore>((set, get) => {
           slotId,
           index
         });
-        applyDocument(nextDocument, { nextSelection: blockId });
+        applyDocument(nextDocument, { pushToHistory: true });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         set({ lastError: message });
@@ -372,6 +379,9 @@ export const useEditorStore = create<EditorStore>((set, get) => {
         },
         selectedBlockId: ensureSelection(previous, selectedBlockId)
       });
+      if (!suppressExternalNotification) {
+        notifyExternalListeners(previous, previousCode);
+      }
     },
 
     redo: () => {
@@ -394,6 +404,9 @@ export const useEditorStore = create<EditorStore>((set, get) => {
         },
         selectedBlockId: ensureSelection(nextDocument, selectedBlockId)
       });
+      if (!suppressExternalNotification) {
+        notifyExternalListeners(nextDocument, nextCode);
+      }
     },
 
     setExecutionStatus: (status) => set({ executionStatus: status })
