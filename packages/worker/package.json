@@ -7,10 +7,20 @@
 		"dev": "wrangler dev",
 		"start": "wrangler dev",
 		"cf-typegen": "wrangler types",
-		"typecheck": "tsc -p tsconfig.json --noEmit"
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"db:generate:d1": "drizzle-kit generate --config=drizzle-d1.config.ts",
+		"db:generate:do": "drizzle-kit generate --config=drizzle-do.config.ts",
+		"db:generate": "pnpm db:generate:d1 && pnpm db:generate:do",
+		"db:migrate:d1:local": "wrangler d1 migrations apply workflows --local"
 	},
 	"devDependencies": {
+		"drizzle-kit": "^0.31.4",
 		"typescript": "^5.5.2",
 		"wrangler": "^4.38.0"
+	},
+	"dependencies": {
+		"agents": "^0.2.0",
+		"drizzle-orm": "^0.44.5",
+		"hono": "^4.9.8"
 	}
 }

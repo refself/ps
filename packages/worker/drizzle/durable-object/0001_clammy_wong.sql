@@ -1,0 +1,1 @@
+CREATE INDEX `versions_seq_idx` ON `versions` (`seq`);
