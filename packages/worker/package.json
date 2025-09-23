@@ -1,5 +1,5 @@
 {
-	"name": "worker",
+	"name": "@workflow-builder/worker",
 	"version": "0.0.0",
 	"private": true,
 	"scripts": {
@@ -19,8 +19,10 @@
 		"wrangler": "^4.38.0"
 	},
 	"dependencies": {
+		"@hono/zod-validator": "^0.7.3",
 		"agents": "^0.2.0",
 		"drizzle-orm": "^0.44.5",
-		"hono": "^4.9.8"
+		"hono": "^4.9.8",
+		"zod": "^4.1.11"
 	}
 }

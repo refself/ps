@@ -7,10 +7,12 @@
 	"name": "workflows",
 	"main": "src/index.ts",
 	"compatibility_date": "2025-09-22",
+	"compatibility_flags": ["nodejs_compat"],
 	"migrations": [
 		{
 			"new_sqlite_classes": [
-				"WorkflowDurableObject"
+				"WorkflowAgent",
+				"ConnectionCoordinator"
 			],
 			"tag": "v1"
 		}
@@ -18,8 +20,12 @@
 	"durable_objects": {
 		"bindings": [
 			{
-				"class_name": "WorkflowDurableObject",
+				"class_name": "WorkflowAgent",
 				"name": "WORKFLOW_RUNNER"
+			},
+			{
+				"class_name": "ConnectionCoordinator",
+				"name": "CONNECTION_COORDINATOR"
 			}
 		]
 	},
@@ -39,6 +45,13 @@
 			"type": "Text",
 			"globs": ["**/*.sql"],
 			"fallthrough": true
+		}
+	],
+	"secrets_store_secrets": [
+		{
+			"binding": "JWT_SECRET",
+			"store_id": "78ca3f6b0eb042a5b17b5301b5b8cac4",
+			"secret_name": "JWT_SECRET"
 		}
 	]
 }

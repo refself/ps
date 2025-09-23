@@ -1,36 +1,38 @@
 import { Hono } from 'hono';
-import { cors } from 'hono/cors';
-import { WorkflowIndexRepository } from '../repositories/workflow-index';
-import { CORS_HEADERS } from '../constants';
-import type {
-  InitializeInput,
-  UpdateStateInput,
-  SaveVersionInput,
-  RestoreVersionInput,
-  RenameVersionInput,
-  DeleteVersionInput
-} from '../types/workflow';
-import type { WorkflowDurableObjectStub } from '../types/durable-object';
+import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
+import { WorkflowIndexRepository } from '@/repositories/workflow-index';
+import { CORS_HEADERS } from '@/constants';
+import {
+  InitializeInputSchema,
+  UpdateStateInputSchema,
+  SaveVersionInputSchema,
+  RenameVersionInputSchema,
+  WorkflowListQuerySchema,
+} from '@/schemas/workflow-schemas';
+import {
+  ExecuteScriptSchema,
+  StartRecordingSchema,
+  StopRecordingSchema,
+  GetRecordingSchema,
+} from '@/schemas/osclient-tools';
+import { getAgentByName } from 'agents';
+import { handleToolError } from '@/utils/error-handling';
 
-const workflows = new Hono<{ Bindings: Env }>();
+const workflows = new Hono<{
+  Bindings: Env;
+  Variables: {
+    userId: string;
+  };
+}>();
 
-// Helper function to get typed workflow stub
-function getWorkflowStub(env: Env, workflowId: string): WorkflowDurableObjectStub {
-  return env.WORKFLOW_RUNNER.get(env.WORKFLOW_RUNNER.idFromName(workflowId)) as WorkflowDurableObjectStub;
+async function getWorkflowAgent(env: Env, workflowId: string): Promise<any> {
+  return getAgentByName(env.WORKFLOW_RUNNER, workflowId) as Promise<any>;
 }
 
-// CORS middleware
-workflows.use('*', cors({
-  origin: '*',
-  allowHeaders: ['Content-Type'],
-  allowMethods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-  maxAge: 86400
-}));
-
 // List workflows
-workflows.get('/', async (c) => {
-  const limit = Number(c.req.query('limit') ?? '50');
-  const offset = Number(c.req.query('offset') ?? '0');
+workflows.get('/', zValidator('query', WorkflowListQuerySchema), async (c) => {
+  const { limit, offset } = c.req.valid('query');
 
   const indexRepo = new WorkflowIndexRepository(c.env.WORKFLOW_INDEX);
   const items = await indexRepo.list({ limit, offset });
@@ -39,45 +41,35 @@ workflows.get('/', async (c) => {
 });
 
 // Create workflow
-workflows.post('/', async (c) => {
-  const body = await c.req.json() as {
-    id?: string;
-    type?: string;
-    name?: string;
-    status?: string;
-    document: unknown;
-    code: string;
-  };
-
-  if (body.document === undefined || typeof body.code !== "string") {
-    return c.json({ error: "`document` and `code` are required" }, 400);
-  }
+workflows.post('/', zValidator('json', InitializeInputSchema.omit({ workflowId: true }).extend({
+  id: z.string().optional(),
+})), async (c) => {
+  const body = c.req.valid('json');
 
   const workflowId = (body.id ?? crypto.randomUUID()).trim();
   if (!workflowId) {
     return c.json({ error: "Workflow id is required" }, 400);
   }
 
-  const stub = getWorkflowStub(c.env, workflowId);
-  const detail = await stub.initialize({
-    workflowId,
-    type: body.type,
-    name: body.name,
-    status: body.status,
-    document: body.document,
-    code: body.code
+  const agent = await getWorkflowAgent(c.env, workflowId);
+  const detail = agent.initialize({
+      workflowId,
+      type: body.type,
+      name: body.name,
+      status: body.status,
+      document: body.document,
+      code: body.code
   });
 
   return c.json(detail, 201);
 });
 
-// Get workflow detail
 workflows.get('/:id', async (c) => {
   const workflowId = c.req.param('id');
-  const stub = getWorkflowStub(c.env, workflowId);
+  const agent = await getWorkflowAgent(c.env, workflowId);
 
   try {
-    const detail = await stub.getDetail();
+    const detail = agent.getDetail();
     return c.json(detail);
   } catch (error) {
     if (error instanceof Response) {
@@ -88,30 +80,22 @@ workflows.get('/:id', async (c) => {
 });
 
 // Update workflow
-workflows.patch('/:id', async (c) => {
+workflows.patch('/:id', zValidator('json', UpdateStateInputSchema), async (c) => {
   const workflowId = c.req.param('id');
-  const body = await c.req.json() as UpdateStateInput;
+  const body = c.req.valid('json');
 
-  if (body.document === undefined || typeof body.code !== "string") {
-    return c.json({ error: "`document` and `code` are required" }, 400);
-  }
-
-  const stub = getWorkflowStub(c.env, workflowId);
-  const detail = await stub.updateState(body);
+  const agent = await getWorkflowAgent(c.env, workflowId);
+  const detail = agent.updateState(body);
 
   return c.json(detail);
 });
 
-workflows.put('/:id', async (c) => {
+workflows.put('/:id', zValidator('json', UpdateStateInputSchema), async (c) => {
   const workflowId = c.req.param('id');
-  const body = await c.req.json() as UpdateStateInput;
+  const body = c.req.valid('json');
 
-  if (body.document === undefined || typeof body.code !== "string") {
-    return c.json({ error: "`document` and `code` are required" }, 400);
-  }
-
-  const stub = getWorkflowStub(c.env, workflowId);
-  const detail = await stub.updateState(body);
+  const agent = await getWorkflowAgent(c.env, workflowId);
+  const detail = agent.updateState(body);
 
   return c.json(detail);
 });
@@ -119,32 +103,28 @@ workflows.put('/:id', async (c) => {
 // Delete workflow
 workflows.delete('/:id', async (c) => {
   const workflowId = c.req.param('id');
-  const stub = getWorkflowStub(c.env, workflowId);
+  const agent = await getWorkflowAgent(c.env, workflowId);
 
-  await stub.deleteWorkflow();
+  await agent.deleteWorkflow();
   return new Response(null, { status: 204, headers: CORS_HEADERS });
 });
 
 // List versions
 workflows.get('/:id/versions', async (c) => {
   const workflowId = c.req.param('id');
-  const stub = getWorkflowStub(c.env, workflowId);
+  const agent = await getWorkflowAgent(c.env, workflowId);
 
-  const versions = await stub.listVersionHeadersPublic();
+  const versions = await agent.listVersionHeaders();
   return c.json({ items: versions });
 });
 
 // Save version
-workflows.post('/:id/versions', async (c) => {
+workflows.post('/:id/versions', zValidator('json', SaveVersionInputSchema), async (c) => {
   const workflowId = c.req.param('id');
-  const body = await c.req.json() as SaveVersionInput;
+  const body = c.req.valid('json');
 
-  if (body.document === undefined || typeof body.code !== "string") {
-    return c.json({ error: "`document` and `code` are required" }, 400);
-  }
-
-  const stub = getWorkflowStub(c.env, workflowId);
-  const version = await stub.saveVersion(body);
+  const agent = await getWorkflowAgent(c.env, workflowId);
+  const version = await agent.saveVersion(body);
 
   return c.json(version, 201);
 });
@@ -154,24 +134,20 @@ workflows.post('/:id/versions/:versionId/restore', async (c) => {
   const workflowId = c.req.param('id');
   const versionId = c.req.param('versionId');
 
-  const stub = getWorkflowStub(c.env, workflowId);
-  const detail = await stub.restoreVersion({ versionId });
+  const agent = await getWorkflowAgent(c.env, workflowId);
+  const detail = agent.restoreVersion({ versionId });
 
   return c.json(detail);
 });
 
 // Rename version
-workflows.patch('/:id/versions/:versionId', async (c) => {
+workflows.patch('/:id/versions/:versionId', zValidator('json', RenameVersionInputSchema.omit({ versionId: true })), async (c) => {
   const workflowId = c.req.param('id');
   const versionId = c.req.param('versionId');
-  const body = await c.req.json() as { name: string };
+  const body = c.req.valid('json');
 
-  if (typeof body.name !== "string") {
-    return c.json({ error: "`name` is required" }, 400);
-  }
-
-  const stub = getWorkflowStub(c.env, workflowId);
-  const version = await stub.renameVersion({ versionId, name: body.name });
+  const agent = await getWorkflowAgent(c.env, workflowId);
+  const version = await agent.renameVersion({ versionId, name: body.name });
 
   return c.json(version);
 });
@@ -181,10 +157,67 @@ workflows.delete('/:id/versions/:versionId', async (c) => {
   const workflowId = c.req.param('id');
   const versionId = c.req.param('versionId');
 
-  const stub = getWorkflowStub(c.env, workflowId);
-  await stub.deleteVersion({ versionId });
+  const agent = await getWorkflowAgent(c.env, workflowId);
+  await agent.deleteVersion({ versionId });
 
   return new Response(null, { status: 204, headers: CORS_HEADERS });
+});
+
+// OS Client tool execution routes (authenticated)
+workflows.post('/:id/tools/execute-script', zValidator('json', ExecuteScriptSchema), async (c) => {
+  const workflowId = c.req.param('id');
+  const params = c.req.valid('json');
+  const userId = c.get('userId'); // From JWT middleware
+
+  try {
+    const agent = await getWorkflowAgent(c.env, workflowId);
+    const result = await (agent as any).executeScript(userId, params);
+    return c.json({ success: true, data: result });
+  } catch (error) {
+    return handleToolError(c, error, 'Script execution');
+  }
+});
+
+workflows.post('/:id/tools/start-recording', zValidator('json', StartRecordingSchema), async (c) => {
+  const workflowId = c.req.param('id');
+  const params = c.req.valid('json');
+  const userId = c.get('userId'); // From JWT middleware
+
+  try {
+    const agent = await getWorkflowAgent(c.env, workflowId);
+    const result = await agent.startRecording(userId, params);
+    return c.json({ success: true, data: result });
+  } catch (error) {
+    return handleToolError(c, error, 'Start recording');
+  }
+});
+
+workflows.post('/:id/tools/stop-recording', zValidator('json', StopRecordingSchema), async (c) => {
+  const workflowId = c.req.param('id');
+  const params = c.req.valid('json');
+  const userId = c.get('userId'); // From JWT middleware
+
+  try {
+    const agent = await getWorkflowAgent(c.env, workflowId);
+    const result = await agent.stopRecording(userId, params);
+    return c.json({ success: true, data: result });
+  } catch (error) {
+    return handleToolError(c, error, 'Stop recording');
+  }
+});
+
+workflows.get('/:id/tools/recording/:recordingId', async (c) => {
+  const workflowId = c.req.param('id');
+  const recordingId = c.req.param('recordingId');
+  const userId = c.get('userId'); // From JWT middleware
+
+  try {
+    const agent = await getWorkflowAgent(c.env, workflowId);
+    const result = await agent.getRecording(userId, { recordingId });
+    return c.json({ success: true, data: result });
+  } catch (error) {
+    return handleToolError(c, error, 'Get recording');
+  }
 });
 
 export { workflows };

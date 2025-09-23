@@ -1,6 +1,5 @@
 import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
 
-// DurableObject internal tables (per workflow instance)
 export const workflowMeta = sqliteTable('workflow_meta', {
   key: text('key').primaryKey(),
   value: text('value').notNull(),

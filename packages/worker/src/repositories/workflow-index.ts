@@ -1,7 +1,7 @@
 import { drizzle } from 'drizzle-orm/d1';
 import { eq } from 'drizzle-orm';
-import { workflowsIndex } from './d1-schema';
-import type { WorkflowSummary } from '../types/workflow';
+import { workflowsIndex } from '@/db/d1-schema';
+import type { WorkflowSummary } from '@/schemas/workflow-schemas';
 
 export class WorkflowIndexRepository {
   private db: ReturnType<typeof drizzle>;
@@ -9,9 +9,6 @@ export class WorkflowIndexRepository {
   constructor(d1Database: D1Database) {
     this.db = drizzle(d1Database);
   }
-
-  // Table creation will be handled by migrations
-  // No need for ensureTable() anymore
 
   async upsert(summary: WorkflowSummary): Promise<void> {
 

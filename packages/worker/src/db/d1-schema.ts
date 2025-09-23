@@ -1,6 +1,5 @@
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 
-// Global workflow index table for D1 database
 export const workflowsIndex = sqliteTable('workflows_index', {
   id: text('id').primaryKey(),
   doName: text('do_name').notNull(),
