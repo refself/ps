@@ -1,5 +1,5 @@
 import { Agent, getAgentByName } from 'agents';
-import { extractUserIdFromRequest } from '@/utils/auth';
+import { migrate } from 'drizzle-orm/durable-sqlite/migrator';
 import {
   OSClientToolResponseSchema,
   type OSClientToolRequest,
@@ -9,12 +9,16 @@ import {
   type StopRecordingInput,
   type GetRecordingInput,
 } from '@/schemas/osclient-tools';
+import {
+  ConnectionCoordinatorRepository,
+  type ToolRequestRecord,
+  type ToolRequestStatus,
+} from '@/repositories/connection-coordinator-repository';
+import coordinatorMigrations from '../../drizzle/connection-coordinator/migrations';
 
 interface ConnectionInfo {
   id: string;
   type: 'web' | 'osclient';
-  userId: string;
-  workflowId?: string;
   connectedAt: number;
   lastActivity: number;
 }
@@ -23,23 +27,39 @@ interface CoordinatorState {
   connectedAt: number;
   lastActivity: number;
   connectionCount: number;
-  userId?: string;
   webConnectionIds: string[];
   osConnectionIds: string[];
 }
 
-interface PendingRequest {
+interface PendingRequestContext {
   workflowId: string;
-  userId: string;
-  resolve: Function;
-  reject: Function;
-  timestamp: number;
+  resolve: (value: unknown) => void;
+  reject: (reason?: unknown) => void;
+  createdAt: number;
+}
+
+interface ToolRequestSnapshot {
+  requestId: string;
+  workflowId: string;
+  tool: string;
+  params: unknown;
+  status: ToolRequestStatus;
+  responseData?: unknown;
+  error?: string | null;
+  createdAt: number;
+  resolvedAt?: number | null;
 }
 
 interface SendToolRequestInput {
   workflowId: string;
   tool: OSClientToolRequest['tool'];
   params: ExecuteScriptInput | StartRecordingInput | StopRecordingInput | GetRecordingInput;
+}
+
+interface ListToolRequestsInput {
+  workflowId?: string;
+  status?: ToolRequestStatus;
+  limit?: number;
 }
 
 // WebSocket connection interface
@@ -70,10 +90,37 @@ interface ConnectionContext {
   request: Request;
 }
 
+const noop = () => {};
+
 export class ConnectionCoordinator extends Agent<Env, CoordinatorState> {
   private connections = new Map<string, ConnectionInfo>(); // connectionId -> info
   private websocketConnections = new Map<string, any>(); // connectionId -> websocket
-  private pendingToolRequests = new Map<string, PendingRequest>(); // requestId -> pending
+  private pendingToolRequests = new Map<string, PendingRequestContext>(); // requestId -> pending
+  private pendingRequestRepo: ConnectionCoordinatorRepository;
+
+  constructor(ctx: DurableObjectState, env: Env) {
+    super(ctx, env);
+
+    this.pendingRequestRepo = new ConnectionCoordinatorRepository(ctx.storage);
+
+    ctx.blockConcurrencyWhile(async () => {
+      try {
+        migrate(this.pendingRequestRepo.getDb(), coordinatorMigrations);
+        this.rehydratePendingRequests();
+        if (this.connections.size === 0 && (this.state.osConnectionIds.length > 0 || this.state.webConnectionIds.length > 0)) {
+          this.setState({
+            ...this.state,
+            connectionCount: 0,
+            osConnectionIds: [],
+            webConnectionIds: [],
+          });
+        }
+      } catch (error) {
+        console.error('Failed to initialize connection coordinator storage:', error);
+        throw error;
+      }
+    });
+  }
 
   initialState: CoordinatorState = {
     connectedAt: Date.now(),
@@ -90,31 +137,17 @@ export class ConnectionCoordinator extends Agent<Env, CoordinatorState> {
   // WebSocket connection handler with authentication
   async onConnect(connection: Connection, ctx: ConnectionContext) {
     try {
-      // Extract and verify JWT token
-      const jwtSecret = await this.env.JWT_SECRET.get();
-      const userId = await extractUserIdFromRequest(ctx.request, jwtSecret);
-
-      if (this.state.userId && this.state.userId !== userId) {
-        console.warn(`Rejected connection ${connection.id} for mismatched user ${userId}`);
-        connection.close(1008, 'Invalid user context');
-        return;
-      }
-
-      const coordinatorUserId = this.state.userId ?? userId;
 
       // Determine client type from URL or query params
       const url = new URL(ctx.request.url);
       const clientType = url.searchParams.get('client') as 'web' | 'osclient' || 'web';
-      const workflowId = url.searchParams.get('workflowId') || undefined;
 
       // Store connection info
       const connectionInfo: ConnectionInfo = {
         id: connection.id,
         type: clientType,
-        userId: coordinatorUserId,
         connectedAt: Date.now(),
         lastActivity: Date.now(),
-        workflowId,
       };
 
       this.connections.set(connection.id, connectionInfo);
@@ -134,7 +167,6 @@ export class ConnectionCoordinator extends Agent<Env, CoordinatorState> {
         ...this.state,
         lastActivity: Date.now(),
         connectionCount: this.connections.size,
-        userId: coordinatorUserId,
         webConnectionIds,
         osConnectionIds,
       });
@@ -144,8 +176,6 @@ export class ConnectionCoordinator extends Agent<Env, CoordinatorState> {
         type: 'connected',
         clientId: connection.id,
         clientType,
-        userId: coordinatorUserId,
-        workflowId,
         capabilities: clientType === 'osclient' ? [
           'execute_script',
           'start_recording',
@@ -153,7 +183,8 @@ export class ConnectionCoordinator extends Agent<Env, CoordinatorState> {
           'get_recording'
         ] : ['workflow_updates', 'real_time_sync']
       }));
-      console.log(`${clientType} client connected for user ${coordinatorUserId}: ${connection.id}`);
+
+      console.log(`${clientType} client connected: ${connection.id}`);
     } catch (error) {
       console.error('Authentication failed:', error);
       connection.close(1008, 'Authentication failed');
@@ -201,14 +232,11 @@ export class ConnectionCoordinator extends Agent<Env, CoordinatorState> {
       const osConnectionIds = this.state.osConnectionIds.filter(id => id !== connection.id);
       const remainingConnections = this.connections.size - 1;
 
-      const coordinatorUserId = this.state.userId ?? connectionInfo.userId;
-
       this.setState({
         ...this.state,
         connectionCount: remainingConnections,
         webConnectionIds,
         osConnectionIds,
-        userId: remainingConnections > 0 ? coordinatorUserId : undefined,
       });
     }
 
@@ -251,7 +279,7 @@ export class ConnectionCoordinator extends Agent<Env, CoordinatorState> {
     }
 
     // Route workflow-specific messages to the appropriate workflow agent
-    if (data.workflowId && connectionInfo.userId) {
+    if (data.workflowId) {
       try {
         const workflowAgent = await getAgentByName(this.env.WORKFLOW_RUNNER, data.workflowId);
 
@@ -311,56 +339,111 @@ export class ConnectionCoordinator extends Agent<Env, CoordinatorState> {
   }
 
   // Check if user has OS client connected
-  isOSClientConnectedForUser(userId: string): boolean {
-    if (this.state.userId && this.state.userId !== userId) {
-      return false;
-    }
-
+  isOSClientConnectedForUser(_userId: string): boolean {
     return this.state.osConnectionIds.length > 0;
   }
 
   // Get connection status for a user
-  getConnectionStatusForUser(userId: string) {
-    if (this.state.userId && this.state.userId !== userId) {
-      return {
-        hasOSClient: false,
-        hasWebClient: false,
-        connectionCount: 0,
-        connections: [],
-      };
-    }
-
-    const userConnections = Array.from(this.connections.values())
-      .filter(conn => conn.userId === userId);
+  getConnectionStatusForUser(_userId: string) {
+    const allConnections = Array.from(this.connections.values());
+    const hasOSClient = allConnections.some(conn => conn.type === 'osclient');
+    const hasWebClient = allConnections.some(conn => conn.type === 'web');
 
     return {
-      hasOSClient: this.state.osConnectionIds.length > 0,
-      hasWebClient: this.state.webConnectionIds.length > 0,
-      connectionCount: userConnections.length,
-      connections: userConnections.map(conn => ({
+      hasOSClient,
+      hasWebClient,
+      connectionCount: allConnections.length,
+      connections: allConnections.map(conn => ({
         id: conn.id,
         type: conn.type,
-        workflowId: conn.workflowId,
         connectedAt: conn.connectedAt,
       })),
     };
   }
 
+  listToolRequests(input: ListToolRequestsInput = {}): ToolRequestSnapshot[] {
+    const records = this.pendingRequestRepo.listRequests(input);
+    return records.map(record => this.toToolRequestSnapshot(record));
+  }
+
   // Private helper methods
-  private async sendToolRequestToOSClient({ workflowId, tool, params }: SendToolRequestInput): Promise<any> {
-    const coordinatorUserId = this.state.userId;
-    if (!coordinatorUserId) {
-      throw new Error('Coordinator is not associated with a user');
+  private rehydratePendingRequests(): void {
+    const pendingRecords = this.pendingRequestRepo.listPendingRequests();
+    if (pendingRecords.length === 0) {
+      return;
     }
 
-    const osClientConnections = Array.from(this.connections.values())
-      .filter(conn => conn.type === 'osclient' && conn.userId === coordinatorUserId);
+    pendingRecords.forEach(record => {
+      if (this.pendingToolRequests.has(record.requestId)) {
+        return;
+      }
 
-    const osClientConnection = osClientConnections.find(conn => conn.workflowId === workflowId)
-      ?? osClientConnections[0];
+      this.pendingToolRequests.set(record.requestId, {
+        workflowId: record.workflowId,
+        resolve: noop,
+        reject: noop,
+        createdAt: record.createdAt,
+      });
+    });
+
+    console.log(`Rehydrated ${pendingRecords.length} pending tool requests`);
+  }
+
+  private safeSerialize(value: unknown): string | null {
+    if (value === undefined) {
+      return null;
+    }
+
+    try {
+      return JSON.stringify(value);
+    } catch (error) {
+      console.warn('Failed to serialize tool response', error);
+      return null;
+    }
+  }
+
+  private safeParse(value: string | null | undefined): unknown {
+    if (value === null || value === undefined) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(value);
+    } catch (_error) {
+      return value;
+    }
+  }
+
+  private toToolRequestSnapshot(record: ToolRequestRecord): ToolRequestSnapshot {
+    const responseData = record.responseData === null || record.responseData === undefined
+      ? undefined
+      : this.safeParse(record.responseData);
+
+    const resolvedAt = record.resolvedAt === null || record.resolvedAt === undefined
+      ? undefined
+      : record.resolvedAt;
+
+    return {
+      requestId: record.requestId,
+      workflowId: record.workflowId,
+      tool: record.tool,
+      params: this.safeParse(record.params),
+      status: record.status,
+      responseData,
+      error: record.error ?? undefined,
+      createdAt: record.createdAt,
+      resolvedAt,
+    };
+  }
+
+  private async sendToolRequestToOSClient({ workflowId, tool, params }: SendToolRequestInput): Promise<any> {
+    const osClientConnections = Array.from(this.connections.values())
+      .filter(conn => conn.type === 'osclient');
+
+    const osClientConnection = osClientConnections[0];
 
     if (!osClientConnection) {
-      throw new Error(`No OS client connected for user ${coordinatorUserId}`);
+      throw new Error('No OS client connected');
     }
 
     const connection = this.websocketConnections.get(osClientConnection.id);
@@ -391,69 +474,99 @@ export class ConnectionCoordinator extends Agent<Env, CoordinatorState> {
       }
     }
 
+    const createdAt = Date.now();
+
+    let serializedParams: string;
+    try {
+      serializedParams = JSON.stringify(params);
+    } catch (error) {
+      throw new Error('Failed to serialize tool request parameters');
+    }
+
+    this.pendingRequestRepo.createRequest({
+      requestId,
+      workflowId,
+      tool,
+      params: serializedParams,
+      createdAt,
+    });
+
     const promise = new Promise((resolve, reject) => {
       this.pendingToolRequests.set(requestId, {
         workflowId,
-        userId: coordinatorUserId,
         resolve,
         reject,
-        timestamp: Date.now(),
+        createdAt,
       });
-
-      setTimeout(() => {
-        if (this.pendingToolRequests.has(requestId)) {
-          this.pendingToolRequests.delete(requestId);
-          reject(new Error(`Tool request timeout for workflow ${workflowId} (user: ${coordinatorUserId})`));
-        }
-      }, 30000);
     });
 
-    connection.send(JSON.stringify({
-      ...request,
-      workflowId,
-      userId: coordinatorUserId,
-    }));
+    try {
+      connection.send(JSON.stringify({
+        ...request,
+        workflowId,
+      }));
+    } catch (error) {
+      this.pendingToolRequests.delete(requestId);
+      this.pendingRequestRepo.markError({
+        requestId,
+        error: error instanceof Error ? error.message : 'Failed to send tool request',
+        resolvedAt: Date.now(),
+      });
+      throw error;
+    }
 
     return promise;
   }
 
   private handleToolResponse(response: OSClientToolResponse): void {
+    const resolvedAt = Date.now();
     const pendingRequest = this.pendingToolRequests.get(response.requestId);
-    if (!pendingRequest) {
-      console.warn('Received response for unknown request:', response.requestId);
-      return;
+    if (pendingRequest) {
+      this.pendingToolRequests.delete(response.requestId);
     }
 
-    this.pendingToolRequests.delete(response.requestId);
-
     if (response.success) {
-      pendingRequest.resolve(response.data);
+      const serialized = this.safeSerialize(response.data);
+      this.pendingRequestRepo.markSuccess({
+        requestId: response.requestId,
+        responseData: serialized,
+        resolvedAt,
+      });
+
+      if (pendingRequest) {
+        pendingRequest.resolve(response.data);
+      }
     } else {
-      pendingRequest.reject(new Error(response.error || 'Tool execution failed'));
+      this.pendingRequestRepo.markError({
+        requestId: response.requestId,
+        error: response.error ?? 'Tool execution failed',
+        resolvedAt,
+      });
+
+      if (pendingRequest) {
+        pendingRequest.reject(new Error(response.error || 'Tool execution failed'));
+      }
+    }
+
+    if (!pendingRequest) {
+      console.log('Stored tool response for request without active listener:', response.requestId);
     }
   }
 
-  // Broadcast message to all web clients for a specific user
-  broadcastToUserWebClients(userId: string, message: any): void {
-    if (this.state.userId && this.state.userId !== userId) {
-      return;
-    }
-
-    Array.from(this.connections.values())
-      .filter(conn => conn.userId === userId && conn.type === 'web')
-      .forEach(conn => {
-        const connection = this.websocketConnections.get(conn.id);
-        if (connection) {
-          connection.send(JSON.stringify(message));
-        }
-      });
+  // Broadcast message to all web clients
+  broadcastToUserWebClients(_userId: string, message: any): void {
+    this.state.webConnectionIds.forEach(id => {
+      const connection = this.websocketConnections.get(id);
+      if (connection) {
+        connection.send(JSON.stringify(message));
+      }
+    });
   }
 
   // Agent lifecycle hooks
   onStateUpdate(state: CoordinatorState, source: "server" | any) {
     console.log('Connection Coordinator state updated:', {
       connectionCount: state.connectionCount,
-      userId: state.userId,
       webConnections: state.webConnectionIds.length,
       osConnections: state.osConnectionIds.length,
       lastActivity: new Date(state.lastActivity).toISOString(),

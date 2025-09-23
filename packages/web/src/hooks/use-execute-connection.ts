@@ -1,34 +1,53 @@
 import { useEffect, useState } from "react";
 
-import { checkExecuteEndpoint } from "../services/execute-script-service";
+import { getConnectionStatus } from "../services/workflow-api";
 
-type ConnectionStatus = boolean | null;
+type ConnectionStatus = {
+  checking: boolean;
+  hasOSClient: boolean;
+  hasWebClient: boolean;
+};
 
-export const useExecuteConnection = (): ConnectionStatus => {
-  const [status, setStatus] = useState<ConnectionStatus>(null);
+const initialState: ConnectionStatus = {
+  checking: true,
+  hasOSClient: false,
+  hasWebClient: false,
+};
+
+export const useExecuteConnection = (workflowId: string | null): ConnectionStatus => {
+  const [status, setStatus] = useState<ConnectionStatus>(initialState);
 
   useEffect(() => {
+    if (!workflowId) {
+      setStatus({ checking: false, hasOSClient: false, hasWebClient: false });
+      return;
+    }
+
     let cancelled = false;
-    const check = async () => {
+    const load = async () => {
       try {
-        const ok = await checkExecuteEndpoint();
+        const data = await getConnectionStatus();
         if (!cancelled) {
-          setStatus(ok);
+          setStatus({
+            checking: false,
+            hasOSClient: Boolean(data?.hasOSClient),
+            hasWebClient: Boolean(data?.hasWebClient),
+          });
         }
       } catch {
         if (!cancelled) {
-          setStatus(false);
+          setStatus({ checking: false, hasOSClient: false, hasWebClient: false });
         }
       }
     };
 
-    check();
-    const interval = window.setInterval(check, 10_000);
+    void load();
+    const interval = window.setInterval(load, 5000);
     return () => {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, []);
+  }, [workflowId]);
 
   return status;
 };

@@ -1,4 +1,8 @@
 import { z } from 'zod';
+import {
+  RecordingResultSchema,
+  type RecordingResult,
+} from './recording-result';
 
 // Base workflow schemas
 export const WorkflowSummarySchema = z.object({
@@ -24,6 +28,16 @@ export const WorkflowVersionRecordSchema = WorkflowVersionHeaderSchema.extend({
   seq: z.number(),
 });
 
+export const WorkflowRecordingSchema = z.object({
+  recordingId: z.string(),
+  status: z.enum(['recording', 'completed', 'error']),
+  data: RecordingResultSchema.optional(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+  stoppedAt: z.number().nullable(),
+  lastError: z.string().nullable(),
+});
+
 export const WorkflowDetailSchema = z.object({
   workflowId: z.string(),
   name: z.string().optional(),
@@ -35,6 +49,7 @@ export const WorkflowDetailSchema = z.object({
   code: z.string(),
   lastRestoredVersionId: z.string().nullable(),
   versions: z.array(WorkflowVersionHeaderSchema),
+  recordings: z.array(WorkflowRecordingSchema).default([]),
 });
 
 // Input schemas for API validation
@@ -85,6 +100,8 @@ export type WorkflowSummary = z.infer<typeof WorkflowSummarySchema>;
 export type WorkflowDetail = z.infer<typeof WorkflowDetailSchema>;
 export type WorkflowVersionHeader = z.infer<typeof WorkflowVersionHeaderSchema>;
 export type WorkflowVersionRecord = z.infer<typeof WorkflowVersionRecordSchema>;
+export type WorkflowRecording = z.infer<typeof WorkflowRecordingSchema>;
+export type StoredRecordingResult = RecordingResult;
 export type InitializeInput = z.infer<typeof InitializeInputSchema>;
 export type UpdateStateInput = z.infer<typeof UpdateStateInputSchema>;
 export type SaveVersionInput = z.infer<typeof SaveVersionInputSchema>;

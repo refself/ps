@@ -10,7 +10,8 @@
 		"typecheck": "tsc -p tsconfig.json --noEmit",
 		"db:generate:d1": "drizzle-kit generate --config=drizzle-d1.config.ts",
 		"db:generate:do": "drizzle-kit generate --config=drizzle-do.config.ts",
-		"db:generate": "pnpm db:generate:d1 && pnpm db:generate:do",
+		"db:generate:coordinator": "drizzle-kit generate --config=drizzle-connection-coordinator.config.ts",
+		"db:generate": "pnpm db:generate:d1 && pnpm db:generate:do && pnpm db:generate:coordinator",
 		"db:migrate:d1:local": "wrangler d1 migrations apply workflows --local"
 	},
 	"devDependencies": {

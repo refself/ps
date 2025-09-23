@@ -1,28 +1,56 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "bc29bc1f-a097-452b-a812-62936a342e11",
-  "prevId": "d660ee6d-3af4-4cb4-a355-90cacd6185af",
+  "id": "b2627881-44c2-45d3-9c17-b30cbf4fe5e3",
+  "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
-    "versions": {
-      "name": "versions",
+    "pending_tool_requests": {
+      "name": "pending_tool_requests",
       "columns": {
-        "id": {
-          "name": "id",
+        "request_id": {
+          "name": "request_id",
           "type": "text",
           "primaryKey": true,
           "notNull": true,
           "autoincrement": false
         },
-        "seq": {
-          "name": "seq",
-          "type": "integer",
+        "workflow_id": {
+          "name": "workflow_id",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "name": {
-          "name": "name",
+        "tool": {
+          "name": "tool",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "params": {
+          "name": "params",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "response_data": {
+          "name": "response_data",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "error": {
+          "name": "error",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -35,57 +63,11 @@
           "notNull": true,
           "autoincrement": false
         },
-        "document": {
-          "name": "document",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "code": {
-          "name": "code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "is_named": {
-          "name": "is_named",
+        "resolved_at": {
+          "name": "resolved_at",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "versions_seq_idx": {
-          "name": "versions_seq_idx",
-          "columns": [
-            "seq"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "workflow_meta": {
-      "name": "workflow_meta",
-      "columns": {
-        "key": {
-          "name": "key",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "value": {
-          "name": "value",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         }
       },

@@ -1,7 +1,10 @@
 import type { WorkflowDocument } from "@workflow-builder/core";
 
+const API_KEY = (import.meta.env.VITE_WORKER_API_KEY ?? '').trim() || undefined;
+
 const DEFAULT_HEADERS: HeadersInit = {
-  "Content-Type": "application/json"
+  "Content-Type": "application/json",
+  ...(API_KEY ? { Authorization: `Bearer ${API_KEY}` } : {})
 };
 
 const guessLocalWorkerUrl = () => {
@@ -11,13 +14,14 @@ const guessLocalWorkerUrl = () => {
   const hostname = window.location.hostname;
   const port = window.location.port;
   if ((hostname === "localhost" || hostname === "127.0.0.1") && port === "5173") {
-    return "http://127.0.0.1:8787";
+    return "http://localhost:8787";
   }
   return "";
 };
 
 const rawBaseUrl = (import.meta.env.VITE_WORKER_BASE_URL ?? guessLocalWorkerUrl() ?? "").trim();
 const BASE_URL = rawBaseUrl ? rawBaseUrl.replace(/\/$/, "") : "";
+export const WORKER_BASE_URL = BASE_URL;
 
 const toUrl = (path: string): string => {
   if (!BASE_URL) {
@@ -69,6 +73,16 @@ export type WorkerWorkflowVersionHeader = {
   isNamed: boolean;
 };
 
+export type WorkerWorkflowRecording = {
+  recordingId: string;
+  status: 'recording' | 'completed' | 'error';
+  data?: unknown;
+  createdAt: number;
+  updatedAt: number;
+  stoppedAt: number | null;
+  lastError: string | null;
+};
+
 export type WorkerWorkflowDetail = {
   workflowId: string;
   name?: string;
@@ -80,6 +94,7 @@ export type WorkerWorkflowDetail = {
   code: string;
   lastRestoredVersionId: string | null;
   versions: WorkerWorkflowVersionHeader[];
+  recordings: WorkerWorkflowRecording[];
 };
 
 export const listWorkflows = async (): Promise<WorkerWorkflowSummary[]> => {
@@ -178,4 +193,13 @@ export const deleteWorkflowVersion = async (workflowId: string, versionId: strin
   await request(`/workflows/${encodeURIComponent(workflowId)}/versions/${encodeURIComponent(versionId)}`, {
     method: "DELETE"
   });
+};
+
+export const getConnectionStatus = async (): Promise<{
+  hasOSClient: boolean;
+  hasWebClient: boolean;
+  connectionCount: number;
+  connections: Array<{ id: string; type: string; connectedAt: number }>;
+}> => {
+  return request(`/workflows/connections/status`);
 };

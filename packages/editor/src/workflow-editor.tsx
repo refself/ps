@@ -16,6 +16,7 @@ import { Icon } from "./components/icon";
 import VersionHistoryDrawer, {
   type VersionDescriptor as WorkflowVersionDescriptor
 } from "./components/version-history-drawer";
+import { ObservabilityPanel } from "./components/observability-panel";
 import { EditorProvider } from "./state/editor-provider";
 import { useEditorStore } from "./state/editor-store";
 import { usePaletteStore } from "./state/palette-store";
@@ -23,6 +24,10 @@ import {
   clearEditorExternalListeners,
   setEditorExternalListeners
 } from "./state/external-listeners";
+import {
+  type ObservabilityConfig,
+  useObservability,
+} from "./hooks/use-observability";
 
 type ConnectionStatus = "online" | "offline" | "checking";
 
@@ -74,6 +79,7 @@ type WorkflowEditorProps = {
   versioning?: WorkflowVersioningConfig;
   initialView?: "visual" | "code";
   className?: string;
+  observability?: ObservabilityConfig;
 };
 
 const WorkflowEditor = ({
@@ -88,7 +94,8 @@ const WorkflowEditor = ({
   enableUndoRedo = false,
   versioning,
   initialView = "visual",
-  className
+  className,
+  observability,
 }: WorkflowEditorProps) => {
   const [mode, setMode] = useState<"visual" | "code">(initialView);
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
@@ -104,6 +111,19 @@ const WorkflowEditor = ({
   const executionStatus = useEditorStore((state) => state.executionStatus);
   const setExecutionStatus = useEditorStore((state) => state.setExecutionStatus);
   const openPalette = usePaletteStore((state) => state.openPalette);
+
+  const observabilityConfig = useMemo(() => {
+    if (!observability) {
+      return undefined;
+    }
+    const { workflowId, baseUrl, apiKey, pollIntervalMs } = observability;
+    if (!workflowId || !baseUrl) {
+      return undefined;
+    }
+    return { workflowId, baseUrl, apiKey, pollIntervalMs };
+  }, [observability?.workflowId, observability?.baseUrl, observability?.apiKey, observability?.pollIntervalMs]);
+
+  const observabilityState = useObservability(observabilityConfig);
 
   const lastLoadedSignatureRef = useRef<string | null>(null);
 
@@ -166,6 +186,7 @@ const WorkflowEditor = ({
   }, [connectionStatus]);
 
   const canRunScript = Boolean(onRunScript);
+  const isRunnable = canRunScript && connectionStatus === "online";
 
   const handleRunScript = useCallback(async () => {
     if (!onRunScript) {
@@ -367,40 +388,63 @@ const WorkflowEditor = ({
           <button
             type="button"
             onClick={handleRunScript}
-            disabled={executionStatus.state === "running"}
+            disabled={executionStatus.state === "running" || !isRunnable}
             className="flex h-9 items-center gap-2 rounded-full border border-[#3A5AE5] bg-[#3A5AE5] px-4 py-1 text-sm font-semibold text-white transition hover:bg-[#2d4bd4] disabled:cursor-not-allowed disabled:border-[#9AA7B4] disabled:bg-[#9AA7B4]"
           >
             <Icon name="play" className="h-4 w-4" />
-            {executionStatus.state === "running" ? "Running" : "Run"}
+            {executionStatus.state === "running"
+              ? "Running"
+              : isRunnable
+                ? "Run"
+                : connectionStatus === "checking"
+                  ? "Checking"
+                  : "Connect OS Client"}
           </button>
         ) : null}
       </div>
     </div>
   );
 
+  const renderEditorBody = (extraClassName?: string) => (
+    <div
+      className={`workflow-editor-root flex h-full w-full flex-col overflow-hidden bg-[#F5F6F9] text-[#0A1A23] ${extraClassName ?? ""}`}
+    >
+      {header}
+      {mode === "code" ? (
+        <div className="workflow-editor-scrollable flex flex-1 overflow-hidden px-10 py-8">
+          <div className="workflow-editor-scrollable flex w-full flex-col overflow-hidden rounded-2xl border border-[#0A1A2314] bg-white shadow-[0_30px_60px_rgba(10,26,35,0.15)]">
+            <CodeEditorPanel variant="full" />
+          </div>
+        </div>
+      ) : (
+        <div className="workflow-editor-scrollable flex flex-1 overflow-hidden">
+          <BlockLibraryPanel />
+          <EditorCanvas />
+          <div className="flex w-[420px] flex-col overflow-hidden border-l border-[#0A1A2314] bg-white/80 backdrop-blur">
+            <InspectorPanel />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <DndProvider backend={HTML5Backend}>
       <EditorProvider>
-        <div
-          className={`workflow-editor-root flex h-full w-full flex-col overflow-hidden bg-[#F5F6F9] text-[#0A1A23] ${className ?? ""}`}
-        >
-          {header}
-          {mode === "code" ? (
-            <div className="workflow-editor-scrollable flex flex-1 overflow-hidden px-10 py-8">
-              <div className="workflow-editor-scrollable flex w-full flex-col overflow-hidden rounded-2xl border border-[#0A1A2314] bg-white shadow-[0_30px_60px_rgba(10,26,35,0.15)]">
-                <CodeEditorPanel variant="full" />
-              </div>
-            </div>
-          ) : (
-            <div className="workflow-editor-scrollable flex flex-1 overflow-hidden">
-              <BlockLibraryPanel />
-              <EditorCanvas />
-              <div className="flex w-[420px] flex-col overflow-hidden border-l border-[#0A1A2314] bg-white/80 backdrop-blur">
-                <InspectorPanel />
-              </div>
-            </div>
-          )}
-        </div>
+        {observabilityConfig ? (
+          <div className={`flex h-full w-full ${className ?? ""}`}>
+            {renderEditorBody("flex-1")}
+            <ObservabilityPanel
+              recordings={observabilityState.recordings}
+              toolRequests={observabilityState.toolRequests}
+              status={observabilityState.status}
+              error={observabilityState.error}
+              connection={observabilityState.connection}
+            />
+          </div>
+        ) : (
+          renderEditorBody(className)
+        )}
         {enableCommandPalette ? <CommandPalette /> : null}
         {versioning ? (
           <VersionHistoryDrawer

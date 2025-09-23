@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "6e0a12f8-40c6-4c97-88fa-0fe875e3b98c",
+  "id": "e8887173-bc8b-4ece-a89d-d8cf47fc9fd8",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "workflows_index": {

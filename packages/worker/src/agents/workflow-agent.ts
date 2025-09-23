@@ -12,6 +12,9 @@ import type {
   StopRecordingInput,
   GetRecordingInput,
 } from '../schemas/osclient-tools';
+import {
+  RecordingResultSchema,
+} from '../schemas/recording-result';
 import type {
   WorkflowDetail,
   WorkflowVersionHeader,
@@ -20,7 +23,8 @@ import type {
   SaveVersionInput,
   RestoreVersionInput,
   RenameVersionInput,
-  DeleteVersionInput
+  DeleteVersionInput,
+  WorkflowRecording,
 } from '../schemas/workflow-schemas';
 
 interface WorkflowState {
@@ -147,29 +151,138 @@ export class WorkflowAgent extends Agent<Env, WorkflowState> {
   }
 
   // OS Client tool execution methods - delegate to coordinator
-  async executeScript(userId: string, params: ExecuteScriptInput) {
+  async executeScript(userId: string, params: Partial<ExecuteScriptInput> = {}) {
     const coordinator = await this.getConnectionCoordinator(userId);
-    return coordinator.executeScriptForWorkflow(this.name, params);
+    const script = typeof this.state.code === 'string' ? this.state.code : '';
+
+    if (!script.trim()) {
+      throw new Error('Workflow has no code to execute');
+    }
+
+    const payload: ExecuteScriptInput = {
+      script,
+      enable_narration: params.enable_narration ?? true,
+    };
+
+    return coordinator.executeScriptForWorkflow(this.name, payload);
   }
 
   async startRecording(userId: string, params: StartRecordingInput = {}): Promise<{ recordingId: string }> {
     const coordinator = await this.getConnectionCoordinator(userId);
-    return coordinator.startRecordingForWorkflow(this.name, params);
+    const result = await coordinator.startRecordingForWorkflow(this.name, params);
+
+    const recordingId = result?.recordingId;
+    if (recordingId) {
+      const existing = this.workflowRepo.getRecording(recordingId);
+      const now = Date.now();
+      const record: WorkflowRecording = {
+        recordingId,
+        status: 'recording',
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now,
+        stoppedAt: existing?.stoppedAt ?? null,
+        lastError: null,
+      };
+
+      if (existing?.data) {
+        record.data = existing.data;
+      }
+
+      this.workflowRepo.upsertRecording(record);
+    }
+
+    return result;
   }
 
   async stopRecording(userId: string, params: StopRecordingInput): Promise<any> {
     const coordinator = await this.getConnectionCoordinator(userId);
-    return coordinator.stopRecordingForWorkflow(this.name, params);
+    const now = Date.now();
+    const recordingId = params.recordingId;
+
+    try {
+      const result = await coordinator.stopRecordingForWorkflow(this.name, params);
+
+      if (recordingId) {
+        this.workflowRepo.updateRecording(recordingId, {
+          updatedAt: now,
+          stoppedAt: now,
+          lastError: null,
+        });
+      }
+
+      return result;
+    } catch (error) {
+      if (recordingId) {
+        this.workflowRepo.updateRecording(recordingId, {
+          status: 'error',
+          updatedAt: now,
+          lastError: this.extractErrorMessage(error),
+        });
+      }
+      throw error;
+    }
   }
 
   async getRecording(userId: string, params: GetRecordingInput): Promise<any> {
     const coordinator = await this.getConnectionCoordinator(userId);
-    return coordinator.getRecordingForWorkflow(this.name, params);
+    const recordingId = params.recordingId;
+    const now = Date.now();
+
+    try {
+      const result = await coordinator.getRecordingForWorkflow(this.name, params);
+
+      if (recordingId) {
+        const parsed = RecordingResultSchema.safeParse(result);
+
+        if (!parsed.success) {
+          const message = 'Invalid recording result format';
+          this.workflowRepo.updateRecording(recordingId, {
+            status: 'error',
+            updatedAt: now,
+            lastError: message,
+          });
+          throw new Error(message);
+        }
+
+        this.workflowRepo.updateRecording(recordingId, {
+          status: 'completed',
+          updatedAt: now,
+          stoppedAt: now,
+          data: parsed.data,
+          lastError: null,
+        });
+
+        return parsed.data;
+      }
+
+      return result;
+    } catch (error) {
+      if (recordingId) {
+        this.workflowRepo.updateRecording(recordingId, {
+          status: 'error',
+          updatedAt: now,
+          lastError: this.extractErrorMessage(error),
+        });
+      }
+
+      throw error;
+    }
   }
 
   // Helper to get the connection coordinator
   private async getConnectionCoordinator(userId: string): Promise<any> {
     return getAgentByName(this.env.CONNECTION_COORDINATOR, `coordinator:${userId}`);
+  }
+
+  private extractErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    try {
+      return JSON.stringify(error);
+    } catch (_err) {
+      return String(error);
+    }
   }
 
   // Agent lifecycle hooks

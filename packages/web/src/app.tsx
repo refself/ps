@@ -1,17 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
-import { WorkflowEditor } from "@workflow-builder/editor";
+import { WorkflowEditor, type ObservabilityConfig } from "@workflow-builder/editor";
 import type { WorkflowDocument } from "@workflow-builder/core";
 
 import WorkflowList from "./components/workflow-list";
 import { useWorkspaceStore, useActiveWorkflow } from "./state/workspace-store";
 import { executeWorkflowScript } from "./services/execute-script-service";
 import { useExecuteConnection } from "./hooks/use-execute-connection";
+import { WORKER_BASE_URL } from "./services/workflow-api";
+
+const API_KEY = (import.meta.env.VITE_WORKER_API_KEY ?? "").trim() || undefined;
 
 const App = () => {
   useWorkspaceSynchronization();
   const activeWorkflow = useActiveWorkflow();
-  const connectionState = useExecuteConnection();
+  const connectionInfo = useExecuteConnection(activeWorkflow?.id ?? null);
   const updateActiveWorkflow = useWorkspaceStore((state) => state.updateActiveWorkflow);
   const clearActiveWorkflow = useWorkspaceStore((state) => state.clearActiveWorkflow);
   const saveWorkflowVersion = useWorkspaceStore((state) => state.saveWorkflowVersion);
@@ -46,11 +49,18 @@ const App = () => {
     [activeWorkflow?.document, updateActiveWorkflow]
   );
 
-  const handleRunScript = useCallback(async (workflowCode: string) => {
-    return executeWorkflowScript(workflowCode);
-  }, []);
+  const handleRunScript = useCallback(async (_workflowCode: string) => {
+    if (!activeWorkflow) {
+      return { ok: false, error: "Workflow not selected." };
+    }
+    return executeWorkflowScript({ workflowId: activeWorkflow.id });
+  }, [activeWorkflow?.id]);
 
-  const connectionStatus = connectionState === null ? "checking" : connectionState ? "online" : "offline";
+  const connectionStatus = connectionInfo.checking
+    ? "checking"
+    : connectionInfo.hasOSClient
+      ? "online"
+      : "offline";
 
   const versionDescriptors = useMemo(() => {
     if (!activeWorkflow || !activeWorkflow.versions) {
@@ -63,6 +73,17 @@ const App = () => {
       isNamed: version.isNamed
     }));
   }, [activeWorkflow]);
+
+  const observabilityConfig = useMemo<ObservabilityConfig | undefined>(() => {
+    if (!activeWorkflow || !WORKER_BASE_URL) {
+      return undefined;
+    }
+    return {
+      workflowId: activeWorkflow.id,
+      baseUrl: WORKER_BASE_URL,
+      apiKey: API_KEY,
+    };
+  }, [activeWorkflow?.id]);
 
   const handleSaveVersion = useCallback(
     ({ name, document, code }: { name?: string; document: WorkflowDocument; code: string }) => {
@@ -125,6 +146,7 @@ const App = () => {
         onRenameVersion: handleRenameVersion,
         onDeleteVersion: handleDeleteVersion
       }}
+      observability={observabilityConfig}
       enableCommandPalette
       enableUndoRedo
       className="h-screen w-screen"

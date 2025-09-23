@@ -1,8 +1,14 @@
 import { drizzle } from 'drizzle-orm/durable-sqlite';
 import { eq, desc } from 'drizzle-orm';
-import { versions } from '@/db/durable-object-schema';
+import { versions, recordings } from '@/db/durable-object-schema';
 import { MAX_VERSION_HISTORY } from '@/constants';
-import type { WorkflowVersionHeader, WorkflowVersionRecord } from '@/schemas/workflow-schemas';
+import type {
+  WorkflowVersionHeader,
+  WorkflowVersionRecord,
+  WorkflowRecording,
+} from '@/schemas/workflow-schemas';
+
+type RecordingStatus = WorkflowRecording['status'];
 
 export class AgentWorkflowRepository {
   private db: ReturnType<typeof drizzle>;
@@ -13,6 +19,93 @@ export class AgentWorkflowRepository {
 
   getDb() {
     return this.db;
+  }
+
+  upsertRecording({
+    recordingId,
+    status,
+    data,
+    createdAt,
+    updatedAt,
+    stoppedAt,
+    lastError,
+  }: WorkflowRecording): void {
+    this.db.insert(recordings)
+      .values({
+        recordingId,
+        status,
+        data: data ? JSON.stringify(data) : null,
+        createdAt,
+        updatedAt,
+        stoppedAt: stoppedAt ?? null,
+        lastError: lastError ?? null,
+      })
+      .onConflictDoUpdate({
+        target: recordings.recordingId,
+        set: {
+          status,
+          data: data ? JSON.stringify(data) : null,
+          createdAt,
+          updatedAt,
+          stoppedAt: stoppedAt ?? null,
+          lastError: lastError ?? null,
+        },
+      })
+      .run();
+  }
+
+  updateRecording(recordingId: string, update: Partial<WorkflowRecording>): void {
+    const payload: Record<string, unknown> = {};
+
+    if (update.status) {
+      payload.status = update.status;
+    }
+    if (update.data !== undefined) {
+      payload.data = update.data ? JSON.stringify(update.data) : null;
+    }
+    if (update.createdAt !== undefined) {
+      payload.createdAt = update.createdAt;
+    }
+    if (update.updatedAt !== undefined) {
+      payload.updatedAt = update.updatedAt;
+    }
+    if (update.stoppedAt !== undefined) {
+      payload.stoppedAt = update.stoppedAt ?? null;
+    }
+    if (update.lastError !== undefined) {
+      payload.lastError = update.lastError ?? null;
+    }
+
+    if (Object.keys(payload).length === 0) {
+      return;
+    }
+
+    this.db.update(recordings)
+      .set(payload)
+      .where(eq(recordings.recordingId, recordingId))
+      .run();
+  }
+
+  getRecording(recordingId: string): WorkflowRecording | null {
+    const row = this.db.select()
+      .from(recordings)
+      .where(eq(recordings.recordingId, recordingId))
+      .get();
+
+    if (!row) {
+      return null;
+    }
+
+    return this.mapRecordingRow(row);
+  }
+
+  listRecordings(): WorkflowRecording[] {
+    const rows = this.db.select()
+      .from(recordings)
+      .orderBy(desc(recordings.createdAt))
+      .all();
+
+    return rows.map(row => this.mapRecordingRow(row));
   }
 
   async listVersionHeaders(limit = MAX_VERSION_HISTORY): Promise<WorkflowVersionHeader[]> {
@@ -114,5 +207,17 @@ export class AgentWorkflowRepository {
     this.db.delete(versions)
       .where(eq(versions.id, versionId))
       .run();
+  }
+
+  private mapRecordingRow(row: typeof recordings.$inferSelect): WorkflowRecording {
+    return {
+      recordingId: String(row.recordingId),
+      status: row.status as RecordingStatus,
+      data: row.data ? JSON.parse(String(row.data)) : undefined,
+      createdAt: Number(row.createdAt),
+      updatedAt: Number(row.updatedAt),
+      stoppedAt: row.stoppedAt === null || row.stoppedAt === undefined ? null : Number(row.stoppedAt),
+      lastError: row.lastError === null || row.lastError === undefined ? null : String(row.lastError),
+    };
   }
 }

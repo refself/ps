@@ -7,21 +7,41 @@ export type ExecuteScriptResponse = {
   durationMs?: number;
 };
 
-export const executeWorkflowScript = async (code: string): Promise<ExecuteScriptResponse> => {
-  const trimmed = code.trim();
-  if (!trimmed) {
-    return {
-      ok: false,
-      error: "Workflow code is required."
-    };
+import { WORKER_BASE_URL } from "./workflow-api";
+
+const API_KEY = (import.meta.env.VITE_WORKER_API_KEY ?? "").trim() || undefined;
+
+const buildUrl = (path: string) => {
+  if (!WORKER_BASE_URL) {
+    return path;
+  }
+  const base = WORKER_BASE_URL.replace(/\/$/, "");
+  return `${base}${path.startsWith("/") ? path : `/${path}`}`;
+};
+
+const authHeaders = (headers: HeadersInit = {}): HeadersInit => (
+  API_KEY ? { ...headers, Authorization: `Bearer ${API_KEY}` } : headers
+);
+
+export const executeWorkflowScript = async ({
+  workflowId,
+  enableNarration = true,
+}: {
+  workflowId: string;
+  enableNarration?: boolean;
+}): Promise<ExecuteScriptResponse> => {
+  if (!workflowId) {
+    return { ok: false, error: "Workflow id is required." };
   }
 
-  const response = await fetch("/api/execute-script", {
+  const url = buildUrl(`/workflows/${encodeURIComponent(workflowId)}/tools/execute-script`);
+
+  const response = await fetch(url, {
     method: "POST",
-    headers: {
+    headers: authHeaders({
       "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ code: trimmed })
+    }),
+    body: JSON.stringify({ enable_narration: enableNarration })
   });
 
   let payload: ExecuteScriptResponse;
@@ -42,18 +62,4 @@ export const executeWorkflowScript = async (code: string): Promise<ExecuteScript
   }
 
   return payload;
-};
-
-export const checkExecuteEndpoint = async (): Promise<boolean> => {
-  try {
-    const response = await fetch("/api/execute-script", {
-      method: "HEAD"
-    });
-    if (response.ok) {
-      return true;
-    }
-    return response.status === 405 || response.status === 404;
-  } catch (error) {
-    return false;
-  }
 };

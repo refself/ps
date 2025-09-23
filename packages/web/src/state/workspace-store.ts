@@ -14,6 +14,7 @@ import {
   renameWorkflowVersion as renameWorkflowVersionApi,
   deleteWorkflowVersion as deleteWorkflowVersionApi,
   type WorkerWorkflowDetail,
+  type WorkerWorkflowRecording,
   type WorkerWorkflowSummary,
   type WorkerWorkflowVersionHeader
 } from "../services/workflow-api";
@@ -31,6 +32,12 @@ type WorkflowVersion = WorkerWorkflowVersionHeader & {
   createdAtIso: string;
 };
 
+type WorkflowRecordingEntry = WorkerWorkflowRecording & {
+  createdAtIso: string;
+  updatedAtIso: string;
+  stoppedAtIso: string | null;
+};
+
 type ActiveWorkflow = {
   id: string;
   name: string;
@@ -42,6 +49,7 @@ type ActiveWorkflow = {
   code: string;
   lastRestoredVersionId: string | null;
   versions: WorkflowVersion[];
+  recordings: WorkflowRecordingEntry[];
 };
 
 type WorkspaceState = {
@@ -73,6 +81,7 @@ type WorkspaceState = {
   renameWorkflowVersion: (options: { workflowId: string; versionId: string; name: string }) => Promise<void>;
   deleteWorkflowVersion: (options: { workflowId: string; versionId: string }) => Promise<void>;
   clearActiveWorkflow: () => void;
+  refreshActiveWorkflow: () => Promise<void>;
 };
 
 const deriveNameFromDocument = (document: WorkflowDocument): string => {
@@ -102,6 +111,13 @@ const mapVersion = (header: WorkerWorkflowVersionHeader): WorkflowVersion => ({
   createdAtIso: toIso(header.createdAt)
 });
 
+const mapRecording = (recording: WorkerWorkflowRecording): WorkflowRecordingEntry => ({
+  ...recording,
+  createdAtIso: toIso(recording.createdAt),
+  updatedAtIso: toIso(recording.updatedAt),
+  stoppedAtIso: recording.stoppedAt ? toIso(recording.stoppedAt) : null
+});
+
 const mapDetail = (detail: WorkerWorkflowDetail): ActiveWorkflow => {
   const nameFromDocument = deriveNameFromDocument(detail.document);
   const trimmedName = detail.name?.trim();
@@ -115,7 +131,8 @@ const mapDetail = (detail: WorkerWorkflowDetail): ActiveWorkflow => {
     document: detail.document,
     code: detail.code,
     lastRestoredVersionId: detail.lastRestoredVersionId,
-    versions: (detail.versions ?? []).map(mapVersion)
+    versions: (detail.versions ?? []).map(mapVersion),
+    recordings: (detail.recordings ?? []).map(mapRecording)
   };
 };
 
@@ -475,6 +492,40 @@ export const useWorkspaceStore = createWithEqualityFn<WorkspaceState>()((set, ge
       }));
     }
   },
+  refreshActiveWorkflow: async () => {
+    const state = get();
+    const workflowId = state.activeWorkflowId;
+    if (!workflowId) {
+      return;
+    }
+    try {
+      const detail = await getWorkflowDetail(workflowId);
+      const mapped = mapDetail(detail);
+      set((prev) => {
+        if (!prev.activeWorkflow || prev.activeWorkflow.id !== workflowId) {
+          return prev;
+        }
+        const workflows = prev.workflows.map((item) =>
+          item.id === mapped.id
+            ? {
+                ...item,
+                name: mapped.name,
+                status: mapped.status,
+                type: mapped.type,
+                updatedAt: mapped.updatedAt
+              }
+            : item
+        );
+        return {
+          ...prev,
+          workflows,
+          activeWorkflow: mapped
+        };
+      });
+    } catch (error) {
+      console.error("Failed to refresh workflow detail", error);
+    }
+  },
   clearActiveWorkflow: () => {
     if (pendingUpdateTimer) {
       clearTimeout(pendingUpdateTimer);
@@ -492,7 +543,11 @@ export const useWorkspaceStore = createWithEqualityFn<WorkspaceState>()((set, ge
 export const useActiveWorkflow = () => {
   return useWorkspaceStore(
     (state) => state.activeWorkflow,
-    (a, b) => a?.id === b?.id && a?.updatedAt === b?.updatedAt && a?.versions.length === b?.versions.length
+    (a, b) =>
+      a?.id === b?.id &&
+      a?.updatedAt === b?.updatedAt &&
+      a?.versions.length === b?.versions.length &&
+      a?.recordings.length === b?.recordings.length
   );
 };
 

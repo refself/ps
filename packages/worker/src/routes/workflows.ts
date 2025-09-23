@@ -11,13 +11,22 @@ import {
   WorkflowListQuerySchema,
 } from '@/schemas/workflow-schemas';
 import {
-  ExecuteScriptSchema,
   StartRecordingSchema,
   StopRecordingSchema,
   GetRecordingSchema,
 } from '@/schemas/osclient-tools';
+import type { ExecuteScriptInput } from '@/schemas/osclient-tools';
 import { getAgentByName } from 'agents';
 import { handleToolError } from '@/utils/error-handling';
+
+const ToolRequestQuerySchema = z.object({
+  status: z.enum(['pending', 'success', 'error']).optional(),
+  limit: z.coerce.number().int().positive().max(500).default(100),
+});
+
+const ExecuteScriptRequestSchema = z.object({
+  enable_narration: z.boolean().optional(),
+});
 
 const workflows = new Hono<{
   Bindings: Env;
@@ -52,7 +61,7 @@ workflows.post('/', zValidator('json', InitializeInputSchema.omit({ workflowId: 
   }
 
   const agent = await getWorkflowAgent(c.env, workflowId);
-  const detail = agent.initialize({
+  const detail = await agent.initialize({
       workflowId,
       type: body.type,
       name: body.name,
@@ -69,7 +78,7 @@ workflows.get('/:id', async (c) => {
   const agent = await getWorkflowAgent(c.env, workflowId);
 
   try {
-    const detail = agent.getDetail();
+    const detail = await agent.getDetail();
     return c.json(detail);
   } catch (error) {
     if (error instanceof Response) {
@@ -85,7 +94,7 @@ workflows.patch('/:id', zValidator('json', UpdateStateInputSchema), async (c) =>
   const body = c.req.valid('json');
 
   const agent = await getWorkflowAgent(c.env, workflowId);
-  const detail = agent.updateState(body);
+  const detail = await agent.updateState(body);
 
   return c.json(detail);
 });
@@ -95,7 +104,7 @@ workflows.put('/:id', zValidator('json', UpdateStateInputSchema), async (c) => {
   const body = c.req.valid('json');
 
   const agent = await getWorkflowAgent(c.env, workflowId);
-  const detail = agent.updateState(body);
+  const detail = await agent.updateState(body);
 
   return c.json(detail);
 });
@@ -135,7 +144,7 @@ workflows.post('/:id/versions/:versionId/restore', async (c) => {
   const versionId = c.req.param('versionId');
 
   const agent = await getWorkflowAgent(c.env, workflowId);
-  const detail = agent.restoreVersion({ versionId });
+  const detail = await agent.restoreVersion({ versionId });
 
   return c.json(detail);
 });
@@ -163,15 +172,44 @@ workflows.delete('/:id/versions/:versionId', async (c) => {
   return new Response(null, { status: 204, headers: CORS_HEADERS });
 });
 
+workflows.get('/connections/status', async (c) => {
+  const userId = c.get('userId');
+
+  try {
+    const coordinator = await getAgentByName(c.env.CONNECTION_COORDINATOR, `coordinator:${userId}`);
+    const status = await coordinator.getConnectionStatusForUser(userId);
+    return c.json(status);
+  } catch (error) {
+    console.error('Failed to fetch connection status', error);
+    return c.json({
+      hasOSClient: false,
+      hasWebClient: false,
+      connectionCount: 0,
+      connections: [],
+    });
+  }
+});
+
 // OS Client tool execution routes (authenticated)
-workflows.post('/:id/tools/execute-script', zValidator('json', ExecuteScriptSchema), async (c) => {
+workflows.post('/:id/tools/execute-script', async (c) => {
   const workflowId = c.req.param('id');
-  const params = c.req.valid('json');
   const userId = c.get('userId'); // From JWT middleware
+
+  let rawBody: unknown = {};
+  try {
+    rawBody = await c.req.json();
+  } catch (error) {
+    rawBody = {};
+  }
+
+  const parsed = ExecuteScriptRequestSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    return c.json({ error: 'Invalid execute script payload' }, 400);
+  }
 
   try {
     const agent = await getWorkflowAgent(c.env, workflowId);
-    const result = await (agent as any).executeScript(userId, params);
+    const result = await (agent as any).executeScript(userId, parsed.data as Partial<ExecuteScriptInput>);
     return c.json({ success: true, data: result });
   } catch (error) {
     return handleToolError(c, error, 'Script execution');
@@ -218,6 +256,21 @@ workflows.get('/:id/tools/recording/:recordingId', async (c) => {
   } catch (error) {
     return handleToolError(c, error, 'Get recording');
   }
+});
+
+workflows.get('/:id/tools/requests', zValidator('query', ToolRequestQuerySchema), async (c) => {
+  const workflowId = c.req.param('id');
+  const { status, limit } = c.req.valid('query');
+  const userId = c.get('userId');
+
+  const coordinator = await getAgentByName(c.env.CONNECTION_COORDINATOR, `coordinator:${userId}`);
+  const items = coordinator.listToolRequests({
+    workflowId,
+    status,
+    limit,
+  });
+
+  return c.json({ items });
 });
 
 export { workflows };

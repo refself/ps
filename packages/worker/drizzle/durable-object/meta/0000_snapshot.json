@@ -1,9 +1,68 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "d660ee6d-3af4-4cb4-a355-90cacd6185af",
+  "id": "7cfa9a52-1649-40ef-b81e-90e747bddaf4",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
+    "recordings": {
+      "name": "recordings",
+      "columns": {
+        "recording_id": {
+          "name": "recording_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "data": {
+          "name": "data",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "stopped_at": {
+          "name": "stopped_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_error": {
+          "name": "last_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "versions": {
       "name": "versions",
       "columns": {
@@ -57,7 +116,15 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "versions_seq_idx": {
+          "name": "versions_seq_idx",
+          "columns": [
+            "seq"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
