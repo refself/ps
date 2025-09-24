@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { nanoid } from "nanoid";
 
+import { editorTheme } from "../../theme";
+import { withAlpha } from "../../utils/color";
+
 type SchemaNodeKind = "string" | "number" | "boolean" | "object" | "array";
 
 type PrimitiveSchemaNode = {
@@ -565,12 +568,12 @@ const JsonSchemaEditor = ({ value, onChange, label, description, enableQuickBuil
     return (
       <div className="flex flex-col gap-3">
         {quickFields.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-[#0A1A2333] bg-[#F8FAFF] px-3 py-4 text-xs text-[#657782]">
+          <div className="rounded-lg border border-dashed border-[var(--editor-color-border-strong)] bg-[var(--editor-color-background-soft)] px-3 py-4 text-xs text-[var(--editor-color-shaded)]">
             No fields defined. Add fields to describe the response structure you expect from the model.
           </div>
         ) : null}
         {quickFields.map((field) => (
-          <div key={field.id} className="flex flex-col gap-3 rounded-xl border border-[#E1E6F2] bg-white p-3 shadow-sm">
+          <div key={field.id} className="flex flex-col gap-3 rounded-xl border border-[var(--editor-color-border-subtle)] bg-[var(--editor-color-background-default)] p-3 shadow-sm">
             <div className="flex flex-wrap items-center gap-2">
               <input
                 id={`schema-field-name-${field.id}`}
@@ -587,7 +590,7 @@ const JsonSchemaEditor = ({ value, onChange, label, description, enableQuickBuil
                   )
                 }
                 placeholder="fieldName"
-                className="flex-1 rounded-md border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4] focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+                className="flex-1 rounded-md border border-[var(--editor-color-border-strong)] bg-[var(--editor-color-background-default)] px-2.5 py-1.5 text-sm text-[var(--editor-color-foreground)] outline-none placeholder:text-[var(--editor-color-accent-muted)] focus:border-[var(--editor-color-action)] focus:ring-2 focus:ring-[var(--editor-color-action)]"
               />
               <select
                 id={`schema-field-type-${field.id}`}
@@ -602,7 +605,7 @@ const JsonSchemaEditor = ({ value, onChange, label, description, enableQuickBuil
                     )
                   )
                 }
-                className="rounded-md border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-xs text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+                className="rounded-md border border-[var(--editor-color-border-strong)] bg-[var(--editor-color-background-default)] px-2.5 py-1.5 text-xs text-[var(--editor-color-foreground)] outline-none focus:border-[var(--editor-color-action)] focus:ring-2 focus:ring-[var(--editor-color-action)]"
               >
                 {QUICK_FIELD_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -611,7 +614,7 @@ const JsonSchemaEditor = ({ value, onChange, label, description, enableQuickBuil
                 ))}
               </select>
               <label
-                className="flex items-center gap-1 rounded-full border border-[#0A1A2333] px-2 py-0.5 text-[10px] text-[#657782]"
+                className="flex items-center gap-1 rounded-full border border-[var(--editor-color-border-strong)] px-2 py-0.5 text-[10px] text-[var(--editor-color-shaded)]"
                 htmlFor={`schema-field-required-${field.id}`}
               >
                 <input
@@ -628,7 +631,7 @@ const JsonSchemaEditor = ({ value, onChange, label, description, enableQuickBuil
                       )
                     )
                   }
-                  className="h-3 w-3 rounded border-[#0A1A2333] text-[#3A5AE5] focus:ring-[#3A5AE5]"
+                  className="h-3 w-3 rounded border-[var(--editor-color-border-strong)] text-[var(--editor-color-action)] focus:ring-[var(--editor-color-action)]"
                 />
                 required
               </label>
@@ -639,7 +642,7 @@ const JsonSchemaEditor = ({ value, onChange, label, description, enableQuickBuil
                     current.filter((candidate) => candidate.id !== field.id)
                   )
                 }
-                className="flex items-center rounded-full border border-[#CD3A50] px-2 py-0.5 text-[10px] font-semibold text-[#CD3A50] transition hover:bg-[#CD3A5014]"
+                className="flex items-center rounded-full border border-[var(--editor-color-negative)] px-2 py-0.5 text-[10px] font-semibold text-[var(--editor-color-negative)] transition hover:bg-[var(--editor-color-negative-box)]"
               >
                 remove
               </button>
@@ -659,7 +662,7 @@ const JsonSchemaEditor = ({ value, onChange, label, description, enableQuickBuil
               }
               placeholder="Describe this field (optional)"
               rows={2}
-              className="w-full rounded-md border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4] focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+              className="w-full rounded-md border border-[var(--editor-color-border-strong)] bg-[var(--editor-color-background-default)] px-2.5 py-1.5 text-sm text-[var(--editor-color-foreground)] outline-none placeholder:text-[var(--editor-color-accent-muted)] focus:border-[var(--editor-color-action)] focus:ring-2 focus:ring-[var(--editor-color-action)]"
             />
           </div>
         ))}
@@ -671,7 +674,7 @@ const JsonSchemaEditor = ({ value, onChange, label, description, enableQuickBuil
               createQuickField({ name: `field${current.length + 1}` })
             ])
           }
-          className="self-start rounded-md border border-[#3A5AE5] px-2.5 py-1 text-[11px] font-semibold text-[#3A5AE5] transition hover:bg-[#3A5AE510]"
+          className="self-start rounded-md border border-[var(--editor-color-action)] px-2.5 py-1 text-[11px] font-semibold text-[var(--editor-color-action)] transition hover:bg-[var(--editor-color-action-box)]"
         >
           add field
         </button>
@@ -682,16 +685,16 @@ const JsonSchemaEditor = ({ value, onChange, label, description, enableQuickBuil
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
-        <span className="text-sm font-medium text-[#0A1A23]">{label}</span>
-        {description ? <span className="text-xs text-[#657782]">{description}</span> : null}
+        <span className="text-sm font-medium text-[var(--editor-color-foreground)]">{label}</span>
+        {description ? <span className="text-xs text-[var(--editor-color-shaded)]">{description}</span> : null}
       </div>
 
-      <label className="flex flex-col gap-1 text-xs font-semibold text-[#657782]">
+      <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--editor-color-shaded)]">
         <span>Schema Mode</span>
         <select
           value={schemaState.kind}
           onChange={(event) => handleRootKindChange(event.target.value as RootKind)}
-          className="rounded-md border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-xs text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+          className="rounded-md border border-[var(--editor-color-border-strong)] bg-[var(--editor-color-background-default)] px-2.5 py-1.5 text-xs text-[var(--editor-color-foreground)] outline-none focus:border-[var(--editor-color-action)] focus:ring-2 focus:ring-[var(--editor-color-action)]"
         >
           <option value="none">No schema</option>
           <option value="object">Object</option>
@@ -710,10 +713,10 @@ const JsonSchemaEditor = ({ value, onChange, label, description, enableQuickBuil
             disabled={!quickBuilderAvailable}
             className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
               editorMode === "quick"
-                ? "border border-[#3A5AE5] bg-[#3A5AE510] text-[#3A5AE5]"
+                ? "border border-[var(--editor-color-action)] bg-[var(--editor-color-action-box)] text-[var(--editor-color-action)]"
                 : quickBuilderAvailable
-                ? "border border-[#0A1A2333] bg-white text-[#657782] hover:border-[#3A5AE5] hover:text-[#3A5AE5]"
-                : "border border-dashed border-[#0A1A2333] bg-white text-[#9AA7B4] cursor-not-allowed"
+                ? "border border-[var(--editor-color-border-strong)] bg-[var(--editor-color-background-default)] text-[var(--editor-color-shaded)] hover:border-[var(--editor-color-action)] hover:text-[var(--editor-color-action)]"
+                : "border border-dashed border-[var(--editor-color-border-strong)] bg-[var(--editor-color-background-default)] text-[var(--editor-color-accent-muted)] cursor-not-allowed"
             }`}
           >
             quick builder
@@ -723,8 +726,8 @@ const JsonSchemaEditor = ({ value, onChange, label, description, enableQuickBuil
             onClick={() => setEditorMode("advanced")}
             className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
               editorMode === "advanced"
-                ? "border border-[#3A5AE5] bg-[#3A5AE510] text-[#3A5AE5]"
-                : "border border-[#0A1A2333] bg-white text-[#657782] hover:border-[#3A5AE5] hover:text-[#3A5AE5]"
+                ? "border border-[var(--editor-color-action)] bg-[var(--editor-color-action-box)] text-[var(--editor-color-action)]"
+                : "border border-[var(--editor-color-border-strong)] bg-[var(--editor-color-background-default)] text-[var(--editor-color-shaded)] hover:border-[var(--editor-color-action)] hover:text-[var(--editor-color-action)]"
             }`}
           >
             advanced
@@ -733,14 +736,22 @@ const JsonSchemaEditor = ({ value, onChange, label, description, enableQuickBuil
       ) : null}
 
       {parseError ? (
-        <div className="rounded-lg border border-[#F9D4D8] bg-[#FDF2F3] px-3 py-2 text-xs text-[#CD3A50]">{parseError}</div>
+        <div
+          className="rounded-lg border px-3 py-2 text-xs text-[var(--editor-color-negative)]"
+          style={{
+            borderColor: withAlpha(editorTheme.colors.negative, 0.35),
+            backgroundColor: withAlpha(editorTheme.colors.negative, 0.08),
+          }}
+        >
+          {parseError}
+        </div>
       ) : null}
 
       {schemaState.kind === "none" ? (
         editorMode === "quick" ? (
           renderQuickBuilder()
         ) : (
-          <div className="rounded-lg border border-dashed border-[#0A1A2333] bg-[#F8FAFF] px-3 py-4 text-xs text-[#657782]">
+          <div className="rounded-lg border border-dashed border-[var(--editor-color-border-strong)] bg-[var(--editor-color-background-soft)] px-3 py-4 text-xs text-[var(--editor-color-shaded)]">
             No schema configured. Select a schema type to start describing the AI response.
           </div>
         )
@@ -755,7 +766,13 @@ const JsonSchemaEditor = ({ value, onChange, label, description, enableQuickBuil
       )}
 
       {!quickBuilderAvailable && editorMode === "quick" ? (
-        <div className="rounded-lg border border-[#F9D4D8] bg-[#FDF2F3] px-3 py-2 text-xs text-[#CD3A50]">
+        <div
+          className="rounded-lg border px-3 py-2 text-xs text-[var(--editor-color-negative)]"
+          style={{
+            borderColor: withAlpha(editorTheme.colors.negative, 0.35),
+            backgroundColor: withAlpha(editorTheme.colors.negative, 0.08),
+          }}
+        >
           quick builder is available for objects with primitive or list fields. switch to advanced to edit complex schemas.
         </div>
       ) : null}
@@ -777,17 +794,17 @@ const SchemaNodeEditor = ({ node, onChange, depth }: SchemaNodeEditorProps) => {
     onChange(createDefaultNode(nextKind));
   };
 
-  const containerClass = depth > 0 ? "flex flex-col gap-3 border-l border-[#E1E6F2] pl-3" : "flex flex-col gap-3";
+  const containerClass = depth > 0 ? "flex flex-col gap-3 border-l border-[var(--editor-color-border-subtle)] pl-3" : "flex flex-col gap-3";
 
   return (
     <div className={containerClass}>
       <div className="flex items-center gap-2">
-        <label className="flex flex-col gap-1 text-xs font-semibold text-[#657782]">
+        <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--editor-color-shaded)]">
           <span>Type</span>
           <select
             value={node.kind}
             onChange={(event) => handleKindChange(event.target.value as SchemaNodeKind)}
-            className="rounded-md border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-xs text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+            className="rounded-md border border-[var(--editor-color-border-strong)] bg-[var(--editor-color-background-default)] px-2.5 py-1.5 text-xs text-[var(--editor-color-foreground)] outline-none focus:border-[var(--editor-color-action)] focus:ring-2 focus:ring-[var(--editor-color-action)]"
           >
             <option value="object">Object</option>
             <option value="array">Array</option>
@@ -846,18 +863,18 @@ const ObjectNodeEditor = ({ node, onChange, depth }: ObjectNodeEditorProps) => {
     });
   };
 
-  const containerClass = depth === 0 ? "rounded-xl border border-[#E1E6F2] bg-[#F5F6F9] p-3" : "rounded-lg border border-[#E1E6F2] bg-[#F5F6F9] p-3";
+  const containerClass = depth === 0 ? "rounded-xl border border-[var(--editor-color-border-subtle)] bg-[var(--editor-color-background-soft)] p-3" : "rounded-lg border border-[var(--editor-color-border-subtle)] bg-[var(--editor-color-background-soft)] p-3";
 
   return (
     <div className="flex flex-col gap-3">
       <div className={containerClass}>
-        <div className="flex items-center justify-between text-[10px] font-semibold text-[#657782]">
+        <div className="flex items-center justify-between text-[10px] font-semibold text-[var(--editor-color-shaded)]">
           <span>Properties</span>
-          <span className="text-[#9AA7B4]">{node.properties.length}</span>
+          <span className="text-[var(--editor-color-accent-muted)]">{node.properties.length}</span>
         </div>
         <div className="mt-3 flex flex-col gap-3">
           {node.properties.map((property) => (
-            <div key={property.id} className="flex flex-col gap-2 rounded-lg border border-[#DDE5F3] bg-white p-3">
+            <div key={property.id} className="flex flex-col gap-2 rounded-lg border border-[var(--editor-color-border-subtle)] bg-[var(--editor-color-background-default)] p-3">
               <div className="flex flex-wrap items-center gap-2">
                 <input
                   value={property.name}
@@ -868,9 +885,9 @@ const ObjectNodeEditor = ({ node, onChange, depth }: ObjectNodeEditorProps) => {
                     }))
                   }
                   placeholder="fieldName"
-                  className="flex-1 rounded-md border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4] focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+                  className="flex-1 rounded-md border border-[var(--editor-color-border-strong)] bg-[var(--editor-color-background-default)] px-2.5 py-1.5 text-sm text-[var(--editor-color-foreground)] outline-none placeholder:text-[var(--editor-color-accent-muted)] focus:border-[var(--editor-color-action)] focus:ring-2 focus:ring-[var(--editor-color-action)]"
                 />
-                <label className="flex items-center gap-1 rounded-full border border-[#0A1A2333] px-2 py-0.5 text-[10px] text-[#657782]">
+                <label className="flex items-center gap-1 rounded-full border border-[var(--editor-color-border-strong)] px-2 py-0.5 text-[10px] text-[var(--editor-color-shaded)]">
                   <input
                     type="checkbox"
                     checked={property.required}
@@ -880,14 +897,14 @@ const ObjectNodeEditor = ({ node, onChange, depth }: ObjectNodeEditorProps) => {
                         required: event.target.checked
                       }))
                     }
-                    className="h-3 w-3 rounded border-[#0A1A2333] text-[#3A5AE5] focus:ring-[#3A5AE5]"
+                    className="h-3 w-3 rounded border-[var(--editor-color-border-strong)] text-[var(--editor-color-action)] focus:ring-[var(--editor-color-action)]"
                   />
                 required
                 </label>
                 <button
                   type="button"
                   onClick={() => handleRemoveProperty(property.id)}
-                  className="flex items-center rounded-full border border-[#CD3A50] px-2 py-0.5 text-[10px] font-semibold text-[#CD3A50] transition hover:bg-[#CD3A5014]"
+                  className="flex items-center rounded-full border border-[var(--editor-color-negative)] px-2 py-0.5 text-[10px] font-semibold text-[var(--editor-color-negative)] transition hover:bg-[var(--editor-color-negative-box)]"
                 >
                   Remove
                 </button>
@@ -902,7 +919,7 @@ const ObjectNodeEditor = ({ node, onChange, depth }: ObjectNodeEditorProps) => {
                 }
                 placeholder="Describe this field (optional)"
                 rows={2}
-                className="w-full rounded-md border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4] focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+                className="w-full rounded-md border border-[var(--editor-color-border-strong)] bg-[var(--editor-color-background-default)] px-2.5 py-1.5 text-sm text-[var(--editor-color-foreground)] outline-none placeholder:text-[var(--editor-color-accent-muted)] focus:border-[var(--editor-color-action)] focus:ring-2 focus:ring-[var(--editor-color-action)]"
               />
               <SchemaNodeEditor
                 node={property.schema}
@@ -914,7 +931,7 @@ const ObjectNodeEditor = ({ node, onChange, depth }: ObjectNodeEditorProps) => {
           <button
             type="button"
             onClick={handleAddProperty}
-            className="self-start rounded-md border border-[#3A5AE5] px-2.5 py-1 text-[11px] font-semibold text-[#3A5AE5] transition hover:bg-[#3A5AE510]"
+            className="self-start rounded-md border border-[var(--editor-color-action)] px-2.5 py-1 text-[11px] font-semibold text-[var(--editor-color-action)] transition hover:bg-[var(--editor-color-action-box)]"
           >
             Add property
           </button>
@@ -931,11 +948,11 @@ type ArrayNodeEditorProps = {
 };
 
 const ArrayNodeEditor = ({ node, onChange, depth }: ArrayNodeEditorProps) => {
-  const containerClass = depth === 0 ? "rounded-xl border border-[#E1E6F2] bg-[#F5F6F9] p-3" : "rounded-lg border border-[#E1E6F2] bg-[#F5F6F9] p-3";
+  const containerClass = depth === 0 ? "rounded-xl border border-[var(--editor-color-border-subtle)] bg-[var(--editor-color-background-soft)] p-3" : "rounded-lg border border-[var(--editor-color-border-subtle)] bg-[var(--editor-color-background-soft)] p-3";
 
   return (
     <div className={containerClass}>
-      <div className="text-[10px] font-semibold text-[#657782]">Items</div>
+      <div className="text-[10px] font-semibold text-[var(--editor-color-shaded)]">Items</div>
       <div className="mt-3 flex flex-col gap-3">
         <SchemaNodeEditor
           node={node.items}

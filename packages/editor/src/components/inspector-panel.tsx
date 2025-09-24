@@ -3,6 +3,8 @@ import { useMemo } from "react";
 import { blockRegistry } from "@workflow-builder/core";
 
 import { useEditorStore } from "../state/editor-store";
+import { editorTheme } from "../theme";
+import { withAlpha } from "../utils/color";
 import FieldEditor from "./inspector/field-editor";
 import { Icon, type IconName } from "./icon";
 
@@ -21,16 +23,17 @@ const categoryIcons: Record<string, IconName> = {
 };
 
 const categoryColors: Record<string, string> = {
-  program: "#3A5AE5",
-  control: "#AF54BE",
-  variables: "#E2A636",
-  functions: "#32AA81",
-  expressions: "#578BC9",
-  ai: "#AF54BE",
-  automation: "#32AA81",
-  utility: "#3A5AE5",
-  io: "#578BC9",
-  raw: "#CD3A50"
+  program: editorTheme.category.program,
+  control: editorTheme.category.control,
+  structure: editorTheme.category.control,
+  variables: editorTheme.category.variables,
+  functions: editorTheme.category.functions,
+  expressions: editorTheme.category.expressions,
+  ai: editorTheme.category.ai,
+  automation: editorTheme.category.automation,
+  utility: editorTheme.category.utility,
+  io: editorTheme.category.io,
+  raw: editorTheme.category.raw,
 };
 
 const InspectorPanel = () => {
@@ -89,9 +92,19 @@ const InspectorPanel = () => {
 
   if (!selectedBlockId) {
     return (
-      <section className="flex h-full flex-1 flex-col border-b border-[#0A1A2314] bg-white/85 p-4 backdrop-blur">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-[#657782]">Inspector</h2>
-        <p className="mt-4 text-sm text-[#657782]">Select a block to configure its properties.</p>
+      <section
+        className="flex h-full flex-1 flex-col border-b p-4 backdrop-blur"
+        style={{
+          borderColor: editorTheme.colors.borderSubtle,
+          background: editorTheme.surfaces.glass,
+        }}
+      >
+        <h2 className="text-sm font-semibold uppercase tracking-wide" style={{ color: editorTheme.colors.shaded }}>
+          Inspector
+        </h2>
+        <p className="mt-4 text-sm" style={{ color: editorTheme.colors.shaded }}>
+          Select a block to configure its properties.
+        </p>
       </section>
     );
   }
@@ -99,9 +112,19 @@ const InspectorPanel = () => {
   const block = document.blocks[selectedBlockId];
   if (!block) {
     return (
-      <section className="flex h-full flex-1 flex-col border-b border-[#0A1A2314] bg-white/85 p-4 backdrop-blur">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-[#657782]">Inspector</h2>
-        <p className="mt-4 text-sm text-[#CD3A50]">Selected block not found.</p>
+      <section
+        className="flex h-full flex-1 flex-col border-b p-4 backdrop-blur"
+        style={{
+          borderColor: editorTheme.colors.borderSubtle,
+          background: editorTheme.surfaces.glass,
+        }}
+      >
+        <h2 className="text-sm font-semibold uppercase tracking-wide" style={{ color: editorTheme.colors.shaded }}>
+          Inspector
+        </h2>
+        <p className="mt-4 text-sm" style={{ color: editorTheme.colors.negative }}>
+          Selected block not found.
+        </p>
       </section>
     );
   }
@@ -110,23 +133,33 @@ const InspectorPanel = () => {
   const fields = schema?.fields ?? [];
   const outputs = schema?.outputs ?? [];
   const category = schema?.category ?? "utility";
-  const accent = categoryColors[category] ?? "#3A5AE5";
+  const accent = categoryColors[category] ?? editorTheme.colors.action;
   const iconName = categoryIcons[category] ?? "workflow";
   const isRoot = block.id === document.root;
 
   return (
-    <section className="flex h-full min-h-0 flex-col overflow-y-auto bg-white/85 backdrop-blur">
-      <div className="flex items-center justify-between border-b border-[#0A1A2314] px-6 py-4">
+    <section
+      className="flex h-full min-h-0 flex-col overflow-y-auto backdrop-blur"
+      style={{ background: editorTheme.surfaces.glass }}
+    >
+      <div
+        className="flex items-center justify-between border-b px-6 py-4"
+        style={{ borderColor: editorTheme.colors.borderSubtle, background: editorTheme.surfaces.card }}
+      >
         <div className="flex items-center gap-3">
           <span
             className="flex h-10 w-10 items-center justify-center rounded-xl"
-            style={{ backgroundColor: `${accent}14`, color: accent }}
+            style={{ backgroundColor: withAlpha(accent, 0.12), color: accent }}
           >
             <Icon name={iconName} className="h-5 w-5" />
           </span>
           <div className="flex flex-col">
-            <h2 className="text-sm font-semibold text-[#0A1A23]">{schema?.label ?? block.kind}</h2>
-            <span className="text-[11px] uppercase tracking-[0.3em] text-[#657782]">{block.kind}</span>
+            <h2 className="text-sm font-semibold" style={{ color: editorTheme.colors.foreground }}>
+              {schema?.label ?? block.kind}
+            </h2>
+            <span className="text-[11px] uppercase tracking-[0.3em]" style={{ color: editorTheme.colors.shaded }}>
+              {block.kind}
+            </span>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -135,7 +168,12 @@ const InspectorPanel = () => {
               <button
                 type="button"
                 onClick={() => duplicateBlock(block.id)}
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-[#0A1A2333] bg-white text-[#0A1A23] transition hover:border-[#32AA81] hover:text-[#32AA81]"
+                className="flex h-8 w-8 items-center justify-center rounded-full border transition hover:border-[var(--editor-color-positive)] hover:text-[var(--editor-color-positive)]"
+                style={{
+                  borderColor: editorTheme.colors.borderStrong,
+                  color: editorTheme.colors.foreground,
+                  background: editorTheme.surfaces.card,
+                }}
                 title="Duplicate block"
                 aria-label="Duplicate block"
               >
@@ -144,7 +182,12 @@ const InspectorPanel = () => {
               <button
                 type="button"
                 onClick={() => deleteBlock(block.id)}
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-[#CD3A50] bg-white text-[#CD3A50] transition hover:bg-[#CD3A5020]"
+                className="flex h-8 w-8 items-center justify-center rounded-full border transition hover:bg-[var(--editor-color-negative-box)]"
+                style={{
+                  borderColor: editorTheme.colors.negative,
+                  color: editorTheme.colors.negative,
+                  background: editorTheme.colors.backgroundDefault,
+                }}
                 title="Delete block"
                 aria-label="Delete block"
               >
@@ -155,7 +198,14 @@ const InspectorPanel = () => {
         </div>
       </div>
 
-      <nav className="flex flex-wrap items-center gap-2 border-b border-[#0A1A2314] bg-white/90 px-6 py-2 text-[11px] text-[#657782]">
+      <nav
+        className="flex flex-wrap items-center gap-2 border-b px-6 py-2 text-[11px]"
+        style={{
+          borderColor: editorTheme.colors.borderSubtle,
+          background: editorTheme.surfaces.card,
+          color: editorTheme.colors.shaded,
+        }}
+      >
         {pathSegments.map((segment, index) => {
           const blockInstance = document.blocks[segment.blockId];
           const segmentSchema = blockInstance ? blockRegistry.get(blockInstance.kind) : null;
@@ -164,9 +214,15 @@ const InspectorPanel = () => {
 
           return (
             <div key={segment.blockId} className="flex items-center gap-2">
-              {index > 0 ? <span className="text-[#CED6E9]">/</span> : null}
+              {index > 0 ? <span style={{ color: editorTheme.colors.borderMuted }}>/</span> : null}
               {segment.slotLabel ? (
-                <span className="rounded-full bg-[#EEF2FF] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#3A5AE5]">
+                <span
+                  className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                  style={{
+                    background: editorTheme.colors.backgroundTint,
+                    color: editorTheme.colors.action,
+                  }}
+                >
                   {segment.slotLabel}
                 </span>
               ) : null}
@@ -174,8 +230,12 @@ const InspectorPanel = () => {
                 type="button"
                 onClick={() => selectBlock(segment.blockId)}
                 className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                  isCurrent ? "bg-[#3A5AE5] text-white" : "bg-white text-[#0A1A23] hover:bg-[#E7EBFF]"
+                  isCurrent ? "bg-[var(--editor-color-action)] text-white" : "hover:bg-[var(--editor-color-background-tint)]"
                 }`}
+                style={{
+                  backgroundColor: isCurrent ? editorTheme.colors.action : editorTheme.colors.backgroundDefault,
+                  color: isCurrent ? "white" : editorTheme.colors.foreground,
+                }}
               >
                 {label}
               </button>
@@ -185,23 +245,43 @@ const InspectorPanel = () => {
       </nav>
 
       {schema?.description ? (
-        <div className="border-b border-[#0A1A2314] bg-white px-6 py-3 text-[12px] text-[#465764]">
+        <div
+          className="border-b px-6 py-3 text-[12px]"
+          style={{
+            borderColor: editorTheme.colors.borderSubtle,
+            background: editorTheme.surfaces.card,
+            color: editorTheme.colors.shaded,
+          }}
+        >
           {schema.description}
         </div>
       ) : null}
 
       {outputs.length > 0 ? (
-        <div className="flex flex-col gap-2 border-b border-[#0A1A2314] bg-white/85 px-6 py-3">
-          <h3 className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[#9AA7B4]">Outputs</h3>
+        <div
+          className="flex flex-col gap-2 border-b px-6 py-3"
+          style={{ borderColor: editorTheme.colors.borderSubtle, background: editorTheme.surfaces.glass }}
+        >
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.3em]" style={{ color: editorTheme.colors.accentMuted }}>
+            Outputs
+          </h3>
           <div className="flex flex-wrap gap-1.5">
             {outputs.map((output) => (
               <div
                 key={output.id}
-                className="flex min-w-[120px] flex-col gap-0.5 rounded-md border border-[#0A1A2314] bg-white px-2 py-1"
+                className="flex min-w-[120px] flex-col gap-0.5 rounded-md border px-2 py-1"
+                style={{
+                  borderColor: editorTheme.colors.borderSubtle,
+                  background: editorTheme.surfaces.card,
+                }}
               >
-                <span className="text-xs font-semibold text-[#0A1A23]">{output.label}</span>
+                <span className="text-xs font-semibold" style={{ color: editorTheme.colors.foreground }}>
+                  {output.label}
+                </span>
                 {output.description ? (
-                  <span className="text-[10px] text-[#657782]">{output.description}</span>
+                  <span className="text-[10px]" style={{ color: editorTheme.colors.shaded }}>
+                    {output.description}
+                  </span>
                 ) : null}
               </div>
             ))}
@@ -211,7 +291,9 @@ const InspectorPanel = () => {
 
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-6 pb-8 pt-6">
         {fields.length === 0 ? (
-          <p className="text-sm text-[#657782]">This block has no configurable fields.</p>
+          <p className="text-sm" style={{ color: editorTheme.colors.shaded }}>
+            This block has no configurable fields.
+          </p>
         ) : (
           fields.map((field) => (
             <FieldEditor

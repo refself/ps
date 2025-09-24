@@ -5,6 +5,8 @@ import { blockRegistry } from "@workflow-builder/core";
 
 import { useEditorStore } from "../state/editor-store";
 import { usePaletteStore } from "../state/palette-store";
+import { editorTheme } from "../theme";
+import { withAlpha } from "../utils/color";
 import { Icon, type IconName } from "./icon";
 
 type CommandOption = {
@@ -141,15 +143,26 @@ const CommandPalette = () => {
 
   return (
     <div
-      className="pointer-events-auto fixed inset-0 z-[100] flex items-center justify-center bg-[rgba(10,26,35,0.45)] px-4 py-12 backdrop-blur-sm"
+      className="pointer-events-auto fixed inset-0 z-[100] flex items-center justify-center px-4 py-12 backdrop-blur-sm"
+      style={{ backgroundColor: withAlpha(editorTheme.colors.foreground, 0.45) }}
       onClick={handleClose}
     >
       <div
-        className="flex w-full max-w-xl flex-col gap-3 rounded-2xl border border-[#0A1A2333] bg-white/95 p-4 shadow-[0_32px_64px_rgba(10,26,35,0.28)]"
+        className="flex w-full max-w-xl flex-col gap-3 rounded-2xl border p-4 shadow-[0_32px_64px_rgba(10,26,35,0.28)]"
+        style={{
+          borderColor: editorTheme.colors.borderStrong,
+          background: editorTheme.surfaces.glass,
+        }}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-center gap-2 rounded-xl border border-[#CED6E9] bg-white px-3 py-1.5">
-          <Icon name="search" className="h-4 w-4 text-[#9AA7B4]" />
+        <div
+          className="flex items-center gap-2 rounded-xl border px-3 py-1.5"
+          style={{
+            borderColor: editorTheme.colors.borderMuted,
+            background: editorTheme.surfaces.card,
+          }}
+        >
+          <Icon name="search" className="h-4 w-4" style={{ color: editorTheme.colors.accentMuted }} />
           <input
             ref={inputRef}
             placeholder="Search blocks…"
@@ -158,28 +171,46 @@ const CommandPalette = () => {
               setQuery(event.target.value);
               setActiveIndex(0);
             }}
-            className="w-full bg-transparent text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4]"
+            className="w-full bg-transparent text-sm outline-none placeholder:text-[var(--editor-color-accent-muted)]"
+            style={{
+              color: editorTheme.colors.foreground,
+              fontFamily: editorTheme.fonts.sans,
+            }}
           />
           <button
             type="button"
             onClick={handleClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-[#CED6E9] bg-white text-[#657782] transition hover:border-[#3A5AE5] hover:text-[#3A5AE5]"
+            className="flex h-8 w-8 items-center justify-center rounded-full border transition hover:border-[var(--editor-color-action)] hover:text-[var(--editor-color-action)]"
+            style={{
+              borderColor: editorTheme.colors.borderMuted,
+              background: editorTheme.surfaces.card,
+              color: editorTheme.colors.shaded,
+            }}
             aria-label="Close palette"
           >
             <Icon name="close" className="h-3.5 w-3.5" />
           </button>
         </div>
 
-        <div className="workflow-editor-scrollable max-h-[420px] overflow-auto rounded-xl border border-[#0A1A2314] bg-white">
+        <div
+          className="workflow-editor-scrollable max-h-[420px] overflow-auto rounded-xl border"
+          style={{
+            borderColor: editorTheme.colors.borderSubtle,
+            background: editorTheme.surfaces.card,
+          }}
+        >
           {filtered.length === 0 ? (
-            <div className="flex items-center justify-center px-6 py-12 text-sm text-[#657782]">
+            <div
+              className="flex items-center justify-center px-6 py-12 text-sm"
+              style={{ color: editorTheme.colors.shaded }}
+            >
               No blocks match "{query}".
             </div>
           ) : (
             <ul className="flex flex-col">
               {filtered.map((option, index) => {
                 const isSelected = index === activeIndex;
-                const accent = categoryColors[option.category ?? ""] ?? "#3A5AE5";
+                const accent = categoryColors[option.category ?? ""] ?? editorTheme.colors.action;
                 const iconName = categoryIcons[option.category ?? ""] ?? "workflow";
                 return (
                   <li key={option.kind}>
@@ -188,21 +219,31 @@ const CommandPalette = () => {
                       onMouseEnter={() => setActiveIndex(index)}
                       onClick={() => handleSelect(option)}
                       className={clsx(
-                        "flex w-full items-center gap-3 px-3 py-2.5 text-left transition",
-                        isSelected ? "bg-[#EEF2FF] text-[#0A1A23]" : "hover:bg-[#F5F6FB] text-[#0A1A23]"
+                        "flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-[var(--editor-color-background-soft)]",
+                        isSelected ? "bg-[var(--editor-color-background-tint)]" : undefined
                       )}
+                      style={{ color: editorTheme.colors.foreground }}
                     >
                       <span
                         className="flex h-9 w-9 items-center justify-center rounded-xl border border-transparent"
-                        style={{ backgroundColor: `${accent}16`, color: accent }}
+                        style={{
+                          backgroundColor: withAlpha(accent, 0.09),
+                          color: accent,
+                        }}
                       >
                         <Icon name={iconName} className="h-4 w-4" />
                       </span>
                       <span className="flex flex-col gap-0.5">
-                        <span className="text-sm font-semibold text-[#0A1A23]">{option.label}</span>
-                        <span className="text-[11px] text-[#9AA7B4]">{option.kind}</span>
+                        <span className="text-sm font-semibold" style={{ color: editorTheme.colors.foreground }}>
+                          {option.label}
+                        </span>
+                        <span className="text-[11px]" style={{ color: editorTheme.colors.accentMuted }}>
+                          {option.kind}
+                        </span>
                         {option.description ? (
-                          <span className="text-xs text-[#657782]">{option.description}</span>
+                          <span className="text-xs" style={{ color: editorTheme.colors.shaded }}>
+                            {option.description}
+                          </span>
                         ) : null}
                       </span>
                     </button>
@@ -213,7 +254,14 @@ const CommandPalette = () => {
           )}
         </div>
 
-        <div className="flex items-center justify-between rounded-xl border border-[#E1E6F2] bg-[#F7F9FD] px-3 py-2 text-[11px] text-[#657782]">
+        <div
+          className="flex items-center justify-between rounded-xl border px-3 py-2 text-[11px]"
+          style={{
+            borderColor: editorTheme.colors.borderMuted,
+            background: editorTheme.colors.backgroundSoft,
+            color: editorTheme.colors.shaded,
+          }}
+        >
           <div className="flex items-center gap-3">
             <ShortcutChip label="Enter" description="insert" />
             <ShortcutChip label="Esc" description="close" />
@@ -227,10 +275,19 @@ const CommandPalette = () => {
 
 const ShortcutChip = ({ label, description }: { label: string; description: string }) => (
   <span className="flex items-center gap-1">
-    <span className="rounded-md border border-[#D3DCEE] bg-white px-2 py-0.5 text-[10px] font-medium text-[#3A5AE5]">
+    <span
+      className="rounded-md border px-2 py-0.5 text-[10px] font-medium"
+      style={{
+        borderColor: editorTheme.colors.borderMuted,
+        background: editorTheme.surfaces.card,
+        color: editorTheme.colors.action,
+      }}
+    >
       {label}
     </span>
-    <span className="text-[10px] text-[#9AA7B4]">{description}</span>
+    <span className="text-[10px]" style={{ color: editorTheme.colors.accentMuted }}>
+      {description}
+    </span>
   </span>
 );
 
@@ -251,15 +308,15 @@ const categoryIcons: Record<string, IconName> = {
 };
 
 const categoryColors: Record<string, string> = {
-  program: "#3A5AE5",
-  control: "#AF54BE",
-  structure: "#AF54BE",
-  variables: "#E2A636",
-  functions: "#32AA81",
-  expressions: "#578BC9",
-  ai: "#AF54BE",
-  automation: "#32AA81",
-  utility: "#3A5AE5",
-  io: "#578BC9",
-  raw: "#CD3A50"
+  program: editorTheme.category.program,
+  control: editorTheme.category.control,
+  structure: editorTheme.category.control,
+  variables: editorTheme.category.variables,
+  functions: editorTheme.category.functions,
+  expressions: editorTheme.category.expressions,
+  ai: editorTheme.category.ai,
+  automation: editorTheme.category.automation,
+  utility: editorTheme.category.utility,
+  io: editorTheme.category.io,
+  raw: editorTheme.category.raw,
 };

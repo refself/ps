@@ -65,7 +65,7 @@ const WorkflowEditorHeader = ({
       className="flex items-center justify-between px-6 py-4"
       style={{
         borderBottom: `1px solid ${editorTheme.colors.borderSubtle}`,
-        background: 'rgba(255, 255, 255, 0.92)',
+        background: editorTheme.surfaces.card,
         backdropFilter: 'blur(14px)',
       }}
     >
@@ -77,7 +77,7 @@ const WorkflowEditorHeader = ({
             className="flex h-9 w-9 items-center justify-center rounded-full transition hover:border-[var(--editor-color-action)] hover:text-[var(--editor-color-action)]"
             style={{
               border: `1px solid ${editorTheme.colors.borderSubtle}`,
-              background: 'rgba(255, 255, 255, 0.95)',
+              background: editorTheme.surfaces.card,
               color: editorTheme.colors.foreground,
               boxShadow: '0 4px 12px rgba(10, 26, 35, 0.08)',
             }}
@@ -89,10 +89,10 @@ const WorkflowEditorHeader = ({
         <input
           value={documentName}
           onChange={(event) => onRename(event.target.value)}
-          className="w-64 rounded-lg px-3 py-1.5 text-sm outline-none transition focus:border-[rgba(58,90,229,0.7)] focus:ring-2 focus:ring-[rgba(58,90,229,0.16)]"
+          className="w-64 rounded-lg px-3 py-1.5 text-sm outline-none transition focus:border-[var(--editor-color-action)] focus:ring-2 focus:ring-[color:rgba(58,90,229,0.16)]"
           style={{
             border: `1px solid ${editorTheme.colors.borderSubtle}`,
-            background: 'rgba(255, 255, 255, 0.95)',
+            background: editorTheme.surfaces.card,
             color: editorTheme.colors.foreground,
             boxShadow: '0 8px 18px rgba(10, 26, 35, 0.05)',
           }}
@@ -103,16 +103,18 @@ const WorkflowEditorHeader = ({
         className="flex items-center gap-2 rounded-full p-1 text-sm font-medium"
         style={{
           border: `1px solid ${editorTheme.colors.borderMuted}`,
-          background: 'rgba(245, 246, 249, 0.9)',
+          background: editorTheme.colors.backgroundSoft,
           color: editorTheme.colors.foreground,
         }}
       >
         <button
           type="button"
           onClick={() => setMode("visual")}
-          className={`rounded-full px-4 py-1 transition ${
-            mode === "visual" ? "bg-white text-[#3A5AE5] shadow" : "text-[#657782]"
-          }`}
+          className={`rounded-full px-4 py-1 transition ${mode === "visual" ? "shadow" : ""}`}
+          style={{
+            backgroundColor: mode === "visual" ? editorTheme.colors.backgroundDefault : "transparent",
+            color: mode === "visual" ? editorTheme.colors.action : editorTheme.colors.shaded,
+          }}
           aria-pressed={mode === "visual"}
         >
           Visual
@@ -120,9 +122,11 @@ const WorkflowEditorHeader = ({
         <button
           type="button"
           onClick={() => setMode("code")}
-          className={`rounded-full px-4 py-1 transition ${
-            mode === "code" ? "bg-white text-[#3A5AE5] shadow" : "text-[#657782]"
-          }`}
+          className={`rounded-full px-4 py-1 transition ${mode === "code" ? "shadow" : ""}`}
+          style={{
+            backgroundColor: mode === "code" ? editorTheme.colors.backgroundDefault : "transparent",
+            color: mode === "code" ? editorTheme.colors.action : editorTheme.colors.shaded,
+          }}
           aria-pressed={mode === "code"}
         >
           Code
@@ -131,9 +135,13 @@ const WorkflowEditorHeader = ({
           type="button"
           onClick={() => setMode("recordings")}
           disabled={!observabilityConfig}
-          className={`rounded-full px-4 py-1 transition ${
-            mode === "recordings" ? "bg-white text-[#3A5AE5] shadow" : "text-[#657782]"
-          } ${observabilityConfig ? "" : "opacity-50"}`}
+          className={`rounded-full px-4 py-1 transition ${mode === "recordings" ? "shadow" : ""} ${
+            observabilityConfig ? "" : "opacity-50"
+          }`}
+          style={{
+            backgroundColor: mode === "recordings" ? editorTheme.colors.backgroundDefault : "transparent",
+            color: mode === "recordings" ? editorTheme.colors.action : editorTheme.colors.shaded,
+          }}
           aria-pressed={mode === "recordings"}
         >
           Recordings
@@ -158,7 +166,7 @@ const WorkflowEditorHeader = ({
             className="relative flex h-9 w-9 items-center justify-center rounded-full transition hover:border-[var(--editor-color-action)] hover:text-[var(--editor-color-action)]"
             style={{
               border: `1px solid ${editorTheme.colors.borderSubtle}`,
-              background: 'rgba(255, 255, 255, 0.95)',
+              background: editorTheme.surfaces.card,
               color: editorTheme.colors.foreground,
               boxShadow: '0 4px 12px rgba(10, 26, 35, 0.08)',
             }}
@@ -166,7 +174,11 @@ const WorkflowEditorHeader = ({
           >
             <Icon name="clock" className="h-4 w-4" />
             {versioning.activeVersionId ? null : (
-              <span className="absolute -right-0.5 -top-0.5 flex h-2 w-2 items-center justify-center rounded-full bg-[#CD3A50]" aria-hidden="true" />
+              <span
+                className="absolute -right-0.5 -top-0.5 flex h-2 w-2 items-center justify-center rounded-full"
+                style={{ backgroundColor: editorTheme.colors.negative }}
+                aria-hidden="true"
+              />
             )}
           </button>
         ) : null}
@@ -177,7 +189,7 @@ const WorkflowEditorHeader = ({
             className="flex h-9 w-9 items-center justify-center rounded-full transition hover:border-[var(--editor-color-action)] hover:text-[var(--editor-color-action)]"
             style={{
               border: `1px solid ${editorTheme.colors.borderSubtle}`,
-              background: 'rgba(255, 255, 255, 0.95)',
+              background: editorTheme.surfaces.card,
               color: editorTheme.colors.foreground,
               boxShadow: '0 4px 12px rgba(10, 26, 35, 0.08)',
             }}
@@ -194,7 +206,7 @@ const WorkflowEditorHeader = ({
               className="flex h-9 w-9 items-center justify-center rounded-full transition hover:border-[var(--editor-color-action)] hover:text-[var(--editor-color-action)]"
               style={{
                 border: `1px solid ${editorTheme.colors.borderSubtle}`,
-                background: 'rgba(255, 255, 255, 0.95)',
+                background: editorTheme.surfaces.card,
                 color: editorTheme.colors.foreground,
                 boxShadow: '0 4px 12px rgba(10, 26, 35, 0.08)',
               }}
@@ -208,7 +220,7 @@ const WorkflowEditorHeader = ({
               className="flex h-9 w-9 items-center justify-center rounded-full transition hover:border-[var(--editor-color-action)] hover:text-[var(--editor-color-action)]"
               style={{
                 border: `1px solid ${editorTheme.colors.borderSubtle}`,
-                background: 'rgba(255, 255, 255, 0.95)',
+                background: editorTheme.surfaces.card,
                 color: editorTheme.colors.foreground,
                 boxShadow: '0 4px 12px rgba(10, 26, 35, 0.08)',
               }}
@@ -229,7 +241,7 @@ const WorkflowEditorHeader = ({
           className="flex h-9 w-9 items-center justify-center rounded-full transition hover:border-[var(--editor-color-action)] hover:text-[var(--editor-color-action)] disabled:cursor-not-allowed"
           style={{
             border: `1px solid ${editorTheme.colors.borderSubtle}`,
-            background: 'rgba(255, 255, 255, 0.95)',
+            background: editorTheme.surfaces.card,
             color: selectedBlockId ? editorTheme.colors.foreground : editorTheme.colors.accentMuted,
             boxShadow: '0 4px 12px rgba(10, 26, 35, 0.08)',
           }}

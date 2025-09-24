@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 
 import { useEditorStore } from "../../state/editor-store";
+import { editorTheme } from "../../theme";
 import {
   collectIdentifierSuggestions,
   collectIdentifierSuggestionsForBlock,
@@ -120,22 +121,33 @@ const ExpressionEditor = ({
   const [isPaletteOpen, setPaletteOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
+  const inputStyle = {
+    borderColor: editorTheme.colors.borderStrong,
+    background: editorTheme.colors.backgroundDefault,
+    color: editorTheme.colors.foreground,
+  } as const;
+
+  const placeholderClass = "placeholder:text-[var(--editor-color-accent-muted)]";
+
   const inputClass = isCompact
-    ? "w-full rounded-lg border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-sm text-[#0A1A23] placeholder:text-[#9AA7B4] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
-    : "w-full rounded-lg border border-[#0A1A2333] bg-white px-3 py-2 text-sm text-[#0A1A23] placeholder:text-[#9AA7B4] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]";
+    ? `w-full rounded-lg border bg-[var(--editor-color-background-default)] px-2.5 py-1.5 text-sm outline-none ${placeholderClass} focus:border-[var(--editor-color-action)] focus:ring-2 focus:ring-[var(--editor-color-action)]`
+    : `w-full rounded-lg border bg-[var(--editor-color-background-default)] px-3 py-2 text-sm outline-none ${placeholderClass} focus:border-[var(--editor-color-action)] focus:ring-2 focus:ring-[var(--editor-color-action)]`;
 
   const baseTextAreaClass = isCompact
-    ? "w-full min-h-[120px] rounded-lg border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4] focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
-    : "w-full min-h-[160px] rounded-lg border border-[#0A1A2333] bg-white px-3 py-2 text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4] focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]";
+    ? `w-full min-h-[120px] rounded-lg border bg-[var(--editor-color-background-default)] px-2.5 py-1.5 text-sm outline-none ${placeholderClass} focus:border-[var(--editor-color-action)] focus:ring-2 focus:ring-[var(--editor-color-action)]`
+    : `w-full min-h-[160px] rounded-lg border bg-[var(--editor-color-background-default)] px-3 py-2 text-sm outline-none ${placeholderClass} focus:border-[var(--editor-color-action)] focus:ring-2 focus:ring-[var(--editor-color-action)]`;
 
   const textAreaClass = clsx(baseTextAreaClass, language === "json" || language === "reflow" ? "font-mono" : null);
 
   const selectClass = isCompact
-    ? "rounded-md border border-[#0A1A2333] bg-white px-2 py-1 text-[11px] text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
-    : "rounded-md border border-[#0A1A2333] bg-white px-2.5 py-1.5 text-xs text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]";
+    ? "rounded-md border bg-[var(--editor-color-background-default)] px-2 py-1 text-[11px] outline-none focus:border-[var(--editor-color-action)] focus:ring-2 focus:ring-[var(--editor-color-action)]"
+    : "rounded-md border bg-[var(--editor-color-background-default)] px-2.5 py-1.5 text-xs outline-none focus:border-[var(--editor-color-action)] focus:ring-2 focus:ring-[var(--editor-color-action)]";
 
-  const headerTextClass = isCompact ? "font-medium text-[#0A1A23]" : "font-medium text-[#0A1A23]";
-  const descriptionTextClass = isCompact ? "text-xs text-[#657782]" : "text-xs text-[#657782]";
+  const headerTextStyle = { color: editorTheme.colors.foreground } as const;
+  const descriptionTextStyle = { color: editorTheme.colors.shaded } as const;
+
+  const headerTextClass = isCompact ? "font-medium" : "font-medium";
+  const descriptionTextClass = isCompact ? "text-xs" : "text-xs";
 
   const applyExpression = (nextKind: ExpressionKind, options?: { force?: boolean }) => {
     const targetKind = options?.force ? nextKind : kind;
@@ -191,9 +203,10 @@ const ExpressionEditor = ({
             value={stringValue}
             onChange={(event) => {
               setStringValue(event.target.value);
-              onChange(quoteString(event.target.value));
-            }}
+            onChange(quoteString(event.target.value));
+          }}
             className={inputClass}
+            style={inputStyle}
             placeholder="Enter text"
           />
         );
@@ -211,12 +224,16 @@ const ExpressionEditor = ({
               }
             }}
             className={inputClass}
+            style={inputStyle}
             placeholder="0"
           />
         );
       case "boolean":
         return (
-          <div className={clsx("flex items-center gap-3 text-sm", isCompact ? "text-[#0A1A23]" : "text-[#0A1A23]")}>
+          <div
+            className="flex items-center gap-3 text-sm"
+            style={{ color: editorTheme.colors.foreground }}
+          >
             <label className="flex items-center gap-2">
               <input
                 type="radio"
@@ -226,7 +243,7 @@ const ExpressionEditor = ({
                   setBooleanValue(true);
                   onChange("true");
                 }}
-                className="text-[#3A5AE5] focus:ring-[#3A5AE5]"
+                className="text-[var(--editor-color-action)] focus:ring-[var(--editor-color-action)]"
               />
               True
             </label>
@@ -239,7 +256,7 @@ const ExpressionEditor = ({
                   setBooleanValue(false);
                   onChange("false");
                 }}
-                className="text-[#3A5AE5] focus:ring-[#3A5AE5]"
+                className="text-[var(--editor-color-action)] focus:ring-[var(--editor-color-action)]"
               />
               False
             </label>
@@ -248,14 +265,15 @@ const ExpressionEditor = ({
       case "identifier":
         return (
           <input
-            list={datalistId}
+            list={identifierSuggestions.length > 0 ? datalistId : undefined}
             value={identifierValue}
             onChange={(event) => {
               setIdentifierValue(event.target.value);
-              onChange(event.target.value);
+              onChange(event.target.value || "result");
             }}
             className={inputClass}
-            placeholder="variableName"
+            style={inputStyle}
+            placeholder="identifier"
           />
         );
       default:
@@ -267,7 +285,8 @@ const ExpressionEditor = ({
               onChange(event.target.value);
             }}
             className={textAreaClass}
-            placeholder={placeholder}
+            style={inputStyle}
+            placeholder={placeholder ?? "Enter expression"}
           />
         );
     }
@@ -302,8 +321,14 @@ const ExpressionEditor = ({
 >
         {showHeader ? (
           <div className="flex flex-col">
-            <span className={headerTextClass}>{label}</span>
-            {description ? <span className={descriptionTextClass}>{description}</span> : null}
+            <span className={headerTextClass} style={headerTextStyle}>
+              {label}
+            </span>
+            {description ? (
+              <span className={descriptionTextClass} style={descriptionTextStyle}>
+                {description}
+              </span>
+            ) : null}
           </div>
         ) : null}
         <div className="flex items-center gap-1.5">
@@ -313,32 +338,58 @@ const ExpressionEditor = ({
                 type="button"
                 onClick={() => setPaletteOpen((open) => !open)}
                 className={clsx(
-                  "rounded-md border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide transition",
-                  isPaletteOpen
-                    ? "border-[#3A5AE5] bg-[#3A5AE510] text-[#3A5AE5]"
-                    : "border-[#0A1A2333] bg-white text-[#3A5AE5] hover:border-[#3A5AE5] hover:bg-[#3A5AE510]"
+                  "rounded-md border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide transition hover:border-[var(--editor-color-action)] hover:bg-[var(--editor-color-action-box)]",
+                  isPaletteOpen ? "bg-[var(--editor-color-action-box)]" : undefined
                 )}
+                style={{
+                  borderColor: editorTheme.colors.borderStrong,
+                  color: editorTheme.colors.action,
+                  backgroundColor: isPaletteOpen
+                    ? editorTheme.colors.actionBox
+                    : editorTheme.colors.backgroundDefault,
+                }}
               >
                 Variables
               </button>
               {isPaletteOpen ? (
-                <div className="absolute right-0 z-30 mt-2 w-56 rounded-xl border border-[#0A1A2314] bg-white p-3 shadow-[0_18px_32px_rgba(10,26,35,0.12)]">
+                <div
+                  className="absolute right-0 z-30 mt-2 w-56 rounded-xl border p-3 shadow-[0_18px_32px_rgba(10,26,35,0.12)]"
+                  style={{
+                    borderColor: editorTheme.colors.borderSubtle,
+                    background: editorTheme.surfaces.card,
+                  }}
+                >
                   <input
                     value={searchTerm}
                     onChange={(event) => setSearchTerm(event.target.value)}
                     placeholder="Search variables"
-                    className="w-full rounded-md border border-[#0A1A2333] bg-white px-2 py-1 text-[12px] text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+                    className="w-full rounded-md border bg-[var(--editor-color-background-default)] px-2 py-1 text-[12px] outline-none placeholder:text-[var(--editor-color-accent-muted)] focus:border-[var(--editor-color-action)] focus:ring-2 focus:ring-[var(--editor-color-action)]"
+                    style={{
+                      borderColor: editorTheme.colors.borderStrong,
+                      color: editorTheme.colors.foreground,
+                    }}
                   />
                   <div className="mt-2 max-h-48 space-y-2 overflow-y-auto pr-1">
                     {filteredSuggestions.length === 0 ? (
-                      <div className="rounded-md border border-[#0A1A2314] bg-[#F5F6F9] px-2 py-1 text-[11px] text-[#657782]">
+                      <div
+                        className="rounded-md border px-2 py-1 text-[11px]"
+                        style={{
+                          borderColor: editorTheme.colors.borderSubtle,
+                          background: editorTheme.colors.backgroundSoft,
+                          color: editorTheme.colors.shaded,
+                        }}
+                      >
                         No matches
                       </div>
                     ) : null}
                     {filteredSuggestions.map((suggestion) => (
                       <div
                         key={`${suggestion.name}-${baseId}`}
-                        className="flex flex-col gap-1 rounded-lg border border-[#E1E6F2] bg-white px-2 py-1.5"
+                        className="flex flex-col gap-1 rounded-lg border px-2 py-1.5"
+                        style={{
+                          borderColor: editorTheme.colors.borderSubtle,
+                          background: editorTheme.colors.backgroundDefault,
+                        }}
                       >
                         <button
                           type="button"
@@ -349,9 +400,14 @@ const ExpressionEditor = ({
                           }}
                           className="flex flex-col text-left"
                         >
-                          <span className="text-sm font-semibold text-[#0A1A23]">{suggestion.name}</span>
+                          <span className="text-sm font-semibold" style={{ color: editorTheme.colors.foreground }}>
+                            {suggestion.name}
+                          </span>
                           {suggestion.sourceLabel ? (
-                            <span className="text-[10px] uppercase tracking-[0.2em] text-[#9AA7B4]">
+                            <span
+                              className="text-[10px] uppercase tracking-[0.2em]"
+                              style={{ color: editorTheme.colors.accentMuted }}
+                            >
                               {suggestion.sourceLabel}
                             </span>
                           ) : null}
@@ -367,7 +423,12 @@ const ExpressionEditor = ({
                                   setPaletteOpen(false);
                                   setSearchTerm("");
                                 }}
-                                className="rounded-full border border-[#0A1A2333] bg-white px-2 py-0.5 text-[10px] text-[#3A5AE5] transition hover:border-[#3A5AE5] hover:bg-[#3A5AE510]"
+                                className="rounded-full border px-2 py-0.5 text-[10px] transition hover:border-[var(--editor-color-action)] hover:bg-[var(--editor-color-action-box)]"
+                                style={{
+                                  borderColor: editorTheme.colors.borderStrong,
+                                  color: editorTheme.colors.action,
+                                  backgroundColor: editorTheme.colors.backgroundDefault,
+                                }}
                                 title={output.description}
                               >
                                 {output.expression}
@@ -382,7 +443,16 @@ const ExpressionEditor = ({
               ) : null}
             </div>
           ) : null}
-          <select value={kind} onChange={handleKindChange} className={selectClass}>
+          <select
+            value={kind}
+            onChange={handleKindChange}
+            className={selectClass}
+            style={{
+              borderColor: editorTheme.colors.borderStrong,
+              background: editorTheme.colors.backgroundDefault,
+              color: editorTheme.colors.foreground,
+            }}
+          >
             <option value="string">Text</option>
             <option value="number">Number</option>
             <option value="boolean">True/False</option>

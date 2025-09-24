@@ -72,7 +72,7 @@ const BlockNode = ({ blockId, depth }: BlockNodeProps) => {
 
   const cardStyle: CSSProperties = {
     border: `1px solid ${editorTheme.colors.borderSubtle}`,
-    background: 'rgba(255,255,255,0.9)',
+    background: editorTheme.surfaces.card,
     boxShadow: '0 18px 32px rgba(10,26,35,0.08)',
   };
 
@@ -167,7 +167,7 @@ const BlockNode = ({ blockId, depth }: BlockNodeProps) => {
               className="flex h-8 w-8 items-center justify-center rounded-full transition"
               style={{
                 border: `1px solid ${editorTheme.colors.borderSubtle}`,
-                background: 'rgba(255,255,255,0.95)',
+                background: editorTheme.surfaces.card,
                 color: editorTheme.colors.shaded,
               }}
               aria-label="Duplicate block"
@@ -183,7 +183,7 @@ const BlockNode = ({ blockId, depth }: BlockNodeProps) => {
               className="flex h-8 w-8 items-center justify-center rounded-full transition"
               style={{
                 border: `1px solid ${withAlpha(editorTheme.colors.negative, 0.5)}`,
-                background: 'rgba(255,255,255,0.95)',
+                background: editorTheme.surfaces.card,
                 color: editorTheme.colors.negative,
               }}
               aria-label="Delete block"
@@ -194,7 +194,7 @@ const BlockNode = ({ blockId, depth }: BlockNodeProps) => {
         </header>
 
         {fields.length > 0 ? (
-          <dl className="grid grid-cols-1 gap-1 text-[12px]" style={{ color: '#465764' }}>
+          <dl className="grid grid-cols-1 gap-1 text-[12px]" style={{ color: editorTheme.colors.shaded }}>
             {fields.slice(0, 3).map((field) => {
               const rawValue = block.data[field.id];
               const value =

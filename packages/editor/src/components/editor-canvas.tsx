@@ -1,11 +1,13 @@
 import { useMemo } from "react";
 import { useDrop } from "react-dnd";
 
-import BlockNode from "./canvas/block-node";
-import SlotDropZone from "./canvas/slot-drop-zone";
-
 import { DND_ITEM_TYPES, type BlockDragItem } from "../dnd/item-types";
 import { useEditorStore } from "../state/editor-store";
+import { editorTheme } from "../theme";
+import { withAlpha } from "../utils/color";
+
+import BlockNode from "./canvas/block-node";
+import SlotDropZone from "./canvas/slot-drop-zone";
 
 const EditorCanvas = () => {
   const document = useEditorStore((state) => state.document);
@@ -26,10 +28,19 @@ const EditorCanvas = () => {
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-10 py-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="rounded-full border border-[#3A5AE5] bg-[#3A5AE510] px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#3A5AE5]">
+            <span
+              className="rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]"
+              style={{
+                borderColor: editorTheme.colors.action,
+                backgroundColor: withAlpha(editorTheme.colors.action, 0.08),
+                color: editorTheme.colors.action,
+              }}
+            >
               Canvas
             </span>
-            <span className="text-sm text-[#657782]">Drag and drop blocks to compose your workflow.</span>
+            <span className="text-sm" style={{ color: editorTheme.colors.shaded }}>
+              Drag and drop blocks to compose your workflow.
+            </span>
           </div>
         </div>
         <div className="flex flex-col gap-4">

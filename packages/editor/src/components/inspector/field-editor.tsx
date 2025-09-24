@@ -4,6 +4,8 @@ import { createPortal } from "react-dom";
 import type { BlockFieldDefinition } from "@workflow-builder/core";
 
 import { useEditorStore } from "../../state/editor-store";
+import { editorTheme } from "../../theme";
+import { withAlpha } from "../../utils/color";
 
 import ExpressionEditor from "./expression-editor";
 import JsonSchemaEditor from "./json-schema-editor";
@@ -14,6 +16,16 @@ type FieldEditorProps = {
   onChange: (value: unknown) => void;
   contextBlockId?: string;
 };
+
+const descriptionStyle = { color: editorTheme.colors.shaded } as const;
+const labelTextStyle = { color: editorTheme.colors.foreground } as const;
+const baseInputClass =
+  "w-full rounded border bg-[var(--editor-color-background-default)] p-2 text-sm outline-none focus:border-[var(--editor-color-action)] focus:ring-2 focus:ring-[var(--editor-color-action)]";
+const baseInputStyle = {
+  borderColor: editorTheme.colors.borderStrong,
+  color: editorTheme.colors.foreground,
+  background: editorTheme.colors.backgroundDefault,
+} as const;
 
 const FieldEditor = ({ field, value, onChange, contextBlockId }: FieldEditorProps) => {
   const input = field.input;
@@ -45,16 +57,33 @@ const FieldEditor = ({ field, value, onChange, contextBlockId }: FieldEditorProp
   if (input.kind === "boolean") {
     const checked = typeof value === "boolean" ? value : Boolean(fallbackValue);
     return (
-      <label className="flex items-center justify-between rounded-xl border border-[#0A1A2314] bg-white px-3 py-2 text-sm text-[#0A1A23] shadow-[0_12px_20px_rgba(10,26,35,0.08)]">
+      <label
+        className="flex items-center justify-between rounded-xl border px-3 py-2 text-sm shadow-[0_12px_20px_rgba(10,26,35,0.08)]"
+        style={{
+          borderColor: editorTheme.colors.borderSubtle,
+          background: editorTheme.surfaces.card,
+          color: editorTheme.colors.foreground,
+        }}
+      >
         <span className="flex flex-col">
-          <span className="font-medium text-[#0A1A23]">{field.label}</span>
-          {field.description ? <span className="text-xs text-[#657782]">{field.description}</span> : null}
+          <span className="font-medium" style={labelTextStyle}>
+            {field.label}
+          </span>
+          {field.description ? (
+            <span className="text-xs" style={descriptionStyle}>
+              {field.description}
+            </span>
+          ) : null}
         </span>
         <input
           type="checkbox"
           checked={checked}
           onChange={(event) => onChange(event.target.checked)}
-          className="h-4 w-4 rounded border-[#0A1A2333] text-[#3A5AE5] focus:ring-[#3A5AE5]"
+          className="h-4 w-4 rounded focus:ring-[var(--editor-color-action)]"
+          style={{
+            borderColor: editorTheme.colors.borderStrong,
+            color: editorTheme.colors.action,
+          }}
         />
       </label>
     );
@@ -68,10 +97,16 @@ const FieldEditor = ({ field, value, onChange, contextBlockId }: FieldEditorProp
         ? String(fallbackValue)
         : "";
     return (
-      <label className="flex flex-col gap-2 text-sm text-[#0A1A23]">
+      <label className="flex flex-col gap-2 text-sm" style={labelTextStyle}>
         <div className="flex flex-col gap-1">
-          <span className="font-medium text-[#0A1A23]">{field.label}</span>
-          {field.description ? <span className="text-xs text-[#657782]">{field.description}</span> : null}
+          <span className="font-medium" style={labelTextStyle}>
+            {field.label}
+          </span>
+          {field.description ? (
+            <span className="text-xs" style={descriptionStyle}>
+              {field.description}
+            </span>
+          ) : null}
         </div>
         <input
           type="number"
@@ -87,7 +122,8 @@ const FieldEditor = ({ field, value, onChange, contextBlockId }: FieldEditorProp
               onChange(Number(next));
             }
           }}
-          className="w-full rounded border border-[#0A1A2333] bg-white p-2 text-sm text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+          className={baseInputClass}
+          style={baseInputStyle}
         />
       </label>
     );
@@ -96,15 +132,22 @@ const FieldEditor = ({ field, value, onChange, contextBlockId }: FieldEditorProp
   if (input.kind === "enum") {
     const stringValue = typeof value === "string" ? value : (typeof fallbackValue === "string" ? fallbackValue : "");
     return (
-      <label className="flex flex-col gap-2 text-sm text-[#0A1A23]">
+      <label className="flex flex-col gap-2 text-sm" style={labelTextStyle}>
         <div className="flex flex-col gap-1">
-          <span className="font-medium text-[#0A1A23]">{field.label}</span>
-          {field.description ? <span className="text-xs text-[#657782]">{field.description}</span> : null}
+          <span className="font-medium" style={labelTextStyle}>
+            {field.label}
+          </span>
+          {field.description ? (
+            <span className="text-xs" style={descriptionStyle}>
+              {field.description}
+            </span>
+          ) : null}
         </div>
         <select
           value={stringValue}
           onChange={(event) => onChange(event.target.value)}
-          className="w-full rounded border border-[#0A1A2333] bg-white p-2 text-sm text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+          className={`${baseInputClass} appearance-none`}
+          style={baseInputStyle}
         >
           <option value="" disabled>
             Select…
@@ -122,15 +165,22 @@ const FieldEditor = ({ field, value, onChange, contextBlockId }: FieldEditorProp
   if (input.kind === "identifier") {
     const identifierValue = typeof value === "string" ? value : (typeof fallbackValue === "string" ? fallbackValue : "");
     return (
-      <label className="flex flex-col gap-2 text-sm text-[#0A1A23]">
+      <label className="flex flex-col gap-2 text-sm" style={labelTextStyle}>
         <div className="flex flex-col gap-1">
-          <span className="font-medium text-[#0A1A23]">{field.label}</span>
-          {field.description ? <span className="text-xs text-[#657782]">{field.description}</span> : null}
+          <span className="font-medium" style={labelTextStyle}>
+            {field.label}
+          </span>
+          {field.description ? (
+            <span className="text-xs" style={descriptionStyle}>
+              {field.description}
+            </span>
+          ) : null}
         </div>
         <input
           value={identifierValue}
           onChange={(event) => onChange(event.target.value)}
-          className="w-full rounded border border-[#0A1A2333] bg-white p-2 text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4] focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+          className={`${baseInputClass} placeholder:text-[var(--editor-color-accent-muted)]`}
+          style={baseInputStyle}
           placeholder="identifier"
         />
       </label>
@@ -141,16 +191,23 @@ const FieldEditor = ({ field, value, onChange, contextBlockId }: FieldEditorProp
     const stringValue = typeof value === "string" ? value : (typeof fallbackValue === "string" ? fallbackValue : "");
     if (input.multiline) {
       return (
-        <label className="flex flex-col gap-2 text-sm text-[#0A1A23]">
+        <label className="flex flex-col gap-2 text-sm" style={labelTextStyle}>
           <div className="flex flex-col gap-1">
-            <span className="font-medium text-[#0A1A23]">{field.label}</span>
-            {field.description ? <span className="text-xs text-[#657782]">{field.description}</span> : null}
+            <span className="font-medium" style={labelTextStyle}>
+              {field.label}
+            </span>
+            {field.description ? (
+              <span className="text-xs" style={descriptionStyle}>
+                {field.description}
+              </span>
+            ) : null}
           </div>
           <textarea
             value={stringValue}
             onChange={(event) => onChange(event.target.value)}
             rows={4}
-            className="w-full rounded border border-[#0A1A2333] bg-white p-2 text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4] focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+            className={`${baseInputClass} placeholder:text-[var(--editor-color-accent-muted)]`}
+            style={baseInputStyle}
             placeholder={input.placeholder}
           />
         </label>
@@ -158,15 +215,22 @@ const FieldEditor = ({ field, value, onChange, contextBlockId }: FieldEditorProp
     }
 
     return (
-      <label className="flex flex-col gap-2 text-sm text-[#0A1A23]">
+      <label className="flex flex-col gap-2 text-sm" style={labelTextStyle}>
         <div className="flex flex-col gap-1">
-          <span className="font-medium text-[#0A1A23]">{field.label}</span>
-          {field.description ? <span className="text-xs text-[#657782]">{field.description}</span> : null}
+          <span className="font-medium" style={labelTextStyle}>
+            {field.label}
+          </span>
+          {field.description ? (
+            <span className="text-xs" style={descriptionStyle}>
+              {field.description}
+            </span>
+          ) : null}
         </div>
         <input
           value={stringValue}
           onChange={(event) => onChange(event.target.value)}
-          className="w-full rounded border border-[#0A1A2333] bg-white p-2 text-sm text-[#0A1A23] outline-none placeholder:text-[#9AA7B4] focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+          className={`${baseInputClass} placeholder:text-[var(--editor-color-accent-muted)]`}
+          style={baseInputStyle}
           placeholder={input.placeholder}
         />
       </label>
@@ -178,7 +242,13 @@ const FieldEditor = ({ field, value, onChange, contextBlockId }: FieldEditorProp
     const language = input.kind === "code" ? input.language : undefined;
     const placeholder = input.kind === "code" ? input.placeholder : undefined;
     return (
-      <div className="rounded-xl border border-[#0A1A2314] bg-white p-3 shadow-[0_18px_32px_rgba(10,26,35,0.08)]">
+      <div
+        className="rounded-xl border p-3 shadow-[0_18px_32px_rgba(10,26,35,0.08)]"
+        style={{
+          borderColor: editorTheme.colors.borderSubtle,
+          background: editorTheme.surfaces.card,
+        }}
+      >
         <ExpressionEditor
           value={typeof value === "string" ? value : typeof fallbackValue === "string" ? fallbackValue : ""}
           onChange={(expression) => onChange(expression)}
@@ -200,40 +270,83 @@ const FieldEditor = ({ field, value, onChange, contextBlockId }: FieldEditorProp
         <button
           type="button"
           onClick={() => setSchemaModalOpen(true)}
-          className="self-start rounded-lg border border-[#0A1A2333] bg-white px-3 py-2 text-sm text-[#0A1A23] shadow-sm transition hover:border-[#3A5AE5] hover:text-[#3A5AE5]"
+          className="self-start rounded-lg border px-3 py-2 text-sm shadow-sm transition hover:border-[var(--editor-color-action)] hover:text-[var(--editor-color-action)]"
+          style={{
+            borderColor: editorTheme.colors.borderStrong,
+            background: editorTheme.colors.backgroundDefault,
+            color: editorTheme.colors.foreground,
+          }}
         >
           edit schema
         </button>
         {schemaValue ? (
-          <pre className="max-h-48 overflow-auto rounded-lg border border-[#0A1A2314] bg-[#F8FAFF] p-3 text-xs text-[#465764]">
+          <pre
+            className="max-h-48 overflow-auto rounded-lg border p-3 text-xs"
+            style={{
+              borderColor: editorTheme.colors.borderSubtle,
+              background: editorTheme.colors.backgroundSoft,
+              color: editorTheme.colors.shaded,
+            }}
+          >
             {schemaValue}
           </pre>
         ) : (
-          <div className="rounded-lg border border-dashed border-[#0A1A2333] bg-[#F8FAFF] p-3 text-xs text-[#657782]">
+          <div
+            className="rounded-lg border border-dashed p-3 text-xs"
+            style={{
+              borderColor: editorTheme.colors.borderStrong,
+              background: editorTheme.colors.backgroundSoft,
+              color: editorTheme.colors.shaded,
+            }}
+          >
             No schema defined yet.
           </div>
         )}
         {isSchemaModalOpen && typeof document !== "undefined"
           ? createPortal(
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-6">
-                <div className="flex w-full max-w-3xl max-h-[85vh] flex-col overflow-hidden rounded-2xl bg-white shadow-[0_32px_72px_rgba(10,26,35,0.18)]">
-                  <div className="flex items-center justify-between border-b border-[#0A1A2314] px-6 py-4">
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ backgroundColor: withAlpha(editorTheme.colors.foreground, 0.55) }}>
+                <div
+                  className="flex w-full max-w-3xl max-h-[85vh] flex-col overflow-hidden rounded-2xl shadow-[0_32px_72px_rgba(10,26,35,0.18)]"
+                  style={{ background: editorTheme.surfaces.card }}
+                >
+                  <div
+                    className="flex items-center justify-between border-b px-6 py-4"
+                    style={{ borderColor: editorTheme.colors.borderSubtle }}
+                  >
                     <div className="flex flex-col">
-                      <span className="text-lg font-semibold text-[#0A1A23]">{field.label}</span>
+                      <span className="text-lg font-semibold" style={labelTextStyle}>
+                        {field.label}
+                      </span>
                       {field.description ? (
-                        <span className="text-sm text-[#657782]">{field.description}</span>
+                        <span className="text-sm" style={descriptionStyle}>
+                          {field.description}
+                        </span>
                       ) : null}
                     </div>
                     <button
                       type="button"
                       onClick={() => setSchemaModalOpen(false)}
-                      className="rounded-md border border-[#0A1A2333] px-3 py-1.5 text-sm text-[#0A1A23] transition hover:border-[#3A5AE5] hover:text-[#3A5AE5]"
+                      className="rounded-md border px-3 py-1.5 text-sm transition hover:border-[var(--editor-color-action)] hover:text-[var(--editor-color-action)]"
+                      style={{
+                        borderColor: editorTheme.colors.borderStrong,
+                        color: editorTheme.colors.foreground,
+                        background: editorTheme.colors.backgroundDefault,
+                      }}
                     >
                       close
                     </button>
                   </div>
-                  <div className="flex flex-1 flex-col overflow-hidden bg-[#F5F6F9] p-6">
-                    <div className="flex-1 overflow-auto rounded-xl border border-[#0A1A2314] bg-white p-4 shadow-inner">
+                  <div
+                    className="flex flex-1 flex-col overflow-hidden p-6"
+                    style={{ background: editorTheme.colors.backgroundSoft }}
+                  >
+                    <div
+                      className="flex-1 overflow-auto rounded-xl border p-4 shadow-inner"
+                      style={{
+                        borderColor: editorTheme.colors.borderSubtle,
+                        background: editorTheme.colors.backgroundDefault,
+                      }}
+                    >
                       <JsonSchemaEditor
                         value={schemaValue}
                         onChange={(next) => onChange(next)}
@@ -252,9 +365,13 @@ const FieldEditor = ({ field, value, onChange, contextBlockId }: FieldEditorProp
   }
 
   return (
-    <label className="flex flex-col gap-2 text-sm text-[#0A1A23]">
-      <span className="font-medium">{field.label}</span>
-      <span className="text-xs text-[#657782]">Unsupported field type</span>
+    <label className="flex flex-col gap-2 text-sm" style={labelTextStyle}>
+      <span className="font-medium" style={labelTextStyle}>
+        {field.label}
+      </span>
+      <span className="text-xs" style={descriptionStyle}>
+        Unsupported field type
+      </span>
     </label>
   );
 };

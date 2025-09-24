@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
+import { editorTheme } from "../theme";
+import { withAlpha } from "../utils/color";
 import { Icon } from "./icon";
 
 type VersionDescriptor = {
@@ -97,51 +99,97 @@ const VersionHistoryDrawer = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-end bg-[rgba(10,26,35,0.35)] backdrop-blur" role="dialog" aria-modal="true">
-      <div className="flex h-full w-[420px] flex-col border-l border-[#0A1A2314] bg-white shadow-[0_40px_80px_rgba(10,26,35,0.35)]">
-        <div className="flex items-center gap-3 border-b border-[#0A1A2314] bg-white px-6 py-4">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#3A5AE510] text-[#3A5AE5]">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-end backdrop-blur"
+      role="dialog"
+      aria-modal="true"
+      style={{ backgroundColor: withAlpha(editorTheme.colors.foreground, 0.35) }}
+    >
+      <div
+        className="flex h-full w-[420px] flex-col border-l shadow-[0_40px_80px_rgba(10,26,35,0.35)]"
+        style={{
+          borderColor: editorTheme.colors.borderSubtle,
+          background: editorTheme.surfaces.card,
+        }}
+      >
+        <div
+          className="flex items-center gap-3 border-b px-6 py-4"
+          style={{
+            borderColor: editorTheme.colors.borderSubtle,
+            background: editorTheme.surfaces.card,
+          }}
+        >
+          <span
+            className="flex h-10 w-10 items-center justify-center rounded-full"
+            style={{
+              backgroundColor: withAlpha(editorTheme.colors.action, 0.12),
+              color: editorTheme.colors.action,
+            }}
+          >
             <Icon name="clock" className="h-5 w-5" title="Version history" />
           </span>
           <div className="flex flex-col">
-            <h2 className="text-base font-semibold text-[#0A1A23]">Version History</h2>
-            <span className="text-xs uppercase tracking-[0.3em] text-[#657782]">Track and restore revisions</span>
+            <h2 className="text-base font-semibold" style={{ color: editorTheme.colors.foreground }}>
+              Version History
+            </h2>
+            <span className="text-xs uppercase tracking-[0.3em]" style={{ color: editorTheme.colors.shaded }}>
+              Track and restore revisions
+            </span>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="ml-auto flex h-8 w-8 items-center justify-center rounded-full border border-[#0A1A2333] text-[#657782] transition hover:border-[#3A5AE5] hover:text-[#3A5AE5]"
+            className="ml-auto flex h-8 w-8 items-center justify-center rounded-full border transition hover:border-[var(--editor-color-action)] hover:text-[var(--editor-color-action)]"
+            style={{
+              borderColor: editorTheme.colors.borderStrong,
+              color: editorTheme.colors.shaded,
+              background: editorTheme.surfaces.card,
+            }}
             aria-label="Close version history"
           >
             <Icon name="close" className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="flex flex-col gap-4 border-b border-[#0A1A2314] bg-[#F5F6F9] px-6 py-4">
+        <div
+          className="flex flex-col gap-4 border-b px-6 py-4"
+          style={{
+            borderColor: editorTheme.colors.borderSubtle,
+            background: editorTheme.colors.backgroundSoft,
+          }}
+        >
           <div className="flex items-center gap-2">
             <input
               value={newVersionName}
               onChange={(event) => setNewVersionName(event.target.value)}
               placeholder="Name this version (optional)"
-              className="flex-1 rounded-md border border-[#0A1A2333] bg-white px-3 py-2 text-sm text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+              className="flex-1 rounded-md border bg-[var(--editor-color-background-default)] px-3 py-2 text-sm outline-none placeholder:text-[var(--editor-color-accent-muted)] focus:border-[var(--editor-color-action)] focus:ring-2 focus:ring-[var(--editor-color-action)]"
+              style={{
+                borderColor: editorTheme.colors.borderStrong,
+                color: editorTheme.colors.foreground,
+              }}
             />
             <button
               type="button"
               onClick={handleCreateVersion}
-              className="flex items-center gap-2 rounded-full border border-[#3A5AE5] bg-[#3A5AE5] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2d4bd4]"
+              className="flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--editor-color-action-hover)]"
+              style={{
+                borderColor: editorTheme.colors.action,
+                backgroundColor: editorTheme.colors.action,
+              }}
             >
               <Icon name="plus" className="h-4 w-4" />
               Save
             </button>
           </div>
-          <p className="text-xs text-[#657782]">
+          <p className="text-xs" style={{ color: editorTheme.colors.shaded }}>
             Saved versions capture the entire workflow and can be restored at any time.
           </p>
         </div>
 
         <div className="workflow-editor-scrollable flex-1 overflow-y-auto px-6 py-5">
           {versions.length === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-[#657782]">
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-center" style={{ color: editorTheme.colors.shaded }}>
               <Icon name="file" className="h-8 w-8" />
               <p className="text-sm">No versions saved yet. Create versions to capture milestones.</p>
             </div>
@@ -155,9 +203,13 @@ const VersionHistoryDrawer = ({
                 return (
                   <li
                     key={version.id}
-                    className={`rounded-xl border ${
-                      isActive ? "border-[#3A5AE5] bg-[#3A5AE510]" : "border-[#0A1A2314] bg-white"
-                    } px-4 py-3 shadow-sm transition`}
+                    className="rounded-xl border px-4 py-3 shadow-sm transition"
+                    style={{
+                      borderColor: isActive ? editorTheme.colors.action : editorTheme.colors.borderSubtle,
+                      background: isActive
+                        ? withAlpha(editorTheme.colors.action, 0.08)
+                        : editorTheme.colors.backgroundDefault,
+                    }}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex flex-col gap-1">
@@ -165,20 +217,34 @@ const VersionHistoryDrawer = ({
                           <input
                             value={draftName}
                             onChange={(event) => setDraftName(event.target.value)}
-                            className="rounded-md border border-[#3A5AE5] bg-white px-2 py-1 text-sm text-[#0A1A23] outline-none focus:ring-2 focus:ring-[#3A5AE533]"
+                            className="rounded-md border bg-[var(--editor-color-background-default)] px-2 py-1 text-sm outline-none placeholder:text-[var(--editor-color-accent-muted)] focus:border-[var(--editor-color-action)] focus:ring-2 focus:ring-[var(--editor-color-action)]"
+                            style={{
+                              borderColor: editorTheme.colors.action,
+                              color: editorTheme.colors.foreground,
+                            }}
                             autoFocus
                           />
                         ) : (
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-[#0A1A23]">{version.name}</span>
+                            <span className="text-sm font-semibold" style={{ color: editorTheme.colors.foreground }}>
+                              {version.name}
+                            </span>
                             {isActive ? (
-                              <span className="rounded-full bg-[#3A5AE510] px-2 py-[2px] text-[10px] font-semibold uppercase tracking-wide text-[#3A5AE5]">
+                              <span
+                                className="rounded-full px-2 py-[2px] text-[10px] font-semibold uppercase tracking-wide"
+                                style={{
+                                  backgroundColor: withAlpha(editorTheme.colors.action, 0.09),
+                                  color: editorTheme.colors.action,
+                                }}
+                              >
                                 Current
                               </span>
                             ) : null}
                           </div>
                         )}
-                        <span className="text-xs text-[#657782]">{formatter.format(new Date(version.createdAt))}</span>
+                        <span className="text-xs" style={{ color: editorTheme.colors.shaded }}>
+                          {formatter.format(new Date(version.createdAt))}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
                         {isEditing ? (
@@ -186,7 +252,12 @@ const VersionHistoryDrawer = ({
                             <button
                               type="button"
                               onClick={() => handleRenameVersion(version.id)}
-                              className="flex h-8 w-8 items-center justify-center rounded-full border border-[#32AA81] text-[#32AA81] transition hover:bg-[#32AA8110]"
+                              className="flex h-8 w-8 items-center justify-center rounded-full border transition hover:bg-[var(--editor-color-positive-box)]"
+                              style={{
+                                borderColor: editorTheme.colors.positive,
+                                color: editorTheme.colors.positive,
+                                backgroundColor: editorTheme.colors.backgroundDefault,
+                              }}
                               aria-label="Save version name"
                             >
                               <Icon name="check" className="h-4 w-4" />
@@ -197,7 +268,12 @@ const VersionHistoryDrawer = ({
                                 setEditingVersionId(null);
                                 setDraftName("");
                               }}
-                              className="flex h-8 w-8 items-center justify-center rounded-full border border-[#0A1A2333] text-[#657782] transition hover:border-[#3A5AE5] hover:text-[#3A5AE5]"
+                              className="flex h-8 w-8 items-center justify-center rounded-full border transition hover:border-[var(--editor-color-action)] hover:text-[var(--editor-color-action)]"
+                              style={{
+                                borderColor: editorTheme.colors.borderStrong,
+                                color: editorTheme.colors.shaded,
+                                backgroundColor: editorTheme.surfaces.card,
+                              }}
                               aria-label="Cancel rename"
                             >
                               <Icon name="close" className="h-4 w-4" />
@@ -208,7 +284,12 @@ const VersionHistoryDrawer = ({
                             <button
                               type="button"
                               onClick={() => handleRestoreVersion(version.id)}
-                              className="flex h-8 w-8 items-center justify-center rounded-full border border-[#3A5AE5] text-[#3A5AE5] transition hover:bg-[#3A5AE510]"
+                              className="flex h-8 w-8 items-center justify-center rounded-full border transition hover:bg-[var(--editor-color-action-box)]"
+                              style={{
+                                borderColor: editorTheme.colors.action,
+                                color: editorTheme.colors.action,
+                                backgroundColor: editorTheme.colors.backgroundDefault,
+                              }}
                               aria-label="Restore this version"
                             >
                               <Icon name="undo" className="h-4 w-4" />
@@ -220,7 +301,12 @@ const VersionHistoryDrawer = ({
                                   setEditingVersionId(version.id);
                                   setDraftName(version.name);
                                 }}
-                                className="flex h-8 w-8 items-center justify-center rounded-full border border-[#0A1A2333] text-[#657782] transition hover:border-[#3A5AE5] hover:text-[#3A5AE5]"
+                                className="flex h-8 w-8 items-center justify-center rounded-full border transition hover:border-[var(--editor-color-action)] hover:text-[var(--editor-color-action)]"
+                                style={{
+                                  borderColor: editorTheme.colors.borderStrong,
+                                  color: editorTheme.colors.shaded,
+                                  backgroundColor: editorTheme.surfaces.card,
+                                }}
                                 aria-label="Rename version"
                               >
                                 <Icon name="rename" className="h-4 w-4" />
@@ -230,11 +316,18 @@ const VersionHistoryDrawer = ({
                               <button
                                 type="button"
                                 onClick={() => handleDeleteVersion(version.id)}
-                                className={`flex h-8 w-8 items-center justify-center rounded-full border transition ${
-                                  isPendingDelete
-                                    ? "border-[#CD3A50] bg-[#CD3A5010] text-[#CD3A50]"
-                                    : "border-[#0A1A2333] text-[#657782] hover:border-[#CD3A50] hover:text-[#CD3A50]"
-                                }`}
+                                className="flex h-8 w-8 items-center justify-center rounded-full border transition"
+                                style={{
+                                  borderColor: isPendingDelete
+                                    ? editorTheme.colors.negative
+                                    : editorTheme.colors.borderStrong,
+                                  backgroundColor: isPendingDelete
+                                    ? withAlpha(editorTheme.colors.negative, 0.1)
+                                    : editorTheme.surfaces.card,
+                                  color: isPendingDelete
+                                    ? editorTheme.colors.negative
+                                    : editorTheme.colors.shaded,
+                                }}
                                 aria-label={isPendingDelete ? "Confirm delete" : "Delete version"}
                               >
                                 <Icon name="trash" className="h-4 w-4" />
@@ -245,7 +338,9 @@ const VersionHistoryDrawer = ({
                       </div>
                     </div>
                     {version.note ? (
-                      <p className="mt-2 text-xs text-[#657782]">{version.note}</p>
+                      <p className="mt-2 text-xs" style={{ color: editorTheme.colors.shaded }}>
+                        {version.note}
+                      </p>
                     ) : null}
                   </li>
                 );

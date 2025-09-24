@@ -67,7 +67,7 @@ const WorkflowEditorViewContainer = ({
         className="flex w-[420px] flex-col overflow-hidden backdrop-blur"
         style={{
           borderLeft: `1px solid ${editorTheme.colors.borderSubtle}`,
-          background: 'rgba(255,255,255,0.82)',
+          background: editorTheme.surfaces.glass,
         }}
       >
         <InspectorPanel />
@@ -81,8 +81,8 @@ const WorkflowEditorViewContainer = ({
         className="workflow-editor-scrollable flex w-full flex-col overflow-hidden rounded-2xl"
         style={{
           border: `1px solid ${editorTheme.colors.borderSubtle}`,
-          background: 'rgba(255, 255, 255, 0.92)',
-          boxShadow: '0 30px 60px rgba(10, 26, 35, 0.18)',
+          background: editorTheme.surfaces.card,
+          boxShadow: "0 30px 60px rgba(10, 26, 35, 0.18)",
         }}
       >
         <CodeEditorPanel variant="full" />
@@ -96,8 +96,8 @@ const WorkflowEditorViewContainer = ({
         className="workflow-editor-scrollable flex w-full flex-col overflow-hidden rounded-2xl"
         style={{
           border: `1px solid ${editorTheme.colors.borderSubtle}`,
-          background: 'rgba(255, 255, 255, 0.92)',
-          boxShadow: '0 30px 60px rgba(10, 26, 35, 0.18)',
+          background: editorTheme.surfaces.card,
+          boxShadow: "0 30px 60px rgba(10, 26, 35, 0.18)",
         }}
       >
         {observabilityConfig ? (
@@ -116,24 +116,38 @@ const WorkflowEditorViewContainer = ({
         ) : (
           <div className="flex flex-1 items-center justify-center p-12">
             <div className="flex max-w-md flex-col items-center gap-6 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#EEF2FF]">
-                <svg className="h-8 w-8 text-[#3A5AE5]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div
+                className="flex h-16 w-16 items-center justify-center rounded-full"
+                style={{
+                  backgroundColor: editorTheme.colors.backgroundTint,
+                  color: editorTheme.colors.action,
+                }}
+              >
+                <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                 </svg>
               </div>
               <div className="space-y-2">
-                <h3 className="text-lg font-semibold text-[#0A1A23]">Recordings Unavailable</h3>
-                <p className="text-sm text-[#657782]">
+                <h3 className="text-lg font-semibold" style={{ color: editorTheme.colors.foreground }}>
+                  Recordings Unavailable
+                </h3>
+                <p className="text-sm" style={{ color: editorTheme.colors.shaded }}>
                   Connect an OS client to enable workflow recordings and observability features.
                 </p>
               </div>
-              <div className="flex items-center gap-4 text-xs text-[#657782]">
+              <div className="flex items-center gap-4 text-xs" style={{ color: editorTheme.colors.shaded }}>
                 <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-[#CD3A50]" />
+                  <div
+                    className="h-2 w-2 rounded-full"
+                    style={{ backgroundColor: editorTheme.colors.negative }}
+                  />
                   <span>OS Client Required</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-[#32AA81]" />
+                  <div
+                    className="h-2 w-2 rounded-full"
+                    style={{ backgroundColor: editorTheme.colors.positive }}
+                  />
                   <span>Real-time Monitoring</span>
                 </div>
               </div>
