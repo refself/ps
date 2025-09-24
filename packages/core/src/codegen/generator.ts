@@ -50,6 +50,14 @@ const parseExpression = (code: string): Expression => {
   }
 };
 
+const parseExpressionSafely = (code: string): Expression => {
+  try {
+    return parseExpression(code);
+  } catch {
+    return t.stringLiteral(code);
+  }
+};
+
 const parseStatement = (code: string): Statement => {
   const ast = recastParse(code, recastOptions);
   const statement = ast.program.body[0] as Statement | undefined;
@@ -252,7 +260,8 @@ const blockToStatement = ({
     case "press-call": {
       const key = typeof block.data.key === "string" ? block.data.key : "return";
       const modifiersRaw = typeof block.data.modifiers === "string" ? block.data.modifiers : "";
-      const args: Expression[] = [t.stringLiteral(key)];
+      
+      const args: Expression[] = [parseExpressionSafely(key)];
       const modifierTokens = modifiersRaw
         .split(",")
         .map((token) => token.trim())
@@ -293,13 +302,7 @@ const blockToStatement = ({
     case "type-call": {
       const rawText = typeof block.data.text === "string" ? block.data.text.trim() : "";
       const candidate = rawText.length > 0 ? rawText : "\"\"";
-      let expression: t.Expression;
-      try {
-        expression = parseExpression(candidate);
-      } catch {
-        expression = parseExpression(JSON.stringify(rawText));
-      }
-      return [t.expressionStatement(t.callExpression(t.identifier("type"), [expression]))];
+      return [t.expressionStatement(t.callExpression(t.identifier("type"), [parseExpressionSafely(candidate)]))];
     }
 
     case "read-clipboard-call": {
@@ -331,8 +334,7 @@ const blockToStatement = ({
 
     case "log-call": {
       const messageExpression = typeof block.data.message === "string" ? block.data.message : "";
-      const expression = parseExpression(messageExpression);
-      return [t.expressionStatement(t.callExpression(t.identifier("log"), [expression]))];
+      return [t.expressionStatement(t.callExpression(t.identifier("log"), [parseExpressionSafely(messageExpression)]))];
     }
 
     case "function-call": {
@@ -358,7 +360,8 @@ const blockToStatement = ({
       const bringToFront = typeof block.data.bringToFront === "boolean" ? block.data.bringToFront : true;
       const waitSecondsRaw = block.data.waitSeconds;
       const waitSeconds = typeof waitSecondsRaw === "number" && Number.isFinite(waitSecondsRaw) ? waitSecondsRaw : 5;
-      const args: Expression[] = [t.stringLiteral(appName)];
+      
+      const args: Expression[] = [parseExpressionSafely(appName)];
       if (bringToFront !== undefined) {
         args.push(t.booleanLiteral(bringToFront));
       }
@@ -375,7 +378,7 @@ const blockToStatement = ({
 
     case "open-url-call": {
       const url = typeof block.data.url === "string" ? block.data.url : "";
-      return [t.expressionStatement(t.callExpression(t.identifier("openUrl"), [t.stringLiteral(url)]))];
+      return [t.expressionStatement(t.callExpression(t.identifier("openUrl"), [parseExpressionSafely(url)]))];
     }
 
     case "ai-call": {
@@ -384,7 +387,7 @@ const blockToStatement = ({
       const format = typeof block.data.format === "string" ? block.data.format : "text";
       const schemaCode = typeof block.data.schema === "string" ? block.data.schema : "";
 
-      const args: Expression[] = [t.stringLiteral(prompt)];
+      const args: Expression[] = [parseExpressionSafely(prompt)];
       const properties: t.ObjectProperty[] = [];
 
       if (format && format !== "text") {
@@ -416,13 +419,7 @@ const blockToStatement = ({
 
       const properties: t.ObjectProperty[] = [];
       if (rawInstruction.length > 0) {
-        let instructionExpression: Expression;
-        try {
-          instructionExpression = parseExpression(rawInstruction);
-        } catch {
-          instructionExpression = t.stringLiteral(rawInstruction);
-        }
-        properties.push(t.objectProperty(t.identifier("instruction"), instructionExpression));
+        properties.push(t.objectProperty(t.identifier("instruction"), parseExpressionSafely(rawInstruction)));
       }
       if (element) {
         properties.push(t.objectProperty(t.identifier("element"), t.stringLiteral(element)));
@@ -458,7 +455,7 @@ const blockToStatement = ({
       const format = typeof block.data.format === "string" ? block.data.format : "json";
       const schemaCode = typeof block.data.schema === "string" ? block.data.schema : "";
 
-      const args: Expression[] = [targetExpression, t.stringLiteral(prompt)];
+      const args: Expression[] = [targetExpression, parseExpressionSafely(prompt)];
       const properties: t.ObjectProperty[] = [];
 
       if (format) {

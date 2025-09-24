@@ -11,10 +11,10 @@ import type {
   StartRecordingInput,
   StopRecordingInput,
   GetRecordingInput,
-} from '../schemas/osclient-tools';
+} from '@/schemas/osclient-tools';
 import {
   RecordingResultSchema,
-} from '../schemas/recording-result';
+} from '@/schemas/recording-result';
 import type {
   WorkflowDetail,
   WorkflowVersionHeader,
@@ -25,7 +25,7 @@ import type {
   RenameVersionInput,
   DeleteVersionInput,
   WorkflowRecording,
-} from '../schemas/workflow-schemas';
+} from '@/schemas/workflow-schemas';
 
 interface WorkflowState {
   workflowId: string;
@@ -77,10 +77,6 @@ export class WorkflowAgent extends Agent<Env, WorkflowState> {
     console.log(`Workflow agent ${this.name} started`);
   }
 
-  // No WebSocket handlers - all connections go through ConnectionCoordinator
-
-  // Public API methods - focus on state coordination
-  // Input is already validated at route level, no need to validate again
   async initialize(input: InitializeInput): Promise<WorkflowDetail> {
     const { newState, detail } = await this.workflowService.initializeWorkflow({
       input,

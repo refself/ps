@@ -203,3 +203,23 @@ export const getConnectionStatus = async (): Promise<{
 }> => {
   return request(`/workflows/connections/status`);
 };
+
+export const startWorkflowRecording = async (
+  workflowId: string,
+  payload: Record<string, unknown> = {}
+): Promise<{ success: boolean; data: { recordingId: string } }> => {
+  return request(`/workflows/${encodeURIComponent(workflowId)}/tools/start-recording`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+};
+
+export const stopWorkflowRecording = async (
+  workflowId: string,
+  recordingId: string
+): Promise<{ success: boolean; data?: unknown }> => {
+  return request(`/workflows/${encodeURIComponent(workflowId)}/tools/stop-recording`, {
+    method: "POST",
+    body: JSON.stringify({ recordingId })
+  });
+};

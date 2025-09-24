@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { WorkflowEditor, type ObservabilityConfig } from "@workflow-builder/editor";
 import type { WorkflowDocument } from "@workflow-builder/core";
@@ -7,7 +7,7 @@ import WorkflowList from "./components/workflow-list";
 import { useWorkspaceStore, useActiveWorkflow } from "./state/workspace-store";
 import { executeWorkflowScript } from "./services/execute-script-service";
 import { useExecuteConnection } from "./hooks/use-execute-connection";
-import { WORKER_BASE_URL } from "./services/workflow-api";
+import { WORKER_BASE_URL, startWorkflowRecording, stopWorkflowRecording } from "./services/workflow-api";
 
 const API_KEY = (import.meta.env.VITE_WORKER_API_KEY ?? "").trim() || undefined;
 
@@ -21,6 +21,8 @@ const App = () => {
   const restoreWorkflowVersion = useWorkspaceStore((state) => state.restoreWorkflowVersion);
   const renameWorkflowVersion = useWorkspaceStore((state) => state.renameWorkflowVersion);
   const deleteWorkflowVersion = useWorkspaceStore((state) => state.deleteWorkflowVersion);
+  const refreshActiveWorkflow = useWorkspaceStore((state) => state.refreshActiveWorkflow);
+  const [activeRecordingId, setActiveRecordingId] = useState<string | null>(null);
 
   const latestDocumentRef = useRef(activeWorkflow?.document ?? null);
   const latestCodeRef = useRef(activeWorkflow?.code ?? "");
@@ -125,6 +127,45 @@ const App = () => {
     [activeWorkflow, deleteWorkflowVersion]
   );
 
+  const handleStartRecording = useCallback(async () => {
+    if (!activeWorkflow) {
+      return;
+    }
+    try {
+      const response = await startWorkflowRecording(activeWorkflow.id);
+      const recordingId =
+        typeof response?.data === "object" && response?.data !== null
+          ? (
+              'recordingId' in response.data && typeof response.data.recordingId === 'string'
+                ? response.data.recordingId
+                : (
+                    typeof (response.data as any).metadata === 'object' && (response.data as any).metadata !== null
+                      ? (response.data as any).metadata.recordingId
+                      : undefined
+                  )
+            )
+          : undefined;
+
+      if (typeof recordingId === "string") {
+        setActiveRecordingId(recordingId);
+      }
+    } finally {
+      void refreshActiveWorkflow();
+    }
+  }, [activeWorkflow?.id, refreshActiveWorkflow]);
+
+  const handleStopRecording = useCallback(async (recordingId: string) => {
+    if (!activeWorkflow) {
+      return;
+    }
+    try {
+      await stopWorkflowRecording(activeWorkflow.id, recordingId);
+    } finally {
+      setActiveRecordingId(null);
+      void refreshActiveWorkflow();
+    }
+  }, [activeWorkflow?.id, refreshActiveWorkflow]);
+
   if (!activeWorkflow) {
     return <WorkflowList />;
   }
@@ -147,6 +188,9 @@ const App = () => {
         onDeleteVersion: handleDeleteVersion
       }}
       observability={observabilityConfig}
+      onStartRecording={handleStartRecording}
+      onStopRecording={handleStopRecording}
+      activeRecordingId={activeRecordingId}
       enableCommandPalette
       enableUndoRedo
       className="h-screen w-screen"

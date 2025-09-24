@@ -100,12 +100,53 @@ const CodeEditorPanel = ({ variant = "pane" }: CodeEditorPanelProps) => {
           defaultLanguage="javascript"
           value={draft}
           onChange={(value) => setDraft(value ?? "")}
+          onMount={(editor) => {
+            // Prevent automatic formatting/escaping on paste
+            editor.updateOptions({
+              formatOnPaste: false,
+              formatOnType: false,
+              autoIndent: "none",
+              useTabStops: false,
+              insertSpaces: false,
+              trimAutoWhitespace: false,
+              wordWrap: "on",
+              wrappingIndent: "none"
+            });
+
+            // Add custom paste handler to preserve original formatting
+            editor.onDidPaste((e) => {
+              // Let the paste complete normally, then get the pasted content
+              setTimeout(() => {
+                const currentValue = editor.getValue();
+                // Only update if the content actually changed
+                if (currentValue !== draft) {
+                  setDraft(currentValue);
+                }
+              }, 10);
+            });
+          }}
           options={{
             minimap: { enabled: false },
             fontSize: 13,
             smoothScrolling: true,
             scrollBeyondLastLine: false,
-            automaticLayout: true
+            automaticLayout: true,
+            // Additional options to preserve formatting
+            formatOnPaste: false,
+            formatOnType: false,
+            autoIndent: "none",
+            useTabStops: false,
+            insertSpaces: false,
+            trimAutoWhitespace: false,
+            wordWrap: "on",
+            wrappingIndent: "none",
+            tabSize: 2,
+            detectIndentation: false,
+            renderWhitespace: "none",
+            // Prevent auto-closing quotes/brackets
+            autoClosingBrackets: "never",
+            autoClosingQuotes: "never",
+            autoSurround: "never"
           }}
         />
       </div>

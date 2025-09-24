@@ -340,7 +340,7 @@ export class ConnectionCoordinator extends Agent<Env, CoordinatorState> {
 
   // Check if user has OS client connected
   isOSClientConnectedForUser(_userId: string): boolean {
-    return this.state.osConnectionIds.length > 0;
+    return Array.from(this.connections.values()).some(conn => conn.type === 'osclient');
   }
 
   // Get connection status for a user

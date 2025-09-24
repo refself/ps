@@ -11,7 +11,6 @@ import type {
   SaveVersionInput,
   RestoreVersionInput,
   RenameVersionInput,
-  DeleteVersionInput
 } from '@/schemas/workflow-schemas';
 
 interface WorkflowState {

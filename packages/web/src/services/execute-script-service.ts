@@ -3,6 +3,7 @@ export type ExecuteScriptResponse = {
   output?: string | null;
   raw?: unknown;
   logs?: string[];
+  data?: unknown;
   error?: string;
   durationMs?: number;
 };
@@ -44,9 +45,9 @@ export const executeWorkflowScript = async ({
     body: JSON.stringify({ enable_narration: enableNarration })
   });
 
-  let payload: ExecuteScriptResponse;
+  let payload: { success?: boolean; data?: unknown; error?: string };
   try {
-    payload = (await response.json()) as ExecuteScriptResponse;
+    payload = (await response.json()) as { success?: boolean; data?: unknown; error?: string };
   } catch (error) {
     return {
       ok: false,
@@ -54,12 +55,18 @@ export const executeWorkflowScript = async ({
     };
   }
 
-  if (!response.ok || !payload.ok) {
+  if (!response.ok || payload.success === false) {
     return {
-      ...payload,
-      ok: false
+      ok: false,
+      error: payload.error ?? response.statusText,
+      raw: payload.data,
+      data: payload.data,
     };
   }
 
-  return payload;
+  return {
+    ok: true,
+    raw: payload.data,
+    data: payload.data,
+  };
 };
