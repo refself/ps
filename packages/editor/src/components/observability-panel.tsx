@@ -72,6 +72,18 @@ const formatTimestamp = (value: number | string | null | undefined) => {
   return date.toLocaleString();
 };
 
+const getDurationSeconds = (start?: string | null, end?: string | null) => {
+  if (!start || !end) {
+    return null;
+  }
+  const startTime = new Date(start).getTime();
+  const endTime = new Date(end).getTime();
+  if (Number.isNaN(startTime) || Number.isNaN(endTime) || endTime < startTime) {
+    return null;
+  }
+  return Math.round((endTime - startTime) / 1000);
+};
+
 const StatusBadge = ({ status }: { status: RecordingStatus }) => {
   const tone = getRecordingStatusTone(status);
   return (
@@ -396,43 +408,41 @@ const RecordingDetail = ({ recording }: { recording: ObservabilityRecording }) =
   const parsed = useMemo(() => parseRecordingData(recording), [recording]);
   const [showRaw, setShowRaw] = useState(false);
 
-  const durationSeconds = useMemo(() => {
-    if (parsed && parsed.kind === "session" && parsed.startTime && parsed.endTime) {
-      const start = new Date(parsed.startTime).getTime();
-      const end = new Date(parsed.endTime).getTime();
-      if (!Number.isNaN(start) && !Number.isNaN(end) && end >= start) {
-        return Math.round((end - start) / 1000);
-      }
-    }
-    return null;
-  }, [parsed]);
+  const actions = parsed?.kind === "session" ? parsed.actions : parsed?.actions ?? [];
+  const speechSegments = parsed?.kind === "session" ? parsed.speechSegments : [];
+  const durationSeconds = parsed?.kind === "session" ? getDurationSeconds(parsed.startTime ?? null, parsed.endTime ?? null) : null;
 
   return (
     <div className="flex h-full flex-1 flex-col gap-3 overflow-hidden">
       <div
-        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3"
+        className="flex flex-wrap items-center justify-between gap-2 rounded-xl border px-4 py-3"
         style={{
           borderColor: editorTheme.colors.borderSubtle,
           background: editorTheme.surfaces.card,
         }}
       >
-        <div className="flex flex-wrap items-center gap-3 text-[11px]" style={{ color: editorTheme.colors.accentMuted }}>
-          <div className="flex items-center gap-1">
-            <span className="uppercase tracking-wide">Recording</span>
-            <span className="font-mono text-sm" style={{ color: editorTheme.colors.foreground }}>
+        <div className="flex flex-wrap items-center gap-2 text-[11px]" style={{ color: editorTheme.colors.accentMuted }}>
+          <span>
+            Recording
+            <span className="ml-1 font-mono text-sm" style={{ color: editorTheme.colors.foreground }}>
               {shortId(recording.recordingId)}
             </span>
-          </div>
-          <div className="h-3 w-px" style={{ background: editorTheme.colors.borderMuted }} />
+          </span>
           <span>Started {formatTimestamp(recording.createdAt)}</span>
-          {recording.stoppedAt ? (
-            <>
-              <div className="h-3 w-px" style={{ background: editorTheme.colors.borderMuted }} />
-              <span>Stopped {formatTimestamp(recording.stoppedAt)}</span>
-            </>
-          ) : null}
+          {recording.stoppedAt ? <span>Stopped {formatTimestamp(recording.stoppedAt)}</span> : null}
+          {durationSeconds !== null ? <span>{durationSeconds}s</span> : null}
         </div>
-        <StatusBadge status={recording.status} />
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowRaw((prev) => !prev)}
+            className="text-[11px] font-medium underline-offset-4 transition hover:underline"
+            style={{ color: editorTheme.colors.action }}
+          >
+            {showRaw ? "Hide raw" : "View raw"}
+          </button>
+          <StatusBadge status={recording.status} />
+        </div>
       </div>
 
       {recording.lastError ? (
@@ -449,127 +459,6 @@ const RecordingDetail = ({ recording }: { recording: ObservabilityRecording }) =
       ) : null}
 
       <div className="flex flex-1 gap-4 min-h-0">
-        <div className="flex w-[320px] flex-col gap-3 min-h-0">
-          <div
-            className="rounded-xl border px-3 py-3"
-            style={{
-              borderColor: editorTheme.colors.borderSubtle,
-              background: editorTheme.surfaces.card,
-            }}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold" style={{ color: editorTheme.colors.foreground }}>
-                Session Summary
-              </h3>
-              {parsed?.kind === "session" ? (
-                <span className="font-mono text-[11px]" style={{ color: editorTheme.colors.accentMuted }}>
-                  {shortId(parsed.sessionId)}
-                </span>
-              ) : null}
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-3 text-sm" style={{ color: editorTheme.colors.foreground }}>
-              <div
-                className="rounded-lg border px-3 py-2"
-                style={{ borderColor: editorTheme.colors.borderSubtle, background: editorTheme.colors.backgroundSoft }}
-              >
-                <p className="text-[10px] uppercase tracking-wide" style={{ color: editorTheme.colors.accentMuted }}>
-                  Actions
-                </p>
-                <p className="mt-1 text-lg font-semibold">
-                  {parsed?.kind === "session" ? parsed.actions.length : parsed?.actions?.length ?? 0}
-                </p>
-              </div>
-              <div
-                className="rounded-lg border px-3 py-2"
-                style={{ borderColor: editorTheme.colors.borderSubtle, background: editorTheme.colors.backgroundSoft }}
-              >
-                <p className="text-[10px] uppercase tracking-wide" style={{ color: editorTheme.colors.accentMuted }}>
-                  Speech
-                </p>
-                <p className="mt-1 text-lg font-semibold">
-                  {parsed?.kind === "session" ? parsed.speechSegments.length : 0}
-                </p>
-              </div>
-              <div
-                className="col-span-2 rounded-lg border px-3 py-2"
-                style={{ borderColor: editorTheme.colors.borderSubtle, background: editorTheme.colors.backgroundSoft }}
-              >
-                <p className="text-[10px] uppercase tracking-wide" style={{ color: editorTheme.colors.accentMuted }}>
-                  Duration
-                </p>
-                <p className="mt-1 text-sm font-semibold" style={{ color: editorTheme.colors.foreground }}>
-                  {durationSeconds !== null
-                    ? `${durationSeconds}s`
-                    : parsed?.kind === "session" && parsed.startTime
-                    ? "In progress"
-                    : "—"}
-                </p>
-              </div>
-            </div>
-            {parsed?.kind === "session" && parsed.options ? (
-              <div className="mt-3 rounded-lg border px-3 py-2" style={{ borderColor: editorTheme.colors.borderSubtle }}>
-                <p className="mb-2 text-[10px] uppercase tracking-wide" style={{ color: editorTheme.colors.accentMuted }}>
-                  Recording Options
-                </p>
-                <dl className="space-y-1 text-[11px]" style={{ color: editorTheme.colors.shaded }}>
-                  {Object.entries(parsed.options).map(([key, value]) => (
-                    <div key={key} className="flex items-center justify-between gap-2">
-                      <dt className="uppercase tracking-wide" style={{ color: editorTheme.colors.accentMuted }}>
-                        {key}
-                      </dt>
-                      <dd className="font-medium" style={{ color: editorTheme.colors.foreground }}>
-                        {String(value)}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              </div>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => setShowRaw((prev) => !prev)}
-              className="mt-3 self-start text-[11px] font-medium underline-offset-4 transition hover:underline"
-              style={{ color: editorTheme.colors.action }}
-            >
-              {showRaw ? "Hide raw payload" : "Show raw payload"}
-            </button>
-          </div>
-
-          <div
-            className="flex flex-1 flex-col gap-2 overflow-hidden rounded-xl border px-3 py-3"
-            style={{
-              borderColor: editorTheme.colors.borderSubtle,
-              background: editorTheme.surfaces.card,
-            }}
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold" style={{ color: editorTheme.colors.foreground }}>
-                Narration
-              </h3>
-              <span className="text-[11px]" style={{ color: editorTheme.colors.accentMuted }}>
-                {parsed?.kind === "session" ? parsed.speechSegments.length : 0}
-              </span>
-            </div>
-            <div className="flex-1 overflow-auto rounded-lg border"
-              style={{ borderColor: editorTheme.colors.borderSubtle, background: editorTheme.colors.backgroundSoft }}
-            >
-              {parsed?.kind === "session" && parsed.speechSegments.length > 0 ? (
-                <ul className="space-y-2 p-3">
-                  {parsed.speechSegments.map((segment, index) => (
-                    <SpeechSegmentRow key={segment?.id ?? index} segment={segment} />
-                  ))}
-                </ul>
-              ) : (
-                <div className="flex h-full items-center justify-center text-[11px]"
-                  style={{ color: editorTheme.colors.accentMuted }}
-                >
-                  No narration recorded
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
         <div className="flex flex-1 flex-col min-h-0">
           <div
             className="flex items-center justify-between rounded-xl border px-4 py-3"
@@ -582,11 +471,47 @@ const RecordingDetail = ({ recording }: { recording: ObservabilityRecording }) =
               Actions
             </h3>
             <span className="text-[11px]" style={{ color: editorTheme.colors.accentMuted }}>
-              {parsed?.kind === "session" ? parsed.actions.length : parsed?.actions?.length ?? 0}
+              {actions.length}
             </span>
           </div>
           <div className="mt-2 flex-1 min-h-0">
-            <ActionsTable actions={parsed?.kind === "session" ? parsed.actions : parsed?.actions ?? []} />
+            <ActionsTable actions={actions} />
+          </div>
+        </div>
+
+        <div
+          className="flex w-[300px] flex-col gap-2 rounded-xl border px-3 py-3"
+          style={{
+            borderColor: editorTheme.colors.borderSubtle,
+            background: editorTheme.surfaces.card,
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold" style={{ color: editorTheme.colors.foreground }}>
+              Narration
+            </h3>
+            <span className="text-[11px]" style={{ color: editorTheme.colors.accentMuted }}>
+              {speechSegments.length}
+            </span>
+          </div>
+          <div
+            className="flex-1 overflow-auto rounded-lg border"
+            style={{ borderColor: editorTheme.colors.borderSubtle, background: editorTheme.colors.backgroundSoft }}
+          >
+            {speechSegments.length > 0 ? (
+              <ul className="space-y-2 p-3">
+                {speechSegments.map((segment, index) => (
+                  <SpeechSegmentRow key={segment?.id ?? index} segment={segment} />
+                ))}
+              </ul>
+            ) : (
+              <div
+                className="flex h-full items-center justify-center text-[11px]"
+                style={{ color: editorTheme.colors.accentMuted }}
+              >
+                No narration recorded
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -604,13 +529,14 @@ const RecordingDetail = ({ recording }: { recording: ObservabilityRecording }) =
             Raw Payload
           </p>
           <pre className="mt-2 whitespace-pre-wrap">
-            {JSON.stringify(parsed.raw ?? recording.data, null, 2)}
+            {JSON.stringify(parsed?.raw ?? recording.data, null, 2)}
           </pre>
         </div>
       ) : null}
     </div>
   );
 };
+
 
 export const ObservabilityPanel = ({
   recordings,
@@ -668,57 +594,60 @@ export const ObservabilityPanel = ({
     return displayRecordings[0] ?? null;
   }, [selectedRecordingId, displayRecordings]);
 
+  const selectedParsed = useMemo(() => {
+    return selectedRecording ? parseRecordingData(selectedRecording) : null;
+  }, [selectedRecording]);
+
+  const selectedDurationSeconds = useMemo(() => {
+    if (selectedParsed && selectedParsed.kind === "session") {
+      return getDurationSeconds(selectedParsed.startTime ?? null, selectedParsed.endTime ?? null);
+    }
+    return null;
+  }, [selectedParsed]);
+
+  const connectionMessages = useMemo(() => {
+    if (!connection) {
+      return [] as string[];
+    }
+    return [
+      `Desktop ${connection.hasOSClient ? "connected" : "offline"}`,
+      `Browser ${connection.hasWebClient ? "connected" : "offline"}`,
+    ];
+  }, [connection]);
+
   const connectionsSection = (
     <div
-      className="flex items-center justify-between rounded-2xl border px-4 py-3"
+      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border px-4 py-3"
       style={{
         borderColor: editorTheme.colors.borderSubtle,
         background: editorTheme.surfaces.card,
       }}
     >
-      <div className="flex items-center gap-3 text-sm" style={{ color: editorTheme.colors.foreground }}>
-        <div
-          className="flex items-center gap-2 rounded-full border px-3 py-1"
-          style={{
-            borderColor: editorTheme.colors.borderSubtle,
-            background: editorTheme.colors.backgroundSoft,
-          }}
-        >
-          <span
-            className="h-2 w-2 rounded-full"
-            style={{
-              backgroundColor: connection?.hasOSClient ? editorTheme.colors.positive : editorTheme.colors.borderMuted,
-            }}
-          />
-          <span className="font-medium">Desktop App</span>
-          <span className="text-xs uppercase tracking-wide" style={{ color: editorTheme.colors.accentMuted }}>
-            {connection?.hasOSClient ? "Connected" : "Required"}
-          </span>
-        </div>
-        <div
-          className="flex items-center gap-2 rounded-full border px-3 py-1"
-          style={{
-            borderColor: editorTheme.colors.borderSubtle,
-            background: editorTheme.colors.backgroundSoft,
-          }}
-        >
-          <span
-            className="h-2 w-2 rounded-full"
-            style={{
-              backgroundColor: connection?.hasWebClient ? editorTheme.colors.action : editorTheme.colors.borderMuted,
-            }}
-          />
-          <span className="font-medium">Browser</span>
-          <span className="text-xs uppercase tracking-wide" style={{ color: editorTheme.colors.accentMuted }}>
-            {connection?.hasWebClient ? "Connected" : "Offline"}
-          </span>
-        </div>
+      <div className="flex flex-wrap items-center gap-2 text-[11px]" style={{ color: editorTheme.colors.accentMuted }}>
+        {selectedRecording ? (
+          <>
+            <span>
+              Recording
+              <span className="ml-1 font-mono text-sm" style={{ color: editorTheme.colors.foreground }}>
+                {shortId(selectedRecording.recordingId)}
+              </span>
+            </span>
+            <span>Started {formatTimestamp(selectedRecording.createdAt)}</span>
+            {selectedRecording.stoppedAt ? <span>Stopped {formatTimestamp(selectedRecording.stoppedAt)}</span> : null}
+            {selectedDurationSeconds !== null ? <span>{selectedDurationSeconds}s</span> : null}
+          </>
+        ) : (
+          <span>No recording selected</span>
+        )}
+        {connectionMessages.map((message, index) => (
+          <span key={message + index}>{message}</span>
+        ))}
       </div>
-      {(onStartRecording || onStopRecording) && (
-        <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2">
+        {onStartRecording && !activeRecording ? (
           <button
             type="button"
-            onClick={() => onStartRecording?.()}
+            onClick={() => onStartRecording()}
             disabled={!canStart || recordingBusy}
             className="rounded-full border px-4 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
             style={{
@@ -727,11 +656,13 @@ export const ObservabilityPanel = ({
               color: editorTheme.colors.action,
             }}
           >
-            {recordingBusy && !activeRecording ? "Starting…" : "Start Recording"}
+            {recordingBusy ? "Starting…" : "Start Recording"}
           </button>
+        ) : null}
+        {onStopRecording && activeRecording ? (
           <button
             type="button"
-            onClick={() => selectedRecording && onStopRecording?.(selectedRecording.recordingId)}
+            onClick={() => selectedRecording && onStopRecording(selectedRecording.recordingId)}
             disabled={!canStop || recordingBusy}
             className="rounded-full border px-4 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
             style={{
@@ -740,10 +671,10 @@ export const ObservabilityPanel = ({
               color: editorTheme.colors.negative,
             }}
           >
-            {recordingBusy && activeRecording ? "Stopping…" : "Stop Recording"}
+            {recordingBusy ? "Stopping…" : "Stop Recording"}
           </button>
-        </div>
-      )}
+        ) : null}
+      </div>
     </div>
   );
 
@@ -752,7 +683,7 @@ export const ObservabilityPanel = ({
       {displayRecordings.length === 0 ? (
         <div className="flex h-full w-full items-center justify-center">
           <div
-            className="flex max-w-sm flex-col items-center gap-4 rounded-2xl border px-6 py-8 text-center"
+            className="flex max-w-sm flex-col items-center gap-4 rounded-xl border px-6 py-8 text-center"
             style={{
               borderColor: editorTheme.colors.borderSubtle,
               background: editorTheme.surfaces.card,
@@ -782,7 +713,7 @@ export const ObservabilityPanel = ({
       ) : (
         <div className="grid h-full w-full grid-cols-[260px_1fr] gap-4 overflow-hidden">
           <div
-            className="flex flex-col gap-2 rounded-2xl border px-3 py-3"
+            className="flex flex-col gap-2 rounded-xl border px-3 py-3"
             style={{
               borderColor: editorTheme.colors.borderSubtle,
               background: editorTheme.surfaces.card,
@@ -833,7 +764,7 @@ export const ObservabilityPanel = ({
             </div>
           </div>
           <div
-            className="flex flex-1 overflow-hidden rounded-2xl border px-4 py-3"
+            className="flex flex-1 overflow-hidden rounded-xl border px-4 py-3"
             style={{
               borderColor: editorTheme.colors.borderSubtle,
               background: editorTheme.colors.backgroundSoft,
@@ -854,7 +785,7 @@ export const ObservabilityPanel = ({
 
   const requestsSection = (
     <div
-      className="rounded-2xl border px-4 py-3"
+      className="rounded-xl border px-4 py-3"
       style={{
         borderColor: editorTheme.colors.borderSubtle,
         background: editorTheme.surfaces.card,
