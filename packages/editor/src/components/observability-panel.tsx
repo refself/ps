@@ -8,9 +8,9 @@ import type {
 } from "../hooks/use-observability";
 
 const recordingTone: Record<RecordingStatus, string> = {
-  recording: "bg-orange-100 text-orange-800 border-orange-200",
-  completed: "bg-green-100 text-green-800 border-green-200",
-  error: "bg-red-100 text-red-800 border-red-200",
+  recording: "border-sky-200 bg-sky-50 text-sky-700",
+  completed: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  error: "border-rose-200 bg-rose-50 text-rose-700",
 };
 
 const toolTone: Record<ToolRequestStatus, string> = {
@@ -35,10 +35,10 @@ const formatTimestamp = (value: number | string | null | undefined) => {
 };
 
 const StatusBadge = ({ status }: { status: RecordingStatus }) => (
-  <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${recordingTone[status]}`}>
-    <div className={`h-1.5 w-1.5 rounded-full ${
-      status === "recording" ? "bg-orange-500 animate-pulse" :
-      status === "completed" ? "bg-green-500" : "bg-red-500"
+  <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${recordingTone[status]}`}>
+    <span className={`h-1.5 w-1.5 rounded-full ${
+      status === "recording" ? "bg-sky-500 animate-pulse" :
+      status === "completed" ? "bg-emerald-500" : "bg-rose-500"
     }`} />
     {status === "recording" ? "Recording" : status === "completed" ? "Completed" : "Error"}
   </span>
@@ -113,34 +113,133 @@ const parseRecordingData = (recording: ObservabilityRecording): ParsedSession | 
   };
 };
 
-const ActionRow = ({ action, index }: { action: any; index: number }) => {
-  const label = action?.type ? String(action.type) : `Action ${index + 1}`;
-  const timestamp = action?.timestamp ? formatTimestamp(action.timestamp) : "—";
-  const description = action?.visionActionDescription || action?.speechTranscript || action?.text;
-  const location = action?.appName || action?.windowTitle;
+const CopyButton = ({ label, value }: { label: string; value: unknown }) => {
+  const [copied, setCopied] = useState(false);
+
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+
+  const stringValue = typeof value === "string" ? value : JSON.stringify(value);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(stringValue);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    } catch (error) {
+      console.error("Failed to copy", error);
+    }
+  };
 
   return (
-    <li className="group border-b border-gray-100 p-4 hover:bg-gray-50/50">
-      <div className="flex items-start gap-3">
-        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-medium text-blue-700">
-          {index + 1}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-sm font-medium text-gray-900 truncate">{label}</p>
-            <span className="text-xs text-gray-500 ml-2">{timestamp}</span>
-          </div>
-          {location && <p className="text-xs text-gray-500 mb-1">{location}</p>}
-          {description && <p className="text-sm text-gray-700 mb-2">{description}</p>}
-          <details className="group/details">
-            <summary className="cursor-pointer text-xs text-blue-600 hover:text-blue-800 select-none">View raw data</summary>
-            <pre className="mt-2 p-3 bg-gray-50 rounded text-xs text-gray-600 overflow-x-auto whitespace-pre-wrap max-h-32">
-              {JSON.stringify(action, null, 2)}
-            </pre>
-          </details>
-        </div>
+    <button
+      type="button"
+      onClick={handleCopy}
+      className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white/70 px-2.5 py-1 text-[11px] font-medium text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-700"
+      title={`Copy ${label}`}
+    >
+      <span className="uppercase tracking-wide text-[10px] text-slate-400">{label}</span>
+      <span className="max-w-[140px] truncate font-mono text-[10px] text-slate-600">{stringValue}</span>
+      <span className="text-[10px] text-slate-400">{copied ? "Saved" : "Copy"}</span>
+    </button>
+  );
+};
+
+const ActionsTable = ({ actions }: { actions: any[] }) => {
+  if (!actions || actions.length === 0) {
+    return (
+      <div className="flex h-32 items-center justify-center text-sm text-gray-500">
+        No recorded actions
       </div>
-    </li>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden">
+      <div className="max-h-[360px] overflow-auto">
+        <table className="min-w-full border-separate border-spacing-0 text-left">
+          <thead className="sticky top-0 bg-gray-50">
+            <tr className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+              <th className="sticky left-0 z-10 bg-gray-50 px-4 py-3">#</th>
+              <th className="px-4 py-3">Timestamp</th>
+              <th className="px-4 py-3">Type</th>
+              <th className="px-4 py-3">Element</th>
+              <th className="px-4 py-3">Details</th>
+              <th className="px-4 py-3">Copy</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
+            {actions.map((action, index) => {
+              const element = action?.element;
+              const elementRole = element?.role ?? "—";
+              const elementTitle = element?.title ?? element?.identifier ?? null;
+              const description = action?.visionActionDescription || action?.speechTranscript || action?.text;
+              const location = action?.windowTitle || action?.appName || action?.windowUrl;
+
+              const copyTargets = [
+                { label: "Type", value: action?.type },
+                { label: "Role", value: element?.role },
+                { label: "Title", value: element?.title },
+                { label: "Identifier", value: element?.identifier },
+                { label: "Text", value: action?.text },
+                { label: "Keys", value: action?.keys },
+                { label: "URL", value: action?.windowUrl },
+                { label: "Screenshot", value: action?.screenshotUrl || action?.screenshotLocalPath },
+              ].filter(entry => entry.value !== undefined && entry.value !== null && entry.value !== "");
+
+              return (
+                <tr key={action?.id ?? index} className="align-top">
+                  <td className="sticky left-0 z-10 bg-white px-4 py-3 font-mono text-xs text-gray-500">{index + 1}</td>
+                  <td className="px-4 py-3 text-xs text-gray-500">{formatTimestamp(action?.timestamp)}</td>
+                  <td className="px-4 py-3">
+                    <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                      {action?.type ?? "unknown"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm font-medium text-gray-900">{elementRole}</span>
+                      {elementTitle ? (
+                        <span className="text-xs text-gray-500 truncate">{elementTitle}</span>
+                      ) : null}
+                      {element?.frame ? (
+                        <span className="text-[11px] text-gray-400 font-mono">
+                          ({element.frame.x}, {element.frame.y}) · {element.frame.width}×{element.frame.height}
+                        </span>
+                      ) : null}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-1">
+                      {location ? <span className="text-xs text-gray-500">{location}</span> : null}
+                      {description ? <span className="text-sm text-gray-800">{description}</span> : null}
+                      <details>
+                        <summary className="cursor-pointer text-xs text-blue-600 hover:text-blue-700">Raw</summary>
+                        <pre className="mt-2 max-h-32 overflow-auto rounded border border-gray-200 bg-gray-50 p-2 text-[11px] text-gray-600 whitespace-pre-wrap">
+                          {JSON.stringify(action, null, 2)}
+                        </pre>
+                      </details>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-1.5">
+                      {copyTargets.length > 0 ? (
+                        copyTargets.map(target => (
+                          <CopyButton key={target.label} label={target.label} value={target.value} />
+                        ))
+                      ) : (
+                        <CopyButton label="JSON" value={action} />
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 };
 
@@ -162,32 +261,32 @@ const RecordingDetail = ({ recording }: { recording: ObservabilityRecording }) =
 
   return (
     <div className="flex h-full flex-1 flex-col gap-4 overflow-hidden">
-      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border">
-        <div className="flex items-center gap-6">
-          <div>
-            <p className="text-xs text-gray-500">Recording ID</p>
-            <p className="font-mono text-sm text-gray-900">{shortId(recording.recordingId)}</p>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white/70 p-4 shadow-sm">
+        <div className="flex flex-wrap items-center gap-4 text-sm text-slate-700">
+          <div className="flex items-center gap-2">
+            <span className="text-xs uppercase tracking-wide text-slate-400">Recording</span>
+            <span className="font-mono text-sm text-slate-800">{shortId(recording.recordingId)}</span>
           </div>
-          <div className="h-8 w-px bg-gray-200" />
-          <div>
-            <p className="text-xs text-gray-500">Started</p>
-            <p className="text-sm text-gray-900">{formatTimestamp(recording.createdAt)}</p>
+          <div className="h-5 w-px bg-slate-200" />
+          <div className="flex items-center gap-2">
+            <span className="text-xs uppercase tracking-wide text-slate-400">Started</span>
+            <span>{formatTimestamp(recording.createdAt)}</span>
           </div>
-          {recording.stoppedAt && (
+          {recording.stoppedAt ? (
             <>
-              <div className="h-8 w-px bg-gray-200" />
-              <div>
-                <p className="text-xs text-gray-500">Stopped</p>
-                <p className="text-sm text-gray-900">{formatTimestamp(recording.stoppedAt)}</p>
+              <div className="h-5 w-px bg-slate-200" />
+              <div className="flex items-center gap-2">
+                <span className="text-xs uppercase tracking-wide text-slate-400">Stopped</span>
+                <span>{formatTimestamp(recording.stoppedAt)}</span>
               </div>
             </>
-          )}
+          ) : null}
         </div>
         <StatusBadge status={recording.status} />
       </div>
 
       {recording.lastError ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-600">
+        <div className="rounded-xl border border-rose-200 bg-rose-50/80 p-4 text-xs text-rose-700">
           <strong className="font-semibold">Error:</strong> {recording.lastError}
         </div>
       ) : null}
@@ -253,40 +352,22 @@ const RecordingDetail = ({ recording }: { recording: ObservabilityRecording }) =
                 </ul>
               </div>
             )}
-            <div className="flex-1 overflow-hidden bg-white rounded-lg border border-gray-200">
-              <div className="flex items-center justify-between p-4 border-b border-gray-100">
+            <div className="flex-1 overflow-hidden rounded-lg border border-gray-200 bg-white">
+              <div className="flex items-center justify-between border-b border-gray-100 p-4">
                 <h3 className="text-base font-semibold text-gray-900">Actions</h3>
                 <span className="text-sm text-gray-500">{parsed.actions.length}</span>
               </div>
-              {parsed.actions.length === 0 ? (
-                <div className="flex items-center justify-center h-32">
-                  <p className="text-sm text-gray-500">No recorded actions</p>
-                </div>
-              ) : (
-                <ul className="overflow-auto max-h-[calc(100%-4rem)]">
-                  {parsed.actions.map((action, index) => (
-                    <ActionRow key={action?.id ?? index} action={action} index={index} />
-                  ))}
-                </ul>
-              )}
+              <ActionsTable actions={parsed.actions} />
             </div>
           </div>
         </div>
       ) : (
         <div className="flex-1 overflow-hidden rounded-xl border border-gray-200 bg-white p-4">
-          <div className="flex items-center justify-between">
+          <div className="mb-3 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-900">Actions</h3>
             <span className="text-xs text-gray-500">{parsed?.kind === "actions" ? parsed.actions.length : 0}</span>
           </div>
-          {parsed && parsed.actions.length > 0 ? (
-            <ul className="mt-3 space-y-2 overflow-auto pr-2">
-              {parsed.actions.map((action, index) => (
-                <ActionRow key={action?.id ?? index} action={action} index={index} />
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-2 text-xs text-gray-500">No recorded actions.</p>
-          )}
+          <ActionsTable actions={parsed?.actions ?? []} />
         </div>
       )}
 
