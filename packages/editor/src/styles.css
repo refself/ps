@@ -92,42 +92,6 @@ body {
   backdrop-filter: blur(12px);
 }
 
-/* Legacy Tailwind color overrides mapped to editor theme */
-[class*="text-[#0A1A23]"] { color: var(--editor-color-foreground) !important; }
-[class*="text-[#657782]"] { color: var(--editor-color-shaded) !important; }
-[class*="text-[#3A5AE5]"] { color: var(--editor-color-action) !important; }
-[class*="text-[#32AA81]"] { color: var(--editor-color-positive) !important; }
-[class*="text-[#CD3A50]"] { color: var(--editor-color-negative) !important; }
-[class*="text-[#E2A636]"] { color: var(--editor-color-warning) !important; }
-[class*="text-[#9AA7B4]"] { color: var(--editor-color-accent-muted) !important; }
-
-[class*="bg-[#F5F6F9]"] { background-color: var(--editor-color-background-soft) !important; }
-[class*="bg-[#EEF2FF]"] { background-color: var(--editor-color-background-tint) !important; }
-[class*="bg-[#3A5AE510]"] { background-color: rgba(58, 90, 229, 0.06) !important; }
-[class*="bg-[#3A5AE520]"] { background-color: rgba(58, 90, 229, 0.12) !important; }
-[class*="bg-[#32AA8110]"] { background-color: rgba(50, 170, 129, 0.06) !important; }
-[class*="bg-[#32AA8120]"] { background-color: rgba(50, 170, 129, 0.12) !important; }
-[class*="bg-[#CD3A5010]"] { background-color: rgba(205, 58, 80, 0.06) !important; }
-[class*="bg-[#CD3A5020]"] { background-color: rgba(205, 58, 80, 0.12) !important; }
-[class*="bg-[#E2A63610]"] { background-color: rgba(226, 166, 54, 0.06) !important; }
-[class*="bg-[#E2A63620]"] { background-color: rgba(226, 166, 54, 0.12) !important; }
-[class*="bg-[#AF54BE10]"] { background-color: rgba(175, 84, 190, 0.06) !important; }
-[class*="bg-[#AF54BE20]"] { background-color: rgba(175, 84, 190, 0.12) !important; }
-[class*="bg-[#578BC910]"] { background-color: rgba(87, 139, 201, 0.06) !important; }
-[class*="bg-[#578BC920]"] { background-color: rgba(87, 139, 201, 0.12) !important; }
-
-[class*="border-[#0A1A2314]"] { border-color: var(--editor-color-border-subtle) !important; }
-[class*="border-[#0A1A2333]"] { border-color: var(--editor-color-border-strong) !important; }
-[class*="border-[#CED6E9]"] { border-color: var(--editor-color-border-muted) !important; }
-[class*="border-[#3A5AE5]"] { border-color: var(--editor-color-action) !important; }
-[class*="border-[#32AA81]"] { border-color: var(--editor-color-positive) !important; }
-[class*="border-[#CD3A50]"] { border-color: var(--editor-color-negative) !important; }
-[class*="border-[#E2A636]"] { border-color: var(--editor-color-warning) !important; }
-[class*="border-[#9AA7B4]"] { border-color: var(--editor-color-accent-muted) !important; }
-
-[class*="text-white"] { color: #ffffff !important; }
-[class*="bg-white"] { background-color: rgba(255, 255, 255, 0.95) !important; }
-
 .workflow-editor-root code,
 .workflow-editor-root pre,
 .workflow-editor-root .font-mono {

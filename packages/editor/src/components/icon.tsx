@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, type CSSProperties } from "react";
 
 export type IconName =
   | "back"
@@ -37,6 +37,7 @@ type IconProps = {
   name: IconName;
   title?: string;
   className?: string;
+  style?: CSSProperties;
 };
 
 type IconRenderer = () => JSX.Element;
@@ -268,7 +269,7 @@ const ICONS: Record<IconName, IconRenderer> = {
   )
 };
 
-export const Icon = memo(({ name, title, className }: IconProps) => {
+export const Icon = memo(({ name, title, className, style }: IconProps) => {
   const Shape = ICONS[name];
   return (
     <svg
@@ -276,6 +277,7 @@ export const Icon = memo(({ name, title, className }: IconProps) => {
       role={title ? "img" : "presentation"}
       viewBox="0 0 24 24"
       className={className}
+      style={style}
     >
       {title ? <title>{title}</title> : null}
       <Shape />
