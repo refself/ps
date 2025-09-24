@@ -14,9 +14,9 @@ const recordingTone: Record<RecordingStatus, string> = {
 };
 
 const toolTone: Record<ToolRequestStatus, string> = {
-  pending: "bg-blue-50 text-blue-600 border-blue-200",
-  success: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  error: "bg-red-50 text-red-600 border-red-200",
+  pending: "border-sky-200 bg-sky-50 text-sky-600",
+  success: "border-emerald-200 bg-emerald-50 text-emerald-600",
+  error: "border-rose-200 bg-rose-50 text-rose-600",
 };
 
 const shortId = (value: string) => (value.length > 10 ? `${value.slice(0, 6)}…${value.slice(-4)}` : value);
@@ -45,7 +45,7 @@ const StatusBadge = ({ status }: { status: RecordingStatus }) => (
 );
 
 const ToolStatusBadge = ({ status }: { status: ToolRequestStatus }) => (
-  <span className={`rounded border px-2 py-0.5 text-xs font-semibold ${toolTone[status]}`}>
+  <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${toolTone[status]}`}>
     {status === "pending" ? "Pending" : status === "success" ? "Success" : "Error"}
   </span>
 );
@@ -156,20 +156,20 @@ const ActionsTable = ({ actions }: { actions: any[] }) => {
   }
 
   return (
-    <div className="overflow-hidden">
-      <div className="max-h-[360px] overflow-auto">
-        <table className="min-w-full border-separate border-spacing-0 text-left">
-          <thead className="sticky top-0 bg-gray-50">
-            <tr className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              <th className="sticky left-0 z-10 bg-gray-50 px-4 py-3">#</th>
-              <th className="px-4 py-3">Timestamp</th>
-              <th className="px-4 py-3">Type</th>
-              <th className="px-4 py-3">Element</th>
-              <th className="px-4 py-3">Details</th>
-              <th className="px-4 py-3">Copy</th>
+    <div className="flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white/70 shadow-sm">
+      <div className="flex-1 overflow-auto">
+        <table className="min-w-full border-separate border-spacing-0 text-left text-xs text-slate-600">
+          <thead className="sticky top-0 bg-white/90 backdrop-blur">
+            <tr className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              <th className="sticky left-0 z-10 bg-white/90 px-3 py-2">#</th>
+              <th className="px-3 py-2">Time</th>
+              <th className="px-3 py-2">Type</th>
+              <th className="px-3 py-2">Element</th>
+              <th className="px-3 py-2">Details</th>
+              <th className="px-3 py-2">Copy</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
+          <tbody className="divide-y divide-slate-100">
             {actions.map((action, index) => {
               const element = action?.element;
               const elementRole = element?.role ?? "—";
@@ -190,39 +190,39 @@ const ActionsTable = ({ actions }: { actions: any[] }) => {
 
               return (
                 <tr key={action?.id ?? index} className="align-top">
-                  <td className="sticky left-0 z-10 bg-white px-4 py-3 font-mono text-xs text-gray-500">{index + 1}</td>
-                  <td className="px-4 py-3 text-xs text-gray-500">{formatTimestamp(action?.timestamp)}</td>
-                  <td className="px-4 py-3">
-                    <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                  <td className="sticky left-0 z-10 bg-white px-3 py-2 font-mono text-[11px] text-slate-500">{index + 1}</td>
+                  <td className="px-3 py-2 text-[11px] text-slate-500">{formatTimestamp(action?.timestamp)}</td>
+                  <td className="px-3 py-2">
+                    <span className="inline-flex items-center rounded-full border border-sky-300 bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700">
                       {action?.type ?? "unknown"}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2">
                     <div className="flex flex-col gap-1">
-                      <span className="text-sm font-medium text-gray-900">{elementRole}</span>
+                      <span className="text-sm font-semibold text-slate-900">{elementRole}</span>
                       {elementTitle ? (
-                        <span className="text-xs text-gray-500 truncate">{elementTitle}</span>
+                        <span className="truncate text-[11px] text-slate-500">{elementTitle}</span>
                       ) : null}
                       {element?.frame ? (
-                        <span className="text-[11px] text-gray-400 font-mono">
+                        <span className="font-mono text-[10px] text-slate-400">
                           ({element.frame.x}, {element.frame.y}) · {element.frame.width}×{element.frame.height}
                         </span>
                       ) : null}
                     </div>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2">
                     <div className="flex flex-col gap-1">
-                      {location ? <span className="text-xs text-gray-500">{location}</span> : null}
-                      {description ? <span className="text-sm text-gray-800">{description}</span> : null}
+                      {location ? <span className="text-[11px] text-slate-500">{location}</span> : null}
+                      {description ? <span className="text-sm text-slate-800">{description}</span> : null}
                       <details>
-                        <summary className="cursor-pointer text-xs text-blue-600 hover:text-blue-700">Raw</summary>
-                        <pre className="mt-2 max-h-32 overflow-auto rounded border border-gray-200 bg-gray-50 p-2 text-[11px] text-gray-600 whitespace-pre-wrap">
+                        <summary className="cursor-pointer text-[11px] text-sky-600 hover:text-sky-700">Raw</summary>
+                        <pre className="mt-1 max-h-40 overflow-auto rounded border border-slate-200 bg-white p-2 text-[11px] text-slate-500 whitespace-pre-wrap">
                           {JSON.stringify(action, null, 2)}
                         </pre>
                       </details>
                     </div>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2">
                     <div className="flex flex-wrap gap-1.5">
                       {copyTargets.length > 0 ? (
                         copyTargets.map(target => (
@@ -244,13 +244,13 @@ const ActionsTable = ({ actions }: { actions: any[] }) => {
 };
 
 const SpeechSegmentRow = ({ segment }: { segment: any }) => (
-  <li className="border-l-4 border-purple-200 bg-purple-50/50 p-3 rounded-r-lg">
-    <p className="font-medium text-gray-900 mb-1">{segment?.text ?? "(no transcript)"}</p>
-    <div className="flex items-center gap-4 text-xs text-gray-500">
+  <li className="rounded-lg border border-slate-200 bg-white/80 p-3 shadow-sm">
+    <p className="mb-1 text-sm font-medium text-slate-900">{segment?.text ?? "(no transcript)"}</p>
+    <div className="flex items-center gap-3 text-[11px] text-slate-500">
       <span>{segment?.timestamp ?? "—"}</span>
-      {typeof segment?.confidence === "number" && (
+      {typeof segment?.confidence === "number" ? (
         <span>{(segment.confidence * 100).toFixed(0)}% confidence</span>
-      )}
+      ) : null}
     </div>
   </li>
 );
@@ -260,7 +260,7 @@ const RecordingDetail = ({ recording }: { recording: ObservabilityRecording }) =
   const [showRaw, setShowRaw] = useState(false);
 
   return (
-    <div className="flex h-full flex-1 flex-col gap-4 overflow-hidden">
+    <div className="flex h-full flex-1 flex-col gap-4 overflow-hidden min-h-0">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white/70 p-4 shadow-sm">
         <div className="flex flex-wrap items-center gap-4 text-sm text-slate-700">
           <div className="flex items-center gap-2">
@@ -292,58 +292,57 @@ const RecordingDetail = ({ recording }: { recording: ObservabilityRecording }) =
       ) : null}
 
       {parsed?.kind === "session" ? (
-        <div className="flex flex-1 gap-6 overflow-hidden">
-          <div className="flex w-72 flex-shrink-0 flex-col gap-4 bg-gray-50 p-4 rounded-lg">
-            <h3 className="text-base font-semibold text-gray-900">Session Summary</h3>
-            <div className="space-y-3">
-              <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Session ID</p>
-                <p className="mt-1 font-mono text-sm text-gray-900">{shortId(parsed.sessionId)}</p>
+        <div className="flex flex-1 gap-6 overflow-hidden min-h-0">
+          <div className="flex w-64 flex-shrink-0 flex-col gap-3 rounded-xl border border-slate-200 bg-white/60 p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-900">Session</h3>
+              <span className="font-mono text-xs text-slate-500">{shortId(parsed.sessionId)}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm text-slate-700">
+              <div className="rounded-lg border border-slate-100 bg-white/70 p-3">
+                <p className="text-[11px] uppercase tracking-wide text-slate-400">Actions</p>
+                <p className="mt-1 text-lg font-semibold text-slate-900">{parsed.actions.length}</p>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Actions</p>
-                  <p className="mt-1 text-lg font-semibold text-gray-900">{parsed.actions.length}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Speech</p>
-                  <p className="mt-1 text-lg font-semibold text-gray-900">{parsed.speechSegments.length}</p>
-                </div>
+              <div className="rounded-lg border border-slate-100 bg-white/70 p-3">
+                <p className="text-[11px] uppercase tracking-wide text-slate-400">Speech</p>
+                <p className="mt-1 text-lg font-semibold text-slate-900">{parsed.speechSegments.length}</p>
               </div>
-              <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Duration</p>
-                <p className="mt-1 text-sm text-gray-900">
+              <div className="col-span-2 rounded-lg border border-slate-100 bg-white/70 p-3">
+                <p className="text-[11px] uppercase tracking-wide text-slate-400">Duration</p>
+                <p className="mt-1 text-sm font-medium text-slate-900">
                   {parsed.startTime && parsed.endTime ?
                     `${Math.round((new Date(parsed.endTime).getTime() - new Date(parsed.startTime).getTime()) / 1000)}s` :
-                    parsed.startTime ? 'In progress' : '—'
-                  }
+                    parsed.startTime ? 'In progress' : '—'}
                 </p>
               </div>
             </div>
             {parsed.options ? (
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
-                <p className="text-[11px] uppercase tracking-wide text-[#657782]">Recording Options</p>
-                <ul className="mt-1 space-y-1 text-[11px] text-gray-600">
+              <div className="rounded-lg border border-slate-100 bg-white/70 p-3 text-[11px] text-slate-600">
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Recording Options</p>
+                <dl className="space-y-1">
                   {Object.entries(parsed.options).map(([key, value]) => (
-                    <li key={key}>{key}: {String(value)}</li>
+                    <div key={key} className="flex items-center justify-between gap-2">
+                      <dt className="uppercase tracking-wide text-[10px] text-slate-400">{key}</dt>
+                      <dd className="font-medium text-slate-700">{String(value)}</dd>
+                    </div>
                   ))}
-                </ul>
+                </dl>
               </div>
             ) : null}
             <button
               type="button"
-              onClick={() => setShowRaw((prev) => !prev)}
-              className="rounded border border-[#3A5AE5] bg-[#EEF2FF] px-3 py-1 text-[11px] font-semibold text-[#3A5AE5] transition hover:bg-[#e1e7ff]"
+              onClick={() => setShowRaw(prev => !prev)}
+              className="text-[11px] font-medium text-slate-500 underline-offset-4 transition hover:text-slate-700 hover:underline"
             >
-              {showRaw ? "Hide Raw Payload" : "Show Raw Payload"}
+              {showRaw ? "Hide raw payload" : "Show raw payload"}
             </button>
           </div>
           <div className="flex flex-1 flex-col gap-4 overflow-hidden">
             {parsed.speechSegments.length > 0 && (
-              <div className="bg-white rounded-lg border border-gray-200 p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-base font-semibold text-gray-900">Speech Transcript</h3>
-                  <span className="text-sm text-gray-500">{parsed.speechSegments.length}</span>
+              <div className="rounded-xl border border-slate-200 bg-white/70 p-4 shadow-sm">
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-slate-900">Speech</h3>
+                  <span className="text-xs text-slate-500">{parsed.speechSegments.length}</span>
                 </div>
                 <ul className="space-y-2">
                   {parsed.speechSegments.map((segment, index) => (
@@ -352,12 +351,12 @@ const RecordingDetail = ({ recording }: { recording: ObservabilityRecording }) =
                 </ul>
               </div>
             )}
-            <div className="flex-1 overflow-hidden rounded-lg border border-gray-200 bg-white">
-              <div className="flex items-center justify-between border-b border-gray-100 p-4">
-                <h3 className="text-base font-semibold text-gray-900">Actions</h3>
-                <span className="text-sm text-gray-500">{parsed.actions.length}</span>
-              </div>
-              <ActionsTable actions={parsed.actions} />
+          <div className="flex-1 overflow-hidden rounded-lg border border-gray-200 bg-white min-h-0">
+            <div className="flex items-center justify-between border-b border-gray-100 p-4">
+              <h3 className="text-base font-semibold text-gray-900">Actions</h3>
+              <span className="text-sm text-gray-500">{parsed.actions.length}</span>
+            </div>
+            <ActionsTable actions={parsed.actions} />
             </div>
           </div>
         </div>
@@ -372,8 +371,8 @@ const RecordingDetail = ({ recording }: { recording: ObservabilityRecording }) =
       )}
 
       {showRaw && parsed ? (
-        <div className="max-h-[280px] overflow-auto rounded-xl border border-gray-200 bg-gray-50 p-4 text-[11px] text-gray-700">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#657782]">Raw Payload</p>
+        <div className="max-h-[260px] overflow-auto rounded-2xl border border-slate-200 bg-white p-4 text-[11px] text-slate-700 shadow-sm">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Raw Payload</p>
           <pre className="mt-2 whitespace-pre-wrap">
             {JSON.stringify(parsed.raw ?? recording.data, null, 2)}
           </pre>
@@ -440,20 +439,21 @@ export const ObservabilityPanel = ({
   }, [selectedRecordingId, displayRecordings]);
 
   const connectionsSection = (
-    <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <div className={`h-2 w-2 rounded-full ${connection?.hasOSClient ? 'bg-green-500' : 'bg-gray-300'}`} />
-          <span className="text-sm text-gray-700">Desktop App</span>
-          {connection?.hasOSClient ? (
-            <span className="text-xs text-green-600 font-medium">Connected</span>
-          ) : (
-            <span className="text-xs text-gray-500">Required for recording</span>
-          )}
+    <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white/70 p-4 shadow-sm">
+      <div className="flex items-center gap-4 text-sm text-slate-700">
+        <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1">
+          <span className={`h-2 w-2 rounded-full ${connection?.hasOSClient ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+          <span className="font-medium">Desktop App</span>
+          <span className="text-xs uppercase tracking-wide text-slate-400">
+            {connection?.hasOSClient ? 'Connected' : 'Required'}
+          </span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className={`h-2 w-2 rounded-full ${connection?.hasWebClient ? 'bg-blue-500' : 'bg-gray-300'}`} />
-          <span className="text-sm text-gray-700">Browser</span>
+        <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1">
+          <span className={`h-2 w-2 rounded-full ${connection?.hasWebClient ? 'bg-sky-500' : 'bg-slate-300'}`} />
+          <span className="font-medium">Browser</span>
+          <span className="text-xs uppercase tracking-wide text-slate-400">
+            {connection?.hasWebClient ? 'Connected' : 'Offline'}
+          </span>
         </div>
       </div>
       {(onStartRecording || onStopRecording) && (
@@ -462,7 +462,7 @@ export const ObservabilityPanel = ({
             type="button"
             onClick={() => onStartRecording?.()}
             disabled={!canStart || recordingBusy}
-            className="px-4 py-2 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="rounded-full border border-sky-300 bg-sky-50 px-4 py-1.5 text-xs font-semibold text-sky-700 transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {recordingBusy && !activeRecording ? 'Starting…' : 'Start Recording'}
           </button>
@@ -470,7 +470,7 @@ export const ObservabilityPanel = ({
             type="button"
             onClick={() => selectedRecording && onStopRecording?.(selectedRecording.recordingId)}
             disabled={!canStop || recordingBusy}
-            className="px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="rounded-full border border-rose-300 bg-rose-50 px-4 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {recordingBusy && activeRecording ? 'Stopping…' : 'Stop Recording'}
           </button>
@@ -480,50 +480,52 @@ export const ObservabilityPanel = ({
   );
 
   const recordingsPane = (
-    <div className="flex h-full flex-1 overflow-hidden bg-white">
+    <div className="flex h-full flex-1 overflow-hidden">
       {displayRecordings.length === 0 ? (
         <div className="flex h-full w-full items-center justify-center">
-          <div className="flex max-w-sm flex-col items-center gap-6 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
-              <svg className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="flex max-w-sm flex-col items-center gap-5 rounded-2xl border border-slate-200 bg-white/70 p-8 text-center shadow-sm">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
+              <svg className="h-8 w-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
               </svg>
             </div>
             <div className="space-y-2">
-              <h4 className="text-lg font-medium text-gray-900">No recordings yet</h4>
-              <p className="text-sm text-gray-500">Start a recording to capture workflow execution details.</p>
+              <h4 className="text-base font-semibold text-slate-900">No recordings yet</h4>
+              <p className="text-sm text-slate-500">Start a recording to capture workflow execution details.</p>
             </div>
           </div>
         </div>
       ) : (
-        <div className="flex h-full w-full gap-6 overflow-hidden">
-          <div className="flex w-80 flex-shrink-0 flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-1 pb-4">
-              <h3 className="text-base font-semibold text-gray-900">Recordings</h3>
-              <span className="text-sm text-gray-500">{displayRecordings.length}</span>
+        <div className="grid h-full w-full grid-cols-[260px_1fr] gap-5 overflow-hidden">
+          <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/70 p-3 shadow-sm">
+            <div className="flex items-center justify-between px-1">
+              <h3 className="text-sm font-semibold text-slate-900">Recordings</h3>
+              <span className="text-xs text-slate-500">{displayRecordings.length}</span>
             </div>
-            <div className="flex-1 overflow-auto">
-              <ul className="space-y-1">
-                {displayRecordings.map((recording) => {
+            <div className="-mx-2 flex-1 overflow-auto px-2">
+              <ul className="space-y-2">
+                {displayRecordings.map(recording => {
                   const isSelected = selectedRecording?.recordingId === recording.recordingId;
                   return (
                     <li key={recording.recordingId}>
                       <button
                         type="button"
                         onClick={() => setSelectedRecordingId(recording.recordingId)}
-                        className={`flex w-full flex-col gap-2 rounded-lg border p-3 text-left transition ${
-                          isSelected ? 'border-blue-200 bg-blue-50' : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                        className={`w-full rounded-xl border px-3 py-2 text-left transition shadow-sm ${
+                          isSelected
+                            ? 'border-sky-300 bg-sky-50/70 text-slate-900'
+                            : 'border-slate-200 bg-white/70 text-slate-700 hover:border-slate-300 hover:bg-white'
                         }`}
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium text-gray-900">{shortId(recording.recordingId)}</span>
+                        <div className="flex items-center justify-between text-sm font-medium">
+                          <span className="font-semibold">{shortId(recording.recordingId)}</span>
                           <StatusBadge status={recording.status} />
                         </div>
-                        <div className="text-xs text-gray-500 space-y-0.5">
+                        <div className="mt-1 space-y-0.5 text-[11px] text-slate-500">
                           <p>Started {formatTimestamp(recording.createdAt)}</p>
-                          {recording.stoppedAt && (
+                          {recording.stoppedAt ? (
                             <p>Stopped {formatTimestamp(recording.stoppedAt)}</p>
-                          )}
+                          ) : null}
                         </div>
                       </button>
                     </li>
@@ -532,11 +534,11 @@ export const ObservabilityPanel = ({
               </ul>
             </div>
           </div>
-          <div className="flex flex-1 overflow-hidden">
+          <div className="flex flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/60 p-4 shadow-inner">
             {selectedRecording ? (
               <RecordingDetail recording={selectedRecording} />
             ) : (
-              <div className="flex w-full items-center justify-center rounded-xl border border-dashed border-[#0A1A2314] bg-[#F5F6F9] text-xs text-[#657782]">
+              <div className="flex w-full items-center justify-center text-xs text-slate-500">
                 Select a recording to view details.
               </div>
             )}
@@ -547,33 +549,36 @@ export const ObservabilityPanel = ({
   );
 
   const requestsSection = (
-    <div className="bg-white rounded-lg border border-gray-200 p-4">
-      <h3 className="text-base font-semibold text-gray-900 mb-3">Tool Requests</h3>
+    <div className="rounded-2xl border border-slate-200 bg-white/70 p-4 shadow-sm">
+      <h3 className="mb-3 text-sm font-semibold text-slate-900">Tool Requests</h3>
       {error && (
-        <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+        <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50/80 p-3 text-sm text-rose-700">
           {error}
         </div>
       )}
       {toolRequests.length === 0 ? (
-        <p className="text-sm text-gray-500">No tool activity</p>
+        <p className="text-sm text-slate-500">No tool activity</p>
       ) : (
         <div className="space-y-3">
           {toolRequests.map((request) => (
-            <div key={request.requestId} className="border-l-4 border-blue-200 bg-blue-50/50 p-3 rounded-r-lg">
-              <div className="flex items-center justify-between mb-2">
-                <div>
-                  <p className="font-medium text-gray-900">{request.tool}</p>
-                  <p className="text-xs text-gray-500">{shortId(request.requestId)}</p>
+            <div
+              key={request.requestId}
+              className="rounded-xl border border-slate-200 bg-white/70 p-3"
+            >
+              <div className="mb-1.5 flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-semibold text-slate-900">{request.tool}</p>
+                  <p className="font-mono text-[11px] text-slate-500">{shortId(request.requestId)}</p>
                 </div>
                 <ToolStatusBadge status={request.status} />
               </div>
-              <div className="text-xs text-gray-600 space-y-1">
-                <p>Created: {formatTimestamp(request.createdAt)}</p>
+              <div className="space-y-1 text-[11px] text-slate-500">
+                <p>Created {formatTimestamp(request.createdAt)}</p>
                 {request.resolvedAt && (
-                  <p>Resolved: {formatTimestamp(request.resolvedAt)}</p>
+                  <p>Resolved {formatTimestamp(request.resolvedAt)}</p>
                 )}
                 {request.error && (
-                  <p className="text-red-600 mt-2">{request.error}</p>
+                  <p className="mt-2 text-rose-600">{request.error}</p>
                 )}
               </div>
             </div>
@@ -584,26 +589,34 @@ export const ObservabilityPanel = ({
   );
 
   const content = (
-    <div className="flex h-full flex-col gap-4">
-      {connectionsSection}
-      <div className="flex-1 overflow-hidden">
+    <div className="flex h-full flex-col gap-4 overflow-hidden">
+      <div className="shrink-0">{connectionsSection}</div>
+      <div className="flex-1 overflow-hidden min-h-0">
         {recordingsPane}
       </div>
-      {toolRequests.length > 0 && requestsSection}
+      {toolRequests.length > 0 ? (
+        <div className="max-h-56 overflow-auto">
+          {requestsSection}
+        </div>
+      ) : null}
     </div>
   );
 
   if (variant === "aside") {
     return (
-      <aside className="hidden h-full w-96 shrink-0 flex-col border-l border-gray-200 bg-white p-4 lg:flex">
-        {content}
+      <aside className="hidden h-full w-96 shrink-0 flex-col overflow-hidden border-l border-slate-200 bg-white/80 p-4 backdrop-blur lg:flex">
+        <div className="flex h-full flex-col overflow-y-auto pr-2">
+          {content}
+        </div>
       </aside>
     );
   }
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden p-6">
-      {content}
+    <div className="flex h-full w-full flex-col overflow-hidden rounded-3xl border border-slate-200 bg-slate-50/60 p-6">
+      <div className="flex h-full flex-col overflow-y-auto pr-2">
+        {content}
+      </div>
     </div>
   );
 };

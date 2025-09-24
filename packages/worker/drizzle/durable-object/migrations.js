@@ -1,5 +1,5 @@
 import journal from './meta/_journal.json';
-import m0000 from './0000_famous_gorilla_man.sql';
+import m0000 from './0000_friendly_arclight.sql';
 
   export default {
     journal,
