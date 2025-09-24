@@ -13,7 +13,7 @@ import type {
   GetRecordingInput,
 } from '@/schemas/osclient-tools';
 import {
-  RecordingResultSchema,
+  normalizeRecordingResult,
 } from '@/schemas/recording-result';
 import type {
   WorkflowDetail,
@@ -222,14 +222,13 @@ export class WorkflowAgent extends Agent<Env, WorkflowState> {
           lastError: null,
         };
 
-        const parsedResult = RecordingResultSchema.safeParse(result);
-        if (parsedResult.success) {
-          updates.data = parsedResult.data;
-        } else if (result && typeof result === 'object' && 'content' in (result as Record<string, unknown>)) {
-          const contentParsed = RecordingResultSchema.safeParse((result as { content?: unknown }).content);
-          if (contentParsed.success) {
-            updates.data = contentParsed.data;
-          }
+        let normalized = normalizeRecordingResult(result);
+        if (!normalized && result && typeof result === 'object' && 'content' in (result as Record<string, unknown>)) {
+          normalized = normalizeRecordingResult((result as { content?: unknown }).content);
+        }
+
+        if (normalized) {
+          updates.data = normalized;
         }
 
         this.workflowRepo.updateRecording(targetId, updates);
@@ -261,9 +260,12 @@ export class WorkflowAgent extends Agent<Env, WorkflowState> {
       const result = await coordinator.getRecordingForWorkflow(this.name, params);
 
       if (recordingId) {
-        const parsed = RecordingResultSchema.safeParse(result);
+        let normalized = normalizeRecordingResult(result);
+        if (!normalized && result && typeof result === 'object' && 'content' in (result as Record<string, unknown>)) {
+          normalized = normalizeRecordingResult((result as { content?: unknown }).content);
+        }
 
-        if (!parsed.success) {
+        if (!normalized) {
           const message = 'Invalid recording result format';
           this.workflowRepo.updateRecording(recordingId, {
             status: 'error',
@@ -277,11 +279,11 @@ export class WorkflowAgent extends Agent<Env, WorkflowState> {
           status: 'completed',
           updatedAt: now,
           stoppedAt: now,
-          data: parsed.data,
+          data: normalized,
           lastError: null,
         });
 
-        return parsed.data;
+        return normalized;
       }
 
       return result;
