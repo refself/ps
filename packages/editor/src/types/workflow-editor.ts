@@ -13,7 +13,12 @@ export type RunScriptResult = {
   raw?: unknown;
 };
 
-export type RunScriptHandler = (code: string) => Promise<RunScriptResult | void> | RunScriptResult | void;
+export type RunScriptPayload = {
+  code: string;
+  enableNarration?: boolean;
+};
+
+export type RunScriptHandler = (payload: RunScriptPayload) => Promise<RunScriptResult | void> | RunScriptResult | void;
 export type AbortScriptResult = RunScriptResult;
 export type AbortScriptHandler = () => Promise<AbortScriptResult | void> | AbortScriptResult | void;
 

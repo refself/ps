@@ -346,8 +346,8 @@ export const ObservabilityPanel = ({
     ? [activeRecording, ...recordings]
     : recordings;
 
-  const canStart = Boolean(onStartRecording) && connection?.hasOSClient && !activeRecording;
-  const canStop = Boolean(onStopRecording) && Boolean(activeRecording);
+  const canStart = Boolean(onStartRecording) && !recordingBusy;
+  const canStop = Boolean(onStopRecording) && Boolean(activeRecording) && !recordingBusy;
 
   const [selectedRecordingId, setSelectedRecordingId] = useState<string | null>(activeRecording?.recordingId ?? null);
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { WorkflowEditor, type ObservabilityConfig } from "@workflow-builder/editor";
+import { WorkflowEditor, type ObservabilityConfig, type RunScriptHandler } from "@workflow-builder/editor";
 import type { WorkflowDocument } from "@workflow-builder/core";
 
 import WorkflowList from "./components/workflow-list";
@@ -63,7 +63,7 @@ const App = () => {
     [activeWorkflow?.document, updateActiveWorkflow]
   );
 
-  const handleRunScript = useCallback(async (workflowCode: string) => {
+  const handleRunScript = useCallback<RunScriptHandler>(async ({ enableNarration }) => {
     if (!activeWorkflow) {
       return { ok: false, error: "Workflow not selected." };
     }
@@ -75,6 +75,7 @@ const App = () => {
     try {
       const response = await wsManager.executeScript({
         workflowId: activeWorkflow.id,
+        enableNarration,
       });
       const errorMessage = typeof response.error === 'string' ? response.error : undefined;
       const logs = Array.isArray(response.logs) ? response.logs : [];

@@ -21,7 +21,17 @@ export const programBlock: BlockSchema<"program"> = {
   kind: "program",
   label: "Program",
   category: "program",
-  fields: [],
+  fields: [
+    {
+      id: "enableNarration",
+      label: "Enable Narration",
+      description: "Play spoken feedback while running the workflow.",
+      defaultValue: true,
+      input: {
+        kind: "boolean"
+      }
+    }
+  ],
   ports: [flowPorts.output],
   childSlots: [
     {

@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+
 import BlockLibraryPanel from './block-library-panel';
 import EditorCanvas from './editor-canvas';
 import InspectorPanel from './inspector-panel';
@@ -46,6 +48,16 @@ const WorkflowEditorViewContainer = ({
   recordingError,
   recordings,
 }: WorkflowEditorViewContainerProps) => {
+  const resolvedConnection = useMemo(() => ({
+    hasOSClient:
+      observabilityState.connection?.hasOSClient ??
+      observabilityConfig?.connectionStatus?.hasOSClient ??
+      false,
+    hasWebClient:
+      observabilityState.connection?.hasWebClient ??
+      observabilityConfig?.connectionStatus?.hasWebClient ??
+      false,
+  }), [observabilityState.connection, observabilityConfig?.connectionStatus]);
   const renderVisualView = () => (
     <div className="workflow-editor-scrollable flex flex-1 overflow-hidden">
       <BlockLibraryPanel />
@@ -73,7 +85,7 @@ const WorkflowEditorViewContainer = ({
             toolRequests={observabilityState.toolRequests}
             status={observabilityState.status}
             error={observabilityState.error}
-            connection={observabilityState.connection}
+            connection={resolvedConnection}
             onStartRecording={onStartRecording}
             onStopRecording={onStopRecording}
             recordingBusy={recordingBusy}

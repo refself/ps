@@ -12,6 +12,12 @@ export const useExecution = ({ onRunScript, onAbortScript, isRunnable }: UseExec
   const executionStatus = useEditorStore((state) => state.executionStatus);
   const setExecutionStatus = useEditorStore((state) => state.setExecutionStatus);
   const editorCode = useEditorStore((state) => state.code);
+  const enableNarration = useEditorStore((state) => {
+    const rootId = state.document.root;
+    const rootBlock = state.document.blocks[rootId];
+    const stored = (rootBlock?.data as Record<string, unknown> | undefined)?.enableNarration;
+    return typeof stored === 'boolean' ? stored : true;
+  });
 
   const runScript = useCallback(async () => {
     if (!onRunScript || !isRunnable) {
@@ -26,7 +32,7 @@ export const useExecution = ({ onRunScript, onAbortScript, isRunnable }: UseExec
     });
 
     try {
-      const result = await onRunScript(editorCode);
+      const result = await onRunScript({ code: editorCode, enableNarration });
       if (!result || typeof result !== "object" || !("ok" in result)) {
         setExecutionStatus({
           state: "success",

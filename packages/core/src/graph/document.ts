@@ -162,6 +162,13 @@ export const createBlockInstance = (kind: string, data: Record<string, unknown> 
     throw new Error(`Unsupported block kind: ${kind}`);
   }
 
+  const defaultData: Record<string, unknown> = {};
+  schema.fields.forEach((field) => {
+    if (field.defaultValue !== undefined) {
+      defaultData[field.id] = field.defaultValue;
+    }
+  });
+
   const children: Record<string, string[]> = {};
   schema.childSlots.forEach((slot) => {
     children[slot.id] = [];
@@ -170,7 +177,7 @@ export const createBlockInstance = (kind: string, data: Record<string, unknown> 
   return {
     id: nanoid(),
     kind,
-    data,
+    data: { ...defaultData, ...data },
     children
   };
 };
