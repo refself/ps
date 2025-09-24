@@ -14,7 +14,6 @@ import {
   renameWorkflowVersion as renameWorkflowVersionApi,
   deleteWorkflowVersion as deleteWorkflowVersionApi,
   type WorkerWorkflowDetail,
-  type WorkerWorkflowRecording,
   type WorkerWorkflowSummary,
   type WorkerWorkflowVersionHeader
 } from "../services/workflow-api";
@@ -32,12 +31,6 @@ type WorkflowVersion = WorkerWorkflowVersionHeader & {
   createdAtIso: string;
 };
 
-type WorkflowRecordingEntry = WorkerWorkflowRecording & {
-  createdAtIso: string;
-  updatedAtIso: string;
-  stoppedAtIso: string | null;
-};
-
 type ActiveWorkflow = {
   id: string;
   name: string;
@@ -49,7 +42,6 @@ type ActiveWorkflow = {
   code: string;
   lastRestoredVersionId: string | null;
   versions: WorkflowVersion[];
-  recordings: WorkflowRecordingEntry[];
 };
 
 type WorkspaceState = {
@@ -111,12 +103,6 @@ const mapVersion = (header: WorkerWorkflowVersionHeader): WorkflowVersion => ({
   createdAtIso: toIso(header.createdAt)
 });
 
-const mapRecording = (recording: WorkerWorkflowRecording): WorkflowRecordingEntry => ({
-  ...recording,
-  createdAtIso: toIso(recording.createdAt),
-  updatedAtIso: toIso(recording.updatedAt),
-  stoppedAtIso: recording.stoppedAt ? toIso(recording.stoppedAt) : null
-});
 
 const mapDetail = (detail: WorkerWorkflowDetail): ActiveWorkflow => {
   const nameFromDocument = deriveNameFromDocument(detail.document);
@@ -131,8 +117,7 @@ const mapDetail = (detail: WorkerWorkflowDetail): ActiveWorkflow => {
     document: detail.document,
     code: detail.code,
     lastRestoredVersionId: detail.lastRestoredVersionId,
-    versions: (detail.versions ?? []).map(mapVersion),
-    recordings: (detail.recordings ?? []).map(mapRecording)
+    versions: (detail.versions ?? []).map(mapVersion)
   };
 };
 
@@ -546,8 +531,7 @@ export const useActiveWorkflow = () => {
     (a, b) =>
       a?.id === b?.id &&
       a?.updatedAt === b?.updatedAt &&
-      a?.versions.length === b?.versions.length &&
-      a?.recordings.length === b?.recordings.length
+      a?.versions.length === b?.versions.length
   );
 };
 

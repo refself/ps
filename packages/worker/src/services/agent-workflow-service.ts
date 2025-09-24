@@ -209,10 +209,7 @@ export class AgentWorkflowService {
 
   // Private helper methods
   private async buildDetail(state: WorkflowState): Promise<WorkflowDetail> {
-    const [versions, recordings] = await Promise.all([
-      this.workflowRepo.listVersionHeaders(),
-      Promise.resolve(this.workflowRepo.listRecordings()),
-    ]);
+    const versions = await this.workflowRepo.listVersionHeaders();
 
     return {
       workflowId: state.workflowId || this.agentName,
@@ -225,7 +222,6 @@ export class AgentWorkflowService {
       code: state.code,
       lastRestoredVersionId: state.lastRestoredVersionId || null,
       versions,
-      recordings,
     };
   }
 

@@ -49,7 +49,6 @@ export const WorkflowDetailSchema = z.object({
   code: z.string(),
   lastRestoredVersionId: z.string().nullable(),
   versions: z.array(WorkflowVersionHeaderSchema),
-  recordings: z.array(WorkflowRecordingSchema).default([]),
 });
 
 // Input schemas for API validation

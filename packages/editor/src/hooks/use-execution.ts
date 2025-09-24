@@ -1,24 +1,14 @@
 import { useCallback } from 'react';
 import { useEditorStore } from '../state/editor-store';
-
-type RunScriptResult = {
-  ok: boolean;
-  message?: string | null;
-  output?: string | null;
-  error?: string | null;
-  durationMs?: number | null;
-  logs?: string[] | null;
-  raw?: unknown;
-};
-
-type RunScriptHandler = (code: string) => Promise<RunScriptResult | void> | RunScriptResult | void;
+import type { RunScriptHandler, RunScriptResult, AbortScriptHandler } from '../types/workflow-editor';
 
 type UseExecutionOptions = {
   onRunScript?: RunScriptHandler;
+  onAbortScript?: AbortScriptHandler;
   isRunnable: boolean;
 };
 
-export const useExecution = ({ onRunScript, isRunnable }: UseExecutionOptions) => {
+export const useExecution = ({ onRunScript, onAbortScript, isRunnable }: UseExecutionOptions) => {
   const executionStatus = useEditorStore((state) => state.executionStatus);
   const setExecutionStatus = useEditorStore((state) => state.setExecutionStatus);
   const editorCode = useEditorStore((state) => state.code);
@@ -80,8 +70,69 @@ export const useExecution = ({ onRunScript, isRunnable }: UseExecutionOptions) =
     }
   }, [editorCode, onRunScript, setExecutionStatus, isRunnable]);
 
+  const abortScript = useCallback(async () => {
+    if (!onAbortScript) {
+      return;
+    }
+
+    const currentState = useEditorStore.getState().executionStatus.state;
+    if (currentState !== "running" && currentState !== "aborting") {
+      return;
+    }
+
+    const previousStatus = useEditorStore.getState().executionStatus;
+    setExecutionStatus({
+      state: "aborting",
+      message: "Stopping workflow…",
+      output: previousStatus.output,
+      timestamp: Date.now()
+    });
+
+    try {
+      const result = await onAbortScript();
+      const defaultSuccess = {
+        ok: true,
+        message: "Workflow aborted.",
+        output: null
+      } satisfies RunScriptResult;
+
+      const abortResult = result && typeof result === "object" && "ok" in result
+        ? (result as RunScriptResult)
+        : defaultSuccess;
+
+      if (abortResult.ok) {
+        setExecutionStatus({
+          state: "aborted",
+          message: abortResult.message ?? "Workflow aborted.",
+          output: abortResult.output ?? null,
+          timestamp: Date.now()
+        });
+      } else {
+        const errorMessage = abortResult.error ?? abortResult.message ?? "Failed to abort workflow.";
+        setExecutionStatus({
+          state: "error",
+          message: errorMessage,
+          output: abortResult.output ?? null,
+          timestamp: Date.now()
+        });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to abort workflow.";
+      setExecutionStatus({
+        state: "error",
+        message,
+        output: null,
+        timestamp: Date.now()
+      });
+    }
+  }, [onAbortScript, setExecutionStatus]);
+
+  const canAbortScript = Boolean(onAbortScript) && (executionStatus.state === "running" || executionStatus.state === "aborting");
+
   return {
     executionStatus,
     runScript,
+    abortScript,
+    canAbortScript,
   };
 };

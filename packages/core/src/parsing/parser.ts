@@ -98,6 +98,17 @@ const stringLiteralValue = (node: Node | null | undefined): string | null => {
   return null;
 };
 
+const stringLiteralSource = (node: Node | null | undefined, fallback: string = ""): string => {
+  const literalValue = stringLiteralValue(node);
+  if (literalValue !== null) {
+    return JSON.stringify(literalValue);
+  }
+  if (!node) {
+    return fallback;
+  }
+  return sourceFor(node);
+};
+
 const numberLiteralValue = (node: Node | null | undefined): number | null => {
   if (!node) {
     return null;
@@ -594,9 +605,7 @@ const convertStatement = (statement: Statement, blocks: BlockInstance[]): BlockI
         }
 
         if (callee.name === "press") {
-          const keyValue = callExpression.arguments[0]
-            ? stringLiteralValue(callExpression.arguments[0]) ?? sourceFor(callExpression.arguments[0])
-            : "return";
+          const keyValue = stringLiteralSource(callExpression.arguments[0] ?? null, '"return"');
           let modifiers = "";
           const modifiersArg = callExpression.arguments[1];
           if (modifiersArg) {
@@ -620,9 +629,7 @@ const convertStatement = (statement: Statement, blocks: BlockInstance[]): BlockI
 
         if (callee.name === "scroll") {
           const originArg = callExpression.arguments[0] ? sourceFor(callExpression.arguments[0]) : "[0, 0]";
-          const directionArg = callExpression.arguments[1]
-            ? stringLiteralValue(callExpression.arguments[1]) ?? sourceFor(callExpression.arguments[1])
-            : "down";
+          const directionArg = stringLiteralSource(callExpression.arguments[1] ?? null, '"down"');
           const amountLiteral = callExpression.arguments[2] ? numberLiteralValue(callExpression.arguments[2]) : null;
           const amountFallback = callExpression.arguments[2] ? Number(sourceFor(callExpression.arguments[2])) : 1;
           const amountValue = amountLiteral ?? (Number.isFinite(amountFallback) ? amountFallback : 1);
@@ -675,7 +682,7 @@ const convertStatement = (statement: Statement, blocks: BlockInstance[]): BlockI
 
         if (callee.name === "open") {
           const args = callExpression.arguments;
-          const appName = args[0] ? stringLiteralValue(args[0]) ?? sourceFor(args[0]) : "";
+          const appName = stringLiteralSource(args[0] ?? null, '""');
           const bringToFrontArg = args[1];
           const waitArg = args[2];
 
@@ -703,9 +710,7 @@ const convertStatement = (statement: Statement, blocks: BlockInstance[]): BlockI
         }
 
         if (callee.name === "openUrl") {
-          const url = callExpression.arguments[0]
-            ? stringLiteralValue(callExpression.arguments[0]) ?? sourceFor(callExpression.arguments[0])
-            : "";
+          const url = stringLiteralSource(callExpression.arguments[0] ?? null, '""');
           const block = createBlockInstance("open-url-call", {
             url
           });

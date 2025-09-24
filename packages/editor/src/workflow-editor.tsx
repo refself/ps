@@ -28,6 +28,7 @@ const WorkflowEditor = ({
   onDocumentChange,
   onCodeChange,
   onRunScript,
+  onAbortScript,
   onBack,
   connectionStatus = "online",
   enableCommandPalette = false,
@@ -39,18 +40,23 @@ const WorkflowEditor = ({
   onStartRecording,
   onStopRecording,
   activeRecordingId,
+  recordingError,
+  recordingBusy: externalRecordingBusy,
+  recordings,
 }: WorkflowEditorProps) => {
   const [mode, setMode] = useState<EditorMode>(initialView);
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
 
   // Custom hooks
   const { documentName, handleRename } = useDocument(document, code);
-  const { busy: recordingBusy, startRecording, stopRecording } = useRecording({
+  const { busy: internalRecordingBusy, startRecording, stopRecording } = useRecording({
     onStartRecording,
     onStopRecording,
   });
-  const { executionStatus, runScript } = useExecution({
+  const recordingBusy = externalRecordingBusy || internalRecordingBusy;
+  const { executionStatus, runScript, abortScript, canAbortScript } = useExecution({
     onRunScript,
+    onAbortScript,
     isRunnable: Boolean(onRunScript) && connectionStatus === "online",
   });
   const { createVersion, restoreVersion, renameVersion, deleteVersion } = useVersioning(versioning);
@@ -97,7 +103,6 @@ const WorkflowEditor = ({
   // Computed values
   const canRunScript = Boolean(onRunScript);
   const isRunnable = canRunScript && connectionStatus === "online";
-
   return (
     <DndProvider backend={HTML5Backend}>
       <EditorProvider>
@@ -110,11 +115,11 @@ const WorkflowEditor = ({
             enableCommandPalette={enableCommandPalette}
             enableUndoRedo={enableUndoRedo}
             versioning={versioning}
-            setIsVersionHistoryOpen={setIsVersionHistoryOpen}
-            onRunScript={runScript}
-            canRunScript={canRunScript}
-            isRunnable={isRunnable}
-            executionState={executionStatus.state}
+          setIsVersionHistoryOpen={setIsVersionHistoryOpen}
+          onRunScript={runScript}
+          canRunScript={canRunScript}
+          isRunnable={isRunnable}
+          executionState={executionStatus.state}
             documentName={documentName}
             onRename={handleRename}
             selectedBlockId={selectedBlockId}
@@ -129,6 +134,8 @@ const WorkflowEditor = ({
             onStopRecording={stopRecording}
             recordingBusy={recordingBusy}
             activeRecordingId={activeRecordingId}
+            recordingError={recordingError}
+            recordings={recordings}
           />
         </div>
         {enableCommandPalette ? <CommandPalette /> : null}
@@ -152,7 +159,10 @@ const WorkflowEditor = ({
             }
           />
         ) : null}
-        <ExecutionResultOverlay />
+        <ExecutionResultOverlay
+          onAbortScript={Boolean(onAbortScript) ? abortScript : undefined}
+          canAbortScript={canAbortScript}
+        />
       </EditorProvider>
     </DndProvider>
   );

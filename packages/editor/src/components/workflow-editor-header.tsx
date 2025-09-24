@@ -172,21 +172,21 @@ const WorkflowEditorHeader = ({
         >
           <Icon name="copy" className="h-4 w-4" />
         </button>
-        {canRunScript ? (
+        {canRunScript && connectionStatus === "online" ? (
           <button
             type="button"
             onClick={onRunScript}
-            disabled={executionState === "running" || !isRunnable}
+            disabled={executionState === "running" || executionState === "aborting" || !isRunnable}
             className="flex h-9 items-center gap-2 rounded-full border border-[#3A5AE5] bg-[#3A5AE5] px-4 py-1 text-sm font-semibold text-white transition hover:bg-[#2d4bd4] disabled:cursor-not-allowed disabled:border-[#9AA7B4] disabled:bg-[#9AA7B4]"
           >
             <Icon name="play" className="h-4 w-4" />
             {executionState === "running"
               ? "Running"
-              : isRunnable
+              : executionState === "aborting"
+                ? "Stopping…"
+                : isRunnable
                 ? "Run"
-                : connectionStatus === "checking"
-                  ? "Checking"
-                  : "Connect OS Client"}
+                : "Connect OS Client"}
           </button>
         ) : null}
       </div>

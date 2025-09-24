@@ -1,13 +1,19 @@
 import { Agent, getAgentByName } from 'agents';
+import { z } from 'zod';
 import { migrate } from 'drizzle-orm/durable-sqlite/migrator';
 import {
   OSClientToolResponseSchema,
+  StartRecordingSchema,
+  StopRecordingSchema,
+  GetRecordingSchema,
+  AbortScriptSchema,
   type OSClientToolRequest,
   type OSClientToolResponse,
   type ExecuteScriptInput,
   type StartRecordingInput,
   type StopRecordingInput,
   type GetRecordingInput,
+  type AbortScriptInput,
 } from '@/schemas/osclient-tools';
 import {
   ConnectionCoordinatorRepository,
@@ -36,6 +42,7 @@ interface PendingRequestContext {
   resolve: (value: unknown) => void;
   reject: (reason?: unknown) => void;
   createdAt: number;
+  connectionId?: string;
 }
 
 interface ToolRequestSnapshot {
@@ -53,7 +60,7 @@ interface ToolRequestSnapshot {
 interface SendToolRequestInput {
   workflowId: string;
   tool: OSClientToolRequest['tool'];
-  params: ExecuteScriptInput | StartRecordingInput | StopRecordingInput | GetRecordingInput;
+  params: ExecuteScriptInput | StartRecordingInput | StopRecordingInput | GetRecordingInput | AbortScriptInput;
 }
 
 interface ListToolRequestsInput {
@@ -61,6 +68,14 @@ interface ListToolRequestsInput {
   status?: ToolRequestStatus;
   limit?: number;
 }
+
+const DEFAULT_USER_ID = 'aceca593-9511-4621-a567-449207737244';
+
+const ExecuteScriptWebParamsSchema = z.object({
+  enable_narration: z.boolean().optional(),
+  trace: z.boolean().optional(),
+  variables: z.record(z.string(), z.unknown()).optional(),
+});
 
 // WebSocket connection interface
 interface Connection<State = unknown> {
@@ -171,17 +186,36 @@ export class ConnectionCoordinator extends Agent<Env, CoordinatorState> {
         osConnectionIds,
       });
 
-      // Send welcome message
+      // Get current connection status to include in welcome message
+      const allConnections = Array.from(this.connections.values());
+      const hasOSClient = allConnections.some(conn => conn.type === 'osclient');
+      const hasWebClient = allConnections.some(conn => conn.type === 'web');
+
+      console.log(`Welcome message for ${clientType} client:`, {
+        connectionId: connection.id,
+        totalConnections: allConnections.length,
+        connectionTypes: allConnections.map(c => c.type),
+        hasOSClient,
+        hasWebClient
+      });
+
+      // Send welcome message with connection status
       connection.send(JSON.stringify({
         type: 'connected',
-        clientId: connection.id,
-        clientType,
-        capabilities: clientType === 'osclient' ? [
-          'execute_script',
-          'start_recording',
-          'stop_recording',
-          'get_recording'
-        ] : ['workflow_updates', 'real_time_sync']
+        data: {
+          coordinatorId: this.name,
+          clientId: connection.id,
+          clientType,
+          hasOSClient,
+          hasWebClient,
+          capabilities: clientType === 'osclient' ? [
+            'execute_script',
+            'start_recording',
+            'stop_recording',
+            'get_recording',
+            'abort_script'
+          ] : ['workflow_updates', 'real_time_sync']
+        }
       }));
 
       console.log(`${clientType} client connected: ${connection.id}`);
@@ -238,6 +272,14 @@ export class ConnectionCoordinator extends Agent<Env, CoordinatorState> {
         webConnectionIds,
         osConnectionIds,
       });
+
+      if (connectionInfo.type === 'osclient') {
+        this.failPendingRequestsForConnection({
+          connectionId: connection.id,
+          closeCode: code,
+          closeReason: reason,
+        });
+      }
     }
 
     this.connections.delete(connection.id);
@@ -275,6 +317,11 @@ export class ConnectionCoordinator extends Agent<Env, CoordinatorState> {
   private async handleWebClientMessage(connection: any, data: any, connectionInfo: ConnectionInfo) {
     if (data.type === 'ping') {
       connection.send(JSON.stringify({ type: 'pong' }));
+      return;
+    }
+
+    if (data.type === 'tool_request') {
+      await this.handleWebClientToolRequest(connection, data);
       return;
     }
 
@@ -383,6 +430,7 @@ export class ConnectionCoordinator extends Agent<Env, CoordinatorState> {
         resolve: noop,
         reject: noop,
         createdAt: record.createdAt,
+        connectionId: undefined,
       });
     });
 
@@ -468,6 +516,9 @@ export class ConnectionCoordinator extends Agent<Env, CoordinatorState> {
       case 'get_recording':
         request = { tool, requestId, params: params as GetRecordingInput };
         break;
+      case 'abort_script':
+        request = { tool, requestId, params: params as AbortScriptInput };
+        break;
       default: {
         const exhaustiveCheck: never = tool;
         throw new Error(`Unsupported tool request: ${exhaustiveCheck}`);
@@ -497,6 +548,7 @@ export class ConnectionCoordinator extends Agent<Env, CoordinatorState> {
         resolve,
         reject,
         createdAt,
+        connectionId: osClientConnection.id,
       });
     });
 
@@ -537,19 +589,134 @@ export class ConnectionCoordinator extends Agent<Env, CoordinatorState> {
         pendingRequest.resolve(response.data);
       }
     } else {
+      let derivedError: string | undefined;
+      if (response.error) {
+        derivedError = response.error;
+      } else if (response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
+        const maybeError = (response.data as { error?: unknown }).error;
+        if (typeof maybeError === 'string' && maybeError.trim().length > 0) {
+          derivedError = maybeError;
+        }
+      }
+
       this.pendingRequestRepo.markError({
         requestId: response.requestId,
-        error: response.error ?? 'Tool execution failed',
+        error: derivedError ?? 'Tool execution failed',
         resolvedAt,
       });
 
       if (pendingRequest) {
-        pendingRequest.reject(new Error(response.error || 'Tool execution failed'));
+        const errorObject = new Error(derivedError || 'Tool execution failed');
+        (errorObject as Error & { data?: unknown }).data = response.data;
+        pendingRequest.reject(errorObject);
       }
     }
 
     if (!pendingRequest) {
       console.log('Stored tool response for request without active listener:', response.requestId);
+    }
+  }
+
+  private async handleWebClientToolRequest(connection: any, data: any) {
+    const { requestId, workflowId, tool, params } = data ?? {};
+
+    if (!workflowId || typeof workflowId !== 'string') {
+      connection.send(JSON.stringify({
+        type: 'tool_response',
+        requestId,
+        success: false,
+        data: { error: 'workflowId is required for tool requests' },
+      }));
+      return;
+    }
+
+    if (!tool || typeof tool !== 'string') {
+      connection.send(JSON.stringify({
+        type: 'tool_response',
+        requestId,
+        success: false,
+        data: { error: 'Tool is required for tool requests' },
+      }));
+      return;
+    }
+
+    try {
+      const workflowAgent = await getAgentByName(this.env.WORKFLOW_RUNNER, workflowId);
+      let result: unknown;
+
+      switch (tool) {
+        case 'execute_script': {
+          const parsed = ExecuteScriptWebParamsSchema.parse(params ?? {});
+          result = await (workflowAgent as any).executeScript(DEFAULT_USER_ID, parsed);
+          break;
+        }
+        case 'start_recording': {
+          const parsed = StartRecordingSchema.parse(params ?? {});
+          result = await (workflowAgent as any).startRecording(DEFAULT_USER_ID, parsed);
+          break;
+        }
+        case 'stop_recording': {
+          const parsed = StopRecordingSchema.parse(params ?? {});
+          result = await (workflowAgent as any).stopRecording(DEFAULT_USER_ID, parsed);
+          break;
+        }
+        case 'get_recording': {
+          const parsed = GetRecordingSchema.parse(params ?? {});
+          result = await (workflowAgent as any).getRecording(DEFAULT_USER_ID, parsed);
+          break;
+        }
+        case 'abort_script': {
+          const parsed = AbortScriptSchema.parse(params ?? {});
+          result = await this.sendToolRequestToOSClient({
+            workflowId,
+            tool: 'abort_script',
+            params: parsed,
+          });
+          break;
+        }
+        default:
+          throw new Error(`Unsupported tool request: ${tool}`);
+      }
+
+      connection.send(JSON.stringify({
+        type: 'tool_response',
+        requestId,
+        success: true,
+        data: result,
+      }));
+    } catch (error) {
+      let errorMessage = 'Tool request failed';
+      let dataPayload: Record<string, unknown> | undefined;
+
+      if (error instanceof Error) {
+        if (error.message.trim().length > 0) {
+          errorMessage = error.message;
+        }
+
+        const extra = (error as Error & { data?: unknown }).data;
+        if (extra && typeof extra === 'object' && !Array.isArray(extra)) {
+          dataPayload = extra as Record<string, unknown>;
+          const nestedError = dataPayload?.error;
+          if (typeof nestedError === 'string' && nestedError.trim().length > 0) {
+            errorMessage = nestedError;
+          }
+        }
+      }
+
+      const responsePayload: Record<string, unknown> = {
+        type: 'tool_response',
+        requestId,
+        success: false,
+        error: errorMessage,
+      };
+
+      if (dataPayload) {
+        responsePayload.data = dataPayload;
+      } else {
+        responsePayload.data = { error: errorMessage };
+      }
+
+      connection.send(JSON.stringify(responsePayload));
     }
   }
 
@@ -572,5 +739,48 @@ export class ConnectionCoordinator extends Agent<Env, CoordinatorState> {
       lastActivity: new Date(state.lastActivity).toISOString(),
       source: source === "server" ? "server" : "client"
     });
+  }
+
+  private failPendingRequestsForConnection({
+    connectionId,
+    closeCode,
+    closeReason,
+  }: {
+    connectionId: string;
+    closeCode: number;
+    closeReason: string;
+  }) {
+    const failures: string[] = [];
+    const reason = closeReason?.trim()
+      ? `OS client disconnected (${closeCode}): ${closeReason}`
+      : `OS client disconnected (${closeCode})`;
+
+    this.pendingToolRequests.forEach((pending, requestId) => {
+      if (pending.connectionId !== connectionId) {
+        return;
+      }
+
+      this.pendingToolRequests.delete(requestId);
+
+      try {
+        pending.reject(new Error(reason));
+      } catch (error) {
+        console.error('Failed to reject pending tool request', { requestId, error });
+      }
+
+      this.pendingRequestRepo.markError({
+        requestId,
+        error: reason,
+        resolvedAt: Date.now(),
+      });
+
+      failures.push(requestId);
+    });
+
+    if (failures.length === 0) {
+      return;
+    }
+
+    console.warn(`Rejected ${failures.length} pending tool request(s) after OS client disconnect:`, failures);
   }
 }

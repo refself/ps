@@ -37,7 +37,7 @@ type ReorderBlockOptions = {
 };
 
 export type ExecutionStatus = {
-  state: "idle" | "running" | "success" | "error";
+  state: "idle" | "running" | "aborting" | "aborted" | "success" | "error";
   message: string | null;
   output: string | null;
   timestamp: number | null;

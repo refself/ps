@@ -26,6 +26,8 @@ const ToolRequestQuerySchema = z.object({
 
 const ExecuteScriptRequestSchema = z.object({
   enable_narration: z.boolean().optional(),
+  trace: z.boolean().optional(),
+  variables: z.record(z.string(), z.unknown()).optional(),
 });
 
 const workflows = new Hono<{
@@ -244,7 +246,19 @@ workflows.post('/:id/tools/stop-recording', zValidator('json', StopRecordingSche
   }
 });
 
-workflows.get('/:id/tools/recording/:recordingId', async (c) => {
+workflows.get('/:id/recordings', async (c) => {
+  const workflowId = c.req.param('id');
+
+  try {
+    const agent = await getWorkflowAgent(c.env, workflowId);
+    const recordings = await agent.listRecordings();
+    return c.json({ items: recordings });
+  } catch (error) {
+    return handleToolError(c, error, 'List recordings');
+  }
+});
+
+workflows.get('/:id/recordings/:recordingId', async (c) => {
   const workflowId = c.req.param('id');
   const recordingId = c.req.param('recordingId');
   const userId = c.get('userId'); // From JWT middleware

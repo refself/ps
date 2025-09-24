@@ -14,6 +14,8 @@ export type RunScriptResult = {
 };
 
 export type RunScriptHandler = (code: string) => Promise<RunScriptResult | void> | RunScriptResult | void;
+export type AbortScriptResult = RunScriptResult;
+export type AbortScriptHandler = () => Promise<AbortScriptResult | void> | AbortScriptResult | void;
 
 export type SaveVersionPayload = {
   name?: string;
@@ -44,6 +46,10 @@ export type ObservabilityConfig = {
   baseUrl: string;
   apiKey?: string;
   pollIntervalMs?: number;
+  connectionStatus?: {
+    hasOSClient: boolean;
+    hasWebClient: boolean;
+  };
 };
 
 export type WorkflowEditorProps = {
@@ -52,6 +58,7 @@ export type WorkflowEditorProps = {
   onDocumentChange?: (document: WorkflowDocument) => void;
   onCodeChange?: (code: string) => void;
   onRunScript?: RunScriptHandler;
+  onAbortScript?: AbortScriptHandler;
   onBack?: () => void;
   connectionStatus?: ConnectionStatus;
   enableCommandPalette?: boolean;
@@ -63,4 +70,15 @@ export type WorkflowEditorProps = {
   onStartRecording?: () => Promise<void> | void;
   onStopRecording?: (recordingId: string) => Promise<void> | void;
   activeRecordingId?: string | null;
+  recordingError?: string | null;
+  recordingBusy?: boolean;
+  recordings?: Array<{
+    recordingId: string;
+    status: 'recording' | 'completed' | 'error';
+    data?: unknown;
+    createdAt: number;
+    updatedAt: number;
+    stoppedAt: number | null;
+    lastError: string | null;
+  }>;
 };

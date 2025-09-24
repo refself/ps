@@ -23,6 +23,16 @@ type WorkflowEditorViewContainerProps = {
   onStopRecording?: (recordingId: string) => void;
   recordingBusy: boolean;
   activeRecordingId?: string | null;
+  recordingError?: string | null;
+  recordings?: Array<{
+    recordingId: string;
+    status: 'recording' | 'completed' | 'error';
+    data?: unknown;
+    createdAt: number;
+    updatedAt: number;
+    stoppedAt: number | null;
+    lastError: string | null;
+  }>;
 };
 
 const WorkflowEditorViewContainer = ({
@@ -33,6 +43,8 @@ const WorkflowEditorViewContainer = ({
   onStopRecording,
   recordingBusy,
   activeRecordingId,
+  recordingError,
+  recordings,
 }: WorkflowEditorViewContainerProps) => {
   const renderVisualView = () => (
     <div className="workflow-editor-scrollable flex flex-1 overflow-hidden">
@@ -57,7 +69,7 @@ const WorkflowEditorViewContainer = ({
       <div className="workflow-editor-scrollable flex w-full flex-col overflow-hidden rounded-2xl border border-[#0A1A2314] bg-white shadow-[0_30px_60px_rgba(10,26,35,0.15)]">
         {observabilityConfig ? (
           <ObservabilityPanel
-            recordings={observabilityState.recordings}
+            recordings={recordings || []}
             toolRequests={observabilityState.toolRequests}
             status={observabilityState.status}
             error={observabilityState.error}

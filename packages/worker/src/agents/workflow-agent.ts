@@ -160,6 +160,14 @@ export class WorkflowAgent extends Agent<Env, WorkflowState> {
       enable_narration: params.enable_narration ?? true,
     };
 
+    if (typeof params.trace === 'boolean') {
+      payload.trace = params.trace;
+    }
+
+    if (params.variables && Object.keys(params.variables).length > 0) {
+      payload.variables = params.variables;
+    }
+
     return coordinator.executeScriptForWorkflow(this.name, payload);
   }
 
@@ -217,6 +225,10 @@ export class WorkflowAgent extends Agent<Env, WorkflowState> {
       }
       throw error;
     }
+  }
+
+  async listRecordings(): Promise<WorkflowRecording[]> {
+    return this.workflowRepo.listRecordings();
   }
 
   async getRecording(userId: string, params: GetRecordingInput): Promise<any> {
