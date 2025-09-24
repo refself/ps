@@ -106,7 +106,9 @@ const WorkflowEditor = ({
   return (
     <DndProvider backend={HTML5Backend}>
       <EditorProvider>
-        <div className={`workflow-editor-root flex h-full w-full flex-col overflow-hidden bg-[#F5F6F9] text-[#0A1A23] ${className ?? ""}`}>
+        <div
+          className={`workflow-editor-root flex h-full w-full flex-col overflow-hidden ${className ?? ""}`}
+        >
           <WorkflowEditorHeader
             mode={mode}
             setMode={setMode}

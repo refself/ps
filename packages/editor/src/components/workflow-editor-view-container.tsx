@@ -5,6 +5,7 @@ import EditorCanvas from './editor-canvas';
 import InspectorPanel from './inspector-panel';
 import CodeEditorPanel from './code-editor-panel';
 import { ObservabilityPanel } from './observability-panel';
+import { editorTheme } from '../theme';
 import type { EditorMode, ObservabilityConfig } from '../types/workflow-editor';
 import type { ObservabilityRecording, ObservabilityToolRequest } from '../hooks/use-observability';
 
@@ -62,7 +63,13 @@ const WorkflowEditorViewContainer = ({
     <div className="workflow-editor-scrollable flex flex-1 overflow-hidden">
       <BlockLibraryPanel />
       <EditorCanvas />
-      <div className="flex w-[420px] flex-col overflow-hidden border-l border-[#0A1A2314] bg-white/80 backdrop-blur">
+      <div
+        className="flex w-[420px] flex-col overflow-hidden backdrop-blur"
+        style={{
+          borderLeft: `1px solid ${editorTheme.colors.borderSubtle}`,
+          background: 'rgba(255,255,255,0.82)',
+        }}
+      >
         <InspectorPanel />
       </div>
     </div>
@@ -70,7 +77,14 @@ const WorkflowEditorViewContainer = ({
 
   const renderCodeView = () => (
     <div className="workflow-editor-scrollable flex flex-1 overflow-hidden px-10 py-8">
-      <div className="workflow-editor-scrollable flex w-full flex-col overflow-hidden rounded-2xl border border-[#0A1A2314] bg-white shadow-[0_30px_60px_rgba(10,26,35,0.15)]">
+      <div
+        className="workflow-editor-scrollable flex w-full flex-col overflow-hidden rounded-2xl"
+        style={{
+          border: `1px solid ${editorTheme.colors.borderSubtle}`,
+          background: 'rgba(255, 255, 255, 0.92)',
+          boxShadow: '0 30px 60px rgba(10, 26, 35, 0.18)',
+        }}
+      >
         <CodeEditorPanel variant="full" />
       </div>
     </div>
@@ -78,7 +92,14 @@ const WorkflowEditorViewContainer = ({
 
   const renderRecordingsView = () => (
     <div className="workflow-editor-scrollable flex flex-1 overflow-hidden px-10 py-8">
-      <div className="workflow-editor-scrollable flex w-full flex-col overflow-hidden rounded-2xl border border-[#0A1A2314] bg-white shadow-[0_30px_60px_rgba(10,26,35,0.15)]">
+      <div
+        className="workflow-editor-scrollable flex w-full flex-col overflow-hidden rounded-2xl"
+        style={{
+          border: `1px solid ${editorTheme.colors.borderSubtle}`,
+          background: 'rgba(255, 255, 255, 0.92)',
+          boxShadow: '0 30px 60px rgba(10, 26, 35, 0.18)',
+        }}
+      >
         {observabilityConfig ? (
           <ObservabilityPanel
             recordings={recordings || []}

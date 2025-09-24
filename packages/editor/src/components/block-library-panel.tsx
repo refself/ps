@@ -7,6 +7,7 @@ import type { BlockSchema } from "@workflow-builder/core";
 import { useEditorStore } from "../state/editor-store";
 import { DND_ITEM_TYPES, type BlockDragItem } from "../dnd/item-types";
 import { Icon, type IconName } from "./icon";
+import { editorTheme } from "../theme";
 
 type BlockGroup = {
   category: string;
@@ -46,15 +47,27 @@ const BlockPaletteItem = ({ item, onAdd }: BlockPaletteItemProps) => {
       ref={drag}
       type="button"
       onClick={() => onAdd(item.kind)}
-      className="flex w-full items-start gap-3 rounded-xl border border-[#0A1A2314] bg-white px-3 py-3 text-left text-sm text-[#0A1A23] shadow-sm transition hover:border-[#3A5AE5] hover:shadow-[0_12px_24px_rgba(58,90,229,0.12)]"
-      style={{ opacity: isDragging ? 0.4 : 1 }}
+      className="flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left text-sm transition hover:border-[var(--editor-color-action)] hover:shadow-[0_14px_28px_rgba(58,90,229,0.15)]"
+      style={{
+        opacity: isDragging ? 0.4 : 1,
+        border: `1px solid ${editorTheme.colors.borderSubtle}`,
+        background: editorTheme.gradients.box,
+        color: editorTheme.colors.foreground,
+        boxShadow: '0 10px 24px rgba(10, 26, 35, 0.08)',
+      }}
     >
-      <span className="mt-1 flex h-7 w-7 items-center justify-center rounded-lg bg-[#3A5AE510] text-[#3A5AE5]">
+      <span
+        className="mt-1 flex h-7 w-7 items-center justify-center rounded-lg"
+        style={{
+          background: editorTheme.colors.actionBox,
+          color: editorTheme.colors.action,
+        }}
+      >
         <Icon name={item.icon} className="h-4 w-4" />
       </span>
       <div className="flex flex-1 flex-col gap-1">
         <span className="font-semibold">{item.label}</span>
-        {item.description ? <span className="text-xs text-[#657782]">{item.description}</span> : null}
+        {item.description ? <span className="text-xs" style={{ color: editorTheme.colors.shaded }}>{item.description}</span> : null}
       </div>
     </button>
   );
@@ -113,19 +126,46 @@ const BlockLibraryPanel = () => {
   };
 
   return (
-    <aside className="workflow-editor-scrollable flex h-full w-72 flex-col border-r border-[#0A1A2314] bg-white/85 backdrop-blur">
-      <div className="border-b border-[#0A1A2314] bg-white/90 px-4 py-4">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.35em] text-[#657782]">Blocks</h2>
+    <aside
+      className="workflow-editor-scrollable flex h-full w-72 flex-col backdrop-blur"
+      style={{
+        borderRight: `1px solid ${editorTheme.colors.borderSubtle}`,
+        background: 'rgba(255, 255, 255, 0.82)',
+      }}
+    >
+      <div
+        className="px-4 py-4"
+        style={{
+          borderBottom: `1px solid ${editorTheme.colors.borderSubtle}`,
+          background: 'rgba(255, 255, 255, 0.9)',
+        }}
+      >
+        <h2
+          className="text-sm font-semibold uppercase tracking-[0.35em]"
+          style={{ color: editorTheme.colors.shaded }}
+        >
+          Blocks
+        </h2>
       </div>
       <div className="mt-4 flex-1 space-y-5 overflow-y-auto px-4 pb-6">
         {groups.map((group) => (
           <section key={group.category} className="flex flex-col gap-2">
             <div className="flex items-center justify-between pr-1">
-              <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-[#657782]">
-                <Icon name={group.icon} className="h-4 w-4 text-[#3A5AE5]" />
+              <h3
+                className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.25em]"
+                style={{ color: editorTheme.colors.shaded }}
+              >
+                <Icon name={group.icon} className="h-4 w-4" />
                 {group.category}
               </h3>
-              <span className="rounded-full border border-[#0A1A2314] bg-white px-2 py-0.5 text-[10px] text-[#657782]">
+              <span
+                className="rounded-full px-2 py-0.5 text-[10px]"
+                style={{
+                  border: `1px solid ${editorTheme.colors.borderMuted}`,
+                  background: 'rgba(255,255,255,0.9)',
+                  color: editorTheme.colors.shaded,
+                }}
+              >
                 {group.items.length}
               </span>
             </div>

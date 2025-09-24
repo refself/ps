@@ -6,6 +6,8 @@ import { DND_ITEM_TYPES, type BlockDragItem } from "../../dnd/item-types";
 import { useEditorStore } from "../../state/editor-store";
 import { usePaletteStore } from "../../state/palette-store";
 import { Icon } from "../icon";
+import { editorTheme } from "../../theme";
+import { withAlpha } from "../../utils/color";
 
 export type SlotDropZoneProps = {
   parentId: string;
@@ -46,6 +48,10 @@ const SlotDropZone = ({ parentId, slotId, index, depth, label, isEmpty }: SlotDr
   const isActive = isOver && canDrop;
   const showAddHint = hasContent && (pointerInside || isActive);
 
+  const baseBorder = editorTheme.colors.borderSubtle;
+  const accent = editorTheme.colors.action;
+  const emptyBackground = 'rgba(255,255,255,0.82)';
+
   return (
     <div
       ref={drop}
@@ -55,19 +61,16 @@ const SlotDropZone = ({ parentId, slotId, index, depth, label, isEmpty }: SlotDr
           ? showZone
             ? "mx-1 py-5"
             : "mx-1 py-1"
-          : "rounded-lg border border-dashed border-[#0A1A2333] bg-white/80 px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#657782] backdrop-blur",
-        showZone || !hasContent ? "opacity-100" : "opacity-0",
-        canDrop
-          ? hasContent
-            ? ""
-            : "border-[#3A5AE5] bg-[#3A5AE510] text-[#3A5AE5]"
-          : hasContent
-          ? ""
-          : "border-[#0A1A2333] bg-white/80",
-        isActive ? "shadow-[0_0_0_3px_rgba(58,90,229,0.25)]" : "shadow-none",
-        isEmpty ? "text-[#657782]" : ""
+          : "rounded-lg border border-dashed px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.2em] backdrop-blur",
+        showZone || !hasContent ? "opacity-100" : "opacity-0"
       )}
-      style={{ marginLeft: depth * 16 }}
+      style={{
+        marginLeft: depth * 16,
+        borderColor: hasContent ? 'transparent' : baseBorder,
+        background: hasContent ? 'transparent' : emptyBackground,
+        color: editorTheme.colors.shaded,
+        boxShadow: isActive ? `0 0 0 3px ${withAlpha(accent, 0.25)}` : 'none',
+      }}
       onMouseEnter={() => setPointerInside(true)}
       onMouseLeave={() => setPointerInside(false)}
       onClick={(event) => {
@@ -86,18 +89,30 @@ const SlotDropZone = ({ parentId, slotId, index, depth, label, isEmpty }: SlotDr
       {hasContent ? (
         <>
           <div
-            className={clsx(
-              "h-2 w-full transform rounded-full border border-dashed transition-all duration-150",
-              canDrop ? "border-[#3A5AE5] bg-[#3A5AE520]" : "border-[#0A1A2333] bg-transparent",
-              showZone ? "opacity-100 scale-y-100" : "opacity-0 scale-y-0"
-            )}
+            className="h-2 w-full transform rounded-full border border-dashed transition-all duration-150"
+            style={{
+              borderColor: canDrop ? withAlpha(accent, 0.6) : baseBorder,
+              background: canDrop ? withAlpha(accent, 0.16) : 'transparent',
+              opacity: showZone ? 1 : 0,
+              transform: showZone ? 'scaleY(1)' : 'scaleY(0)',
+            }}
           />
           {showAddHint ? (
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[#3A5AE5] bg-white text-[#3A5AE5] shadow-[0_6px_14px_rgba(58,90,229,0.18)]">
+              <span
+                className="flex h-8 w-8 items-center justify-center rounded-full shadow-[0_6px_14px_rgba(58,90,229,0.18)]"
+                style={{
+                  border: `1px solid ${accent}`,
+                  background: 'rgba(255,255,255,0.95)',
+                  color: accent,
+                }}
+              >
                 <Icon name="plus" className="h-4 w-4" />
               </span>
-              <span className="rounded-full bg-white/95 px-3 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#3A5AE5] shadow-sm">
+              <span
+                className="rounded-full px-3 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] shadow-sm"
+                style={{ background: 'rgba(255,255,255,0.95)', color: accent }}
+              >
                 {label ?? "Insert"}
               </span>
             </div>

@@ -1,41 +1,188 @@
+@import url('https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
 :root {
   color-scheme: light;
+  --editor-font-sans: 'Albert Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --editor-font-mono: 'JetBrains Mono', SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  --editor-color-foreground: #0a1a23;
+  --editor-color-shaded: #657782;
+  --editor-color-border-subtle: rgba(10, 26, 35, 0.08);
+  --editor-color-border-strong: rgba(10, 26, 35, 0.16);
+  --editor-color-border-muted: rgba(10, 26, 35, 0.06);
+  --editor-color-action: #3a5ae5;
+  --editor-color-action-hover: #2d4bd4;
+  --editor-color-action-box: #d8defa;
+  --editor-color-positive: #32aa81;
+  --editor-color-positive-box: #32aa8133;
+  --editor-color-negative: #cd3a50;
+  --editor-color-negative-box: #cd3a5033;
+  --editor-color-warning: #e2a636;
+  --editor-color-warning-box: #e2a63633;
+  --editor-color-background-default: #ffffff;
+  --editor-color-background-soft: #f5f6f9;
+  --editor-color-background-tint: #eef2ff;
+  --editor-color-accent-muted: #9aa7b4;
+  --editor-gradient-container: linear-gradient(0deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.15) 100%), linear-gradient(176deg, #edeef6 2.52%, #f2f0f9 38.43%, #f0f1f7 98.27%);
+  --editor-gradient-box: linear-gradient(334deg, rgba(255, 255, 255, 0.20) 2.57%, rgba(255, 255, 255, 0.50) 71.91%), linear-gradient(233deg, rgba(151, 216, 200, 0.00) 16.93%, rgba(232, 197, 209, 0.10) 91.51%), #f0f0fa;
+  --editor-gradient-selected: linear-gradient(87deg, rgba(255, 255, 255, 0.30) 0.44%, rgba(255, 255, 255, 0.15) 99.61%), rgba(169, 175, 218, 0.30);
+}
+
+body {
+  margin: 0;
+  font-family: var(--editor-font-sans);
+  background: var(--editor-gradient-container);
+  color: var(--editor-color-foreground);
 }
 
 .workflow-editor-root {
-  color: #0a1a23;
-  background: linear-gradient(0deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.15) 100%),
-    linear-gradient(176deg, #edeef6 3%, #f2f0f9 45%, #f0f1f7 100%);
+  color: var(--editor-color-foreground);
+  background: var(--editor-gradient-container);
+  font-family: var(--editor-font-sans);
+}
+
+.text-foreground {
+  color: var(--editor-color-foreground) !important;
+}
+
+.text-shaded {
+  color: var(--editor-color-shaded) !important;
+}
+
+.text-accent-muted {
+  color: var(--editor-color-accent-muted) !important;
+}
+
+.bg-surface {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.bg-surface-soft {
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.bg-tint {
+  background: var(--editor-color-background-tint);
+}
+
+.border-subtle {
+  border-color: var(--editor-color-border-subtle) !important;
+}
+
+.border-strong {
+  border-color: var(--editor-color-border-strong) !important;
+}
+
+.border-muted {
+  border-color: var(--editor-color-border-muted) !important;
+}
+
+.shadow-elevated {
+  box-shadow: 0 24px 48px rgba(10, 26, 35, 0.12);
+}
+
+.chip-primary {
+  background: var(--editor-color-action-box);
+  color: var(--editor-color-action);
+  border: 1px solid rgba(58, 90, 229, 0.35);
+}
+
+.surface-glass {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(12px);
+}
+
+/* Legacy Tailwind color overrides mapped to editor theme */
+[class*="text-[#0A1A23]"] { color: var(--editor-color-foreground) !important; }
+[class*="text-[#657782]"] { color: var(--editor-color-shaded) !important; }
+[class*="text-[#3A5AE5]"] { color: var(--editor-color-action) !important; }
+[class*="text-[#32AA81]"] { color: var(--editor-color-positive) !important; }
+[class*="text-[#CD3A50]"] { color: var(--editor-color-negative) !important; }
+[class*="text-[#E2A636]"] { color: var(--editor-color-warning) !important; }
+[class*="text-[#9AA7B4]"] { color: var(--editor-color-accent-muted) !important; }
+
+[class*="bg-[#F5F6F9]"] { background-color: var(--editor-color-background-soft) !important; }
+[class*="bg-[#EEF2FF]"] { background-color: var(--editor-color-background-tint) !important; }
+[class*="bg-[#3A5AE510]"] { background-color: rgba(58, 90, 229, 0.06) !important; }
+[class*="bg-[#3A5AE520]"] { background-color: rgba(58, 90, 229, 0.12) !important; }
+[class*="bg-[#32AA8110]"] { background-color: rgba(50, 170, 129, 0.06) !important; }
+[class*="bg-[#32AA8120]"] { background-color: rgba(50, 170, 129, 0.12) !important; }
+[class*="bg-[#CD3A5010]"] { background-color: rgba(205, 58, 80, 0.06) !important; }
+[class*="bg-[#CD3A5020]"] { background-color: rgba(205, 58, 80, 0.12) !important; }
+[class*="bg-[#E2A63610]"] { background-color: rgba(226, 166, 54, 0.06) !important; }
+[class*="bg-[#E2A63620]"] { background-color: rgba(226, 166, 54, 0.12) !important; }
+[class*="bg-[#AF54BE10]"] { background-color: rgba(175, 84, 190, 0.06) !important; }
+[class*="bg-[#AF54BE20]"] { background-color: rgba(175, 84, 190, 0.12) !important; }
+[class*="bg-[#578BC910]"] { background-color: rgba(87, 139, 201, 0.06) !important; }
+[class*="bg-[#578BC920]"] { background-color: rgba(87, 139, 201, 0.12) !important; }
+
+[class*="border-[#0A1A2314]"] { border-color: var(--editor-color-border-subtle) !important; }
+[class*="border-[#0A1A2333]"] { border-color: var(--editor-color-border-strong) !important; }
+[class*="border-[#CED6E9]"] { border-color: var(--editor-color-border-muted) !important; }
+[class*="border-[#3A5AE5]"] { border-color: var(--editor-color-action) !important; }
+[class*="border-[#32AA81]"] { border-color: var(--editor-color-positive) !important; }
+[class*="border-[#CD3A50]"] { border-color: var(--editor-color-negative) !important; }
+[class*="border-[#E2A636]"] { border-color: var(--editor-color-warning) !important; }
+[class*="border-[#9AA7B4]"] { border-color: var(--editor-color-accent-muted) !important; }
+
+[class*="text-white"] { color: #ffffff !important; }
+[class*="bg-white"] { background-color: rgba(255, 255, 255, 0.95) !important; }
+
+.workflow-editor-root code,
+.workflow-editor-root pre,
+.workflow-editor-root .font-mono {
+  font-family: var(--editor-font-mono);
 }
 
 .bg-workbench {
-  background-color: #f9faff;
-  background-image: radial-gradient(circle, rgba(58, 90, 229, 0.16) 1.2px, transparent 1.2px);
-  background-size: 20px 20px;
-  background-position: 0 0, 10px 10px;
+  background-color: rgba(239, 241, 249, 0.9);
+  background-image:
+    radial-gradient(circle, rgba(58, 90, 229, 0.16) 1.2px, transparent 1.2px),
+    radial-gradient(circle, rgba(50, 170, 129, 0.08) 1.2px, transparent 1.2px);
+  background-size: 32px 32px, 32px 32px;
+  background-position: 0 0, 16px 16px;
 }
 
 .workflow-editor-scrollable {
   scrollbar-width: thin;
-  scrollbar-color: #c7cef9 #f8fafe;
+  scrollbar-color: rgba(151, 161, 200, 0.6) rgba(248, 250, 254, 0.8);
 }
 
 .workflow-editor-scrollable::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
 }
 
 .workflow-editor-scrollable::-webkit-scrollbar-track {
-  background: #f8fafe;
+  background: rgba(248, 250, 254, 0.8);
   border-radius: 9999px;
 }
 
 .workflow-editor-scrollable::-webkit-scrollbar-thumb {
-  background-color: #c7cef9;
+  background-color: rgba(151, 161, 200, 0.6);
   border-radius: 9999px;
-  border: 2px solid #f8fafe;
+  border: 2px solid rgba(248, 250, 254, 0.8);
 }
 
 .workflow-editor-scrollable::-webkit-scrollbar-thumb:hover {
-  background-color: #aab7f3;
+  background-color: rgba(112, 127, 201, 0.65);
+}
+
+.surface-card {
+  border-radius: 18px;
+  border: 1px solid var(--editor-color-border-subtle);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 20px 40px rgba(10, 26, 35, 0.08);
+  backdrop-filter: blur(12px);
+}
+
+.chip {
+  border-radius: 999px;
+  border: 1px solid var(--editor-color-border-subtle);
+  background: rgba(255, 255, 255, 0.85);
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }

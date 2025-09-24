@@ -9,6 +9,8 @@ import { useEditorStore } from "../../state/editor-store";
 import SlotDropZone from "./slot-drop-zone";
 import { getIdentifierStyle } from "../../utils/identifier-colors";
 import { Icon } from "../icon";
+import { editorTheme, getCategoryAccent } from "../../theme";
+import { withAlpha } from "../../utils/color";
 
 const categoryIcons: Record<string, string> = {
   program: "📜",
@@ -21,19 +23,6 @@ const categoryIcons: Record<string, string> = {
   utility: "🛠",
   io: "🔗",
   raw: "📦"
-};
-
-const categoryColors: Record<string, string> = {
-  program: "#3A5AE5",
-  control: "#AF54BE",
-  variables: "#E2A636",
-  functions: "#32AA81",
-  expressions: "#578BC9",
-  ai: "#AF54BE",
-  automation: "#32AA81",
-  utility: "#3A5AE5",
-  io: "#578BC9",
-  raw: "#CD3A50"
 };
 
 export type BlockNodeProps = {
@@ -68,8 +57,8 @@ const BlockNode = ({ blockId, depth }: BlockNodeProps) => {
   }
 
   const category = schema?.category ?? "utility";
-  const accentColor = categoryColors[category] ?? "#3A5AE5";
-  const iconBackground = `${accentColor}1A`;
+  const accentColor = getCategoryAccent(category);
+  const iconBackground = withAlpha(accentColor, 0.12);
   const fields = schema?.fields ?? [];
 
   const identifierLabel =
@@ -77,20 +66,24 @@ const BlockNode = ({ blockId, depth }: BlockNodeProps) => {
       ? block.data.identifier.trim()
       : null;
   const cardClassName = clsx(
-    "relative flex cursor-pointer flex-col gap-3 rounded-xl border border-[#0A1A2314] bg-white px-5 py-4 text-sm shadow-[0_18px_32px_rgba(10,26,35,0.08)] transition-[box-shadow,transform] duration-150",
+    "relative flex cursor-pointer flex-col gap-3 rounded-xl px-5 py-4 text-sm transition-[box-shadow,transform] duration-150",
     isDragging ? "opacity-60 scale-[0.99]" : "opacity-100"
   );
 
-  const cardStyle: CSSProperties = {};
+  const cardStyle: CSSProperties = {
+    border: `1px solid ${editorTheme.colors.borderSubtle}`,
+    background: 'rgba(255,255,255,0.9)',
+    boxShadow: '0 18px 32px rgba(10,26,35,0.08)',
+  };
 
   if (selectedBlockId === blockId) {
-    cardStyle.boxShadow = `0 0 0 2px ${accentColor}33, 0 28px 48px rgba(10,26,35,0.16)`;
+    cardStyle.boxShadow = `0 0 0 2px ${withAlpha(accentColor, 0.25)}, 0 28px 48px rgba(10,26,35,0.16)`;
   }
 
   if (isHovered) {
     cardStyle.boxShadow = selectedBlockId === blockId
-      ? `0 0 0 2px ${accentColor}66, 0 32px 52px rgba(10,26,35,0.18)`
-      : `0 0 0 1px ${accentColor}3d, 0 24px 40px rgba(10,26,35,0.12)`;
+      ? `0 0 0 2px ${withAlpha(accentColor, 0.38)}, 0 32px 52px rgba(10,26,35,0.18)`
+      : `0 0 0 1px ${withAlpha(accentColor, 0.24)}, 0 24px 40px rgba(10,26,35,0.12)`;
     cardStyle.transform = "translateY(-2px)";
     cardStyle.zIndex = 5;
   }
@@ -105,8 +98,8 @@ const BlockNode = ({ blockId, depth }: BlockNodeProps) => {
       {depth > 0 ? (
         <span
           aria-hidden
-          className="absolute top-5 bottom-5 w-px bg-[#0A1A2333]"
-          style={{ left: -12 }}
+          className="absolute top-5 bottom-5 w-px"
+          style={{ background: editorTheme.colors.borderMuted, left: -12 }}
         />
       ) : null}
       <div
@@ -121,16 +114,22 @@ const BlockNode = ({ blockId, depth }: BlockNodeProps) => {
           <div className="flex items-start gap-3">
             <span
               className="flex h-10 w-10 items-center justify-center rounded-xl text-lg"
-              style={{ backgroundColor: iconBackground, color: accentColor }}
+              style={{ background: iconBackground, color: accentColor, boxShadow: '0 12px 24px rgba(10,26,35,0.08)' }}
             >
               {categoryIcons[category] ?? "🧱"}
             </span>
             <div className="flex flex-col gap-1.5">
-              <div className="text-[16px] font-semibold text-[#0A1A23]">{schema?.label ?? block.kind}</div>
+              <div className="text-[16px] font-semibold" style={{ color: editorTheme.colors.foreground }}>
+                {schema?.label ?? block.kind}
+              </div>
               <div className="flex flex-wrap items-center gap-1.5">
                 <span
                   className="rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
-                  style={{ backgroundColor: `${accentColor}16`, color: accentColor }}
+                  style={{
+                    background: withAlpha(accentColor, 0.1),
+                    color: accentColor,
+                    border: `1px solid ${withAlpha(accentColor, 0.25)}`,
+                  }}
                 >
                   {block.kind}
                 </span>
@@ -141,9 +140,9 @@ const BlockNode = ({ blockId, depth }: BlockNodeProps) => {
                       <span
                         className={clsx(
                           "rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                          style.chip,
-                          style.text
+                          style.chipClassName
                         )}
+                        style={style.chipStyle}
                       >
                         Stores {identifierLabel}
                       </span>
@@ -152,18 +151,25 @@ const BlockNode = ({ blockId, depth }: BlockNodeProps) => {
                 ) : null}
               </div>
               {schema?.description ? (
-                <p className="text-[12px] text-[#657782]">{schema.description}</p>
+                <p className="text-[12px]" style={{ color: editorTheme.colors.shaded }}>
+                  {schema.description}
+                </p>
               ) : null}
             </div>
           </div>
-          <div className="flex items-center gap-1.5 text-[#657782]">
+          <div className="flex items-center gap-1.5" style={{ color: editorTheme.colors.shaded }}>
             <button
               type="button"
               onClick={(event) => {
                 event.stopPropagation();
                 duplicateBlock(blockId);
               }}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-[#0A1A2333] bg-white transition hover:border-[#32AA81] hover:text-[#32AA81]"
+              className="flex h-8 w-8 items-center justify-center rounded-full transition"
+              style={{
+                border: `1px solid ${editorTheme.colors.borderSubtle}`,
+                background: 'rgba(255,255,255,0.95)',
+                color: editorTheme.colors.shaded,
+              }}
               aria-label="Duplicate block"
             >
               <Icon name="copy" className="h-3.5 w-3.5" title="Duplicate" />
@@ -174,7 +180,12 @@ const BlockNode = ({ blockId, depth }: BlockNodeProps) => {
                 event.stopPropagation();
                 deleteBlock(blockId);
               }}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-[#CD3A50] bg-white text-[#CD3A50] transition hover:bg-[#CD3A5020]"
+              className="flex h-8 w-8 items-center justify-center rounded-full transition"
+              style={{
+                border: `1px solid ${withAlpha(editorTheme.colors.negative, 0.5)}`,
+                background: 'rgba(255,255,255,0.95)',
+                color: editorTheme.colors.negative,
+              }}
               aria-label="Delete block"
             >
               <Icon name="trash" className="h-3.5 w-3.5" title="Delete" />
@@ -183,7 +194,7 @@ const BlockNode = ({ blockId, depth }: BlockNodeProps) => {
         </header>
 
         {fields.length > 0 ? (
-          <dl className="grid grid-cols-1 gap-1 text-[12px] text-[#465764]">
+          <dl className="grid grid-cols-1 gap-1 text-[12px]" style={{ color: '#465764' }}>
             {fields.slice(0, 3).map((field) => {
               const rawValue = block.data[field.id];
               const value =
@@ -198,7 +209,9 @@ const BlockNode = ({ blockId, depth }: BlockNodeProps) => {
                   : "—";
               return (
                 <div key={field.id} className="flex items-center gap-2 overflow-hidden">
-                  <dt className="shrink-0 text-[11px] uppercase tracking-wide text-[#9AA7B4]">{field.label}</dt>
+                  <dt className="shrink-0 text-[11px] uppercase tracking-wide" style={{ color: editorTheme.colors.accentMuted }}>
+                    {field.label}
+                  </dt>
                   <dd className="truncate" title={String(value)}>
                     {String(value)}
                   </dd>
@@ -206,7 +219,9 @@ const BlockNode = ({ blockId, depth }: BlockNodeProps) => {
               );
             })}
             {fields.length > 3 ? (
-              <div className="text-[11px] uppercase tracking-wide text-[#9AA7B4]">+{fields.length - 3} more</div>
+              <div className="text-[11px] uppercase tracking-wide" style={{ color: editorTheme.colors.accentMuted }}>
+                +{fields.length - 3} more
+              </div>
             ) : null}
           </dl>
         ) : null}
@@ -216,10 +231,20 @@ const BlockNode = ({ blockId, depth }: BlockNodeProps) => {
             {childSlots.map((slot) => {
               const childIds = block.children[slot.id] ?? [];
               return (
-                <div key={slot.id} className="rounded-xl border border-[#0A1A2314] bg-[#F5F6F9] p-2.5">
-                  <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-[#657782]">
+                <div
+                  key={slot.id}
+                  className="rounded-xl p-2.5"
+                  style={{
+                    border: `1px dashed ${editorTheme.colors.borderMuted}`,
+                    background: editorTheme.colors.backgroundSoft,
+                  }}
+                >
+                  <div
+                    className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide"
+                    style={{ color: editorTheme.colors.shaded }}
+                  >
                     <span>{slot.label}</span>
-                    <span className="text-[#9AA7B4]">{childIds.length}</span>
+                    <span style={{ color: editorTheme.colors.accentMuted }}>{childIds.length}</span>
                   </div>
                   <div className="mt-2 flex flex-col gap-2">
                     <SlotDropZone

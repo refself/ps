@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Icon } from './icon';
 import { useEditorStore } from '../state/editor-store';
 import { usePaletteStore } from '../state/palette-store';
+import { editorTheme, statusTone } from '../theme';
 import type { ConnectionStatus, EditorMode, WorkflowVersioningConfig } from '../types/workflow-editor';
 
 type WorkflowEditorHeaderProps = {
@@ -48,23 +49,38 @@ const WorkflowEditorHeader = ({
   const openPalette = usePaletteStore((state) => state.openPalette);
 
   const statusMeta = useMemo(() => {
-    if (connectionStatus === "offline") {
-      return { label: "Offline", color: "#CD3A50", tone: "border-[#CD3A50] bg-[#CD3A5010] text-[#CD3A50]" };
+    if (connectionStatus === 'offline') {
+      return statusTone.offline;
     }
-    if (connectionStatus === "checking") {
-      return { label: "Checking…", color: "#9AA7B4", tone: "border-[#9AA7B4] bg-white text-[#9AA7B4]" };
+    if (connectionStatus === 'checking') {
+      return statusTone.checking;
     }
-    return { label: "Connected", color: "#32AA81", tone: "border-[#32AA81] bg-[#32AA8110] text-[#32AA81]" };
+    return statusTone.online;
   }, [connectionStatus]);
 
+  const runDisabled = executionState === 'running' || executionState === 'aborting' || !isRunnable;
+
   return (
-    <div className="flex items-center justify-between border-b border-[#0A1A2314] bg-white/90 px-6 py-4">
+    <div
+      className="flex items-center justify-between px-6 py-4"
+      style={{
+        borderBottom: `1px solid ${editorTheme.colors.borderSubtle}`,
+        background: 'rgba(255, 255, 255, 0.92)',
+        backdropFilter: 'blur(14px)',
+      }}
+    >
       <div className="flex items-center gap-3">
         {onBack ? (
           <button
             type="button"
             onClick={onBack}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-[#CED6E9] bg-white text-[#0A1A23] shadow-sm transition hover:border-[#3A5AE5] hover:text-[#3A5AE5]"
+            className="flex h-9 w-9 items-center justify-center rounded-full transition hover:border-[var(--editor-color-action)] hover:text-[var(--editor-color-action)]"
+            style={{
+              border: `1px solid ${editorTheme.colors.borderSubtle}`,
+              background: 'rgba(255, 255, 255, 0.95)',
+              color: editorTheme.colors.foreground,
+              boxShadow: '0 4px 12px rgba(10, 26, 35, 0.08)',
+            }}
             aria-label="Back"
           >
             <Icon name="back" className="h-4 w-4" />
@@ -73,11 +89,24 @@ const WorkflowEditorHeader = ({
         <input
           value={documentName}
           onChange={(event) => onRename(event.target.value)}
-          className="w-64 rounded-md border border-[#0A1A2333] bg-white px-3 py-1.5 text-sm text-[#0A1A23] outline-none focus:border-[#3A5AE5] focus:ring-2 focus:ring-[#3A5AE533]"
+          className="w-64 rounded-lg px-3 py-1.5 text-sm outline-none transition focus:border-[rgba(58,90,229,0.7)] focus:ring-2 focus:ring-[rgba(58,90,229,0.16)]"
+          style={{
+            border: `1px solid ${editorTheme.colors.borderSubtle}`,
+            background: 'rgba(255, 255, 255, 0.95)',
+            color: editorTheme.colors.foreground,
+            boxShadow: '0 8px 18px rgba(10, 26, 35, 0.05)',
+          }}
           placeholder="Untitled Workflow"
         />
       </div>
-      <div className="flex items-center gap-2 rounded-full border border-[#0A1A2333] bg-[#F5F6FB] p-1 text-sm font-medium text-[#0A1A23]">
+      <div
+        className="flex items-center gap-2 rounded-full p-1 text-sm font-medium"
+        style={{
+          border: `1px solid ${editorTheme.colors.borderMuted}`,
+          background: 'rgba(245, 246, 249, 0.9)',
+          color: editorTheme.colors.foreground,
+        }}
+      >
         <button
           type="button"
           onClick={() => setMode("visual")}
@@ -111,15 +140,28 @@ const WorkflowEditorHeader = ({
         </button>
       </div>
       <div className="flex items-center gap-2">
-        <span className={`flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${statusMeta.tone}`}>
-          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: statusMeta.color }} />
+        <span
+          className="flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+          style={{
+            border: `1px solid ${statusMeta.border}`,
+            background: statusMeta.background,
+            color: statusMeta.text,
+          }}
+        >
+          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: statusMeta.dot }} />
           {statusMeta.label}
         </span>
         {versioning ? (
           <button
             type="button"
             onClick={() => setIsVersionHistoryOpen(true)}
-            className="relative flex h-9 w-9 items-center justify-center rounded-full border border-[#CED6E9] bg-white text-[#0A1A23] shadow-sm transition hover:border-[#3A5AE5] hover:text-[#3A5AE5]"
+            className="relative flex h-9 w-9 items-center justify-center rounded-full transition hover:border-[var(--editor-color-action)] hover:text-[var(--editor-color-action)]"
+            style={{
+              border: `1px solid ${editorTheme.colors.borderSubtle}`,
+              background: 'rgba(255, 255, 255, 0.95)',
+              color: editorTheme.colors.foreground,
+              boxShadow: '0 4px 12px rgba(10, 26, 35, 0.08)',
+            }}
             aria-label="Open version history"
           >
             <Icon name="clock" className="h-4 w-4" />
@@ -132,7 +174,13 @@ const WorkflowEditorHeader = ({
           <button
             type="button"
             onClick={() => openPalette()}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-[#CED6E9] bg-white text-[#0A1A23] shadow-sm transition hover:border-[#3A5AE5] hover:text-[#3A5AE5]"
+            className="flex h-9 w-9 items-center justify-center rounded-full transition hover:border-[var(--editor-color-action)] hover:text-[var(--editor-color-action)]"
+            style={{
+              border: `1px solid ${editorTheme.colors.borderSubtle}`,
+              background: 'rgba(255, 255, 255, 0.95)',
+              color: editorTheme.colors.foreground,
+              boxShadow: '0 4px 12px rgba(10, 26, 35, 0.08)',
+            }}
             aria-label="Open command palette"
           >
             <Icon name="keyboard" className="h-4 w-4" />
@@ -143,7 +191,13 @@ const WorkflowEditorHeader = ({
             <button
               type="button"
               onClick={undo}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-[#CED6E9] bg-white text-[#0A1A23] shadow-sm transition hover:border-[#3A5AE5] hover:text-[#3A5AE5]"
+              className="flex h-9 w-9 items-center justify-center rounded-full transition hover:border-[var(--editor-color-action)] hover:text-[var(--editor-color-action)]"
+              style={{
+                border: `1px solid ${editorTheme.colors.borderSubtle}`,
+                background: 'rgba(255, 255, 255, 0.95)',
+                color: editorTheme.colors.foreground,
+                boxShadow: '0 4px 12px rgba(10, 26, 35, 0.08)',
+              }}
               aria-label="Undo"
             >
               <Icon name="undo" className="h-4 w-4" />
@@ -151,7 +205,13 @@ const WorkflowEditorHeader = ({
             <button
               type="button"
               onClick={redo}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-[#CED6E9] bg-white text-[#0A1A23] shadow-sm transition hover:border-[#3A5AE5] hover:text-[#3A5AE5]"
+              className="flex h-9 w-9 items-center justify-center rounded-full transition hover:border-[var(--editor-color-action)] hover:text-[var(--editor-color-action)]"
+              style={{
+                border: `1px solid ${editorTheme.colors.borderSubtle}`,
+                background: 'rgba(255, 255, 255, 0.95)',
+                color: editorTheme.colors.foreground,
+                boxShadow: '0 4px 12px rgba(10, 26, 35, 0.08)',
+              }}
               aria-label="Redo"
             >
               <Icon name="redo" className="h-4 w-4" />
@@ -166,7 +226,13 @@ const WorkflowEditorHeader = ({
             }
             onDuplicateBlock(selectedBlockId);
           }}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-[#CED6E9] bg-white text-[#0A1A23] shadow-sm transition hover:border-[#3A5AE5] hover:text-[#3A5AE5] disabled:cursor-not-allowed disabled:text-[#9AA7B4]"
+          className="flex h-9 w-9 items-center justify-center rounded-full transition hover:border-[var(--editor-color-action)] hover:text-[var(--editor-color-action)] disabled:cursor-not-allowed"
+          style={{
+            border: `1px solid ${editorTheme.colors.borderSubtle}`,
+            background: 'rgba(255, 255, 255, 0.95)',
+            color: selectedBlockId ? editorTheme.colors.foreground : editorTheme.colors.accentMuted,
+            boxShadow: '0 4px 12px rgba(10, 26, 35, 0.08)',
+          }}
           disabled={!selectedBlockId}
           aria-label="Duplicate block"
         >
@@ -176,8 +242,13 @@ const WorkflowEditorHeader = ({
           <button
             type="button"
             onClick={onRunScript}
-            disabled={executionState === "running" || executionState === "aborting" || !isRunnable}
-            className="flex h-9 items-center gap-2 rounded-full border border-[#3A5AE5] bg-[#3A5AE5] px-4 py-1 text-sm font-semibold text-white transition hover:bg-[#2d4bd4] disabled:cursor-not-allowed disabled:border-[#9AA7B4] disabled:bg-[#9AA7B4]"
+            disabled={runDisabled}
+            className="flex h-9 items-center gap-2 rounded-full px-4 py-1 text-sm font-semibold text-white transition disabled:cursor-not-allowed hover:shadow-[0_16px_32px_rgba(58,90,229,0.3)]"
+            style={{
+              border: `1px solid ${runDisabled ? editorTheme.colors.borderMuted : editorTheme.colors.action}`,
+              background: runDisabled ? editorTheme.colors.accentMuted : editorTheme.colors.action,
+              boxShadow: runDisabled ? 'none' : '0 10px 24px rgba(58, 90, 229, 0.28)',
+            }}
           >
             <Icon name="play" className="h-4 w-4" />
             {executionState === "running"

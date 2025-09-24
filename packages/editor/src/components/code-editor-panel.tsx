@@ -3,6 +3,8 @@ import { Editor } from "@monaco-editor/react";
 
 import { useEditorStore } from "../state/editor-store";
 import { Icon } from "./icon";
+import { editorTheme } from "../theme";
+import { withAlpha } from "../utils/color";
 
 type CodeEditorPanelProps = {
   variant?: "pane" | "full";
@@ -40,11 +42,23 @@ const CodeEditorPanel = ({ variant = "pane" }: CodeEditorPanelProps) => {
   const statusStyles = useMemo(() => {
     switch (status) {
       case "success":
-        return "border-[#32AA81] bg-[#32AA8110] text-[#267E61]";
+        return {
+          borderColor: withAlpha(editorTheme.colors.positive, 0.6),
+          background: withAlpha(editorTheme.colors.positive, 0.08),
+          color: editorTheme.colors.positive,
+        } as const;
       case "error":
-        return "border-[#CD3A50] bg-[#CD3A5010] text-[#CD3A50]";
+        return {
+          borderColor: withAlpha(editorTheme.colors.negative, 0.6),
+          background: withAlpha(editorTheme.colors.negative, 0.08),
+          color: editorTheme.colors.negative,
+        } as const;
       default:
-        return "border-[#0A1A2314] bg-white text-[#657782]";
+        return {
+          borderColor: editorTheme.colors.borderSubtle,
+          background: 'rgba(255,255,255,0.92)',
+          color: editorTheme.colors.shaded,
+        } as const;
     }
   }, [status]);
 
@@ -52,26 +66,36 @@ const CodeEditorPanel = ({ variant = "pane" }: CodeEditorPanelProps) => {
 
   return (
     <section
-      className={
-        isFull
-          ? "flex h-full flex-col overflow-hidden bg-white/95"
-          : "flex h-full flex-1 flex-col overflow-hidden border-b border-[#0A1A2314] bg-white"
-      }
+      className="flex h-full flex-col overflow-hidden"
+      style={{
+        background: 'rgba(255,255,255,0.95)',
+        borderBottom: isFull ? undefined : `1px solid ${editorTheme.colors.borderSubtle}`,
+      }}
     >
       <div
-        className={`flex items-center justify-between ${
-          isFull ? "border-b border-[#0A1A2314] px-6 py-4" : "border-b border-[#0A1A2314] px-4 py-3"
-        }`}
+        className="flex items-center justify-between"
+        style={{
+          borderBottom: `1px solid ${editorTheme.colors.borderSubtle}`,
+          padding: isFull ? '16px 24px' : '12px 16px',
+        }}
       >
-        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.3em] text-[#657782]">
-          <Icon name="workflow" className="h-4 w-4 text-[#3A5AE5]" />
+        <h2
+          className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.3em]"
+          style={{ color: editorTheme.colors.shaded }}
+        >
+          <Icon name="workflow" className="h-4 w-4" style={{ color: editorTheme.colors.action }} />
           Code
         </h2>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={handleReset}
-            className="flex items-center gap-2 rounded-full border border-[#0A1A2333] bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#657782] transition hover:border-[#3A5AE5] hover:text-[#3A5AE5]"
+            className="flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide transition"
+            style={{
+              border: `1px solid ${editorTheme.colors.borderSubtle}`,
+              background: 'rgba(255,255,255,0.95)',
+              color: editorTheme.colors.shaded,
+            }}
           >
             <Icon name="undo" className="h-3.5 w-3.5" title="Reset" />
             Reset
@@ -79,7 +103,12 @@ const CodeEditorPanel = ({ variant = "pane" }: CodeEditorPanelProps) => {
           <button
             type="button"
             onClick={handleApply}
-            className="flex items-center gap-2 rounded-full border border-[#3A5AE5] bg-[#3A5AE5] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white shadow-[0_8px_18px_rgba(58,90,229,0.25)] transition hover:shadow-[0_10px_22px_rgba(58,90,229,0.35)]"
+            className="flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition"
+            style={{
+              border: `1px solid ${editorTheme.colors.action}`,
+              background: editorTheme.colors.action,
+              boxShadow: '0 8px 18px rgba(58,90,229,0.25)',
+            }}
           >
             <Icon name="download" className="h-3.5 w-3.5" title="Apply" />
             Apply
@@ -88,7 +117,10 @@ const CodeEditorPanel = ({ variant = "pane" }: CodeEditorPanelProps) => {
       </div>
 
       {message ? (
-        <div className={`${isFull ? "mx-6" : "mx-4"} mt-3 rounded-lg border px-3 py-2 text-xs ${statusStyles}`}>
+        <div
+          className={`${isFull ? "mx-6" : "mx-4"} mt-3 rounded-lg border px-3 py-2 text-xs`}
+          style={statusStyles}
+        >
           {message}
         </div>
       ) : null}
