@@ -13,6 +13,10 @@ import type {
   ApiOutputDefinition
 } from "./config/api-manifest-schema";
 
+const anyValueType = { kind: "any" } as const;
+const numberValueType = { kind: "number" } as const;
+const stringValueType = { kind: "string" } as const;
+
 const flowPorts = {
   input: {
     id: "flow-in",
@@ -473,6 +477,124 @@ export const forStatementBlock: BlockSchema<"for-statement"> = {
   ]
 };
 
+export const forOfStatementBlock: BlockSchema<"for-of-statement"> = {
+  kind: "for-of-statement",
+  label: "For Each",
+  description: "Iterate over iterable values using for…of.",
+  category: "control",
+  fields: [
+    {
+      id: "declarationKind",
+      label: "Variable Kind",
+      defaultValue: "const",
+      input: {
+        kind: "enum",
+        options: [
+          { label: "const", value: "const" },
+          { label: "let", value: "let" },
+          { label: "assign", value: "assign" }
+        ]
+      }
+    },
+    {
+      id: "identifier",
+      label: "Item",
+      required: true,
+      input: {
+        kind: "identifier",
+        scope: "variable",
+        allowCreation: true
+      }
+    },
+    {
+      id: "iterable",
+      label: "Iterable",
+      required: true,
+      input: {
+        kind: "expression"
+      }
+    }
+  ],
+  ports: [flowPorts.input, flowPorts.output],
+  childSlots: [
+    {
+      id: "body",
+      label: "Body"
+    }
+  ]
+};
+
+export const forInStatementBlock: BlockSchema<"for-in-statement"> = {
+  kind: "for-in-statement",
+  label: "For In",
+  description: "Iterate over object keys using for…in.",
+  category: "control",
+  fields: [
+    {
+      id: "declarationKind",
+      label: "Variable Kind",
+      defaultValue: "const",
+      input: {
+        kind: "enum",
+        options: [
+          { label: "const", value: "const" },
+          { label: "let", value: "let" },
+          { label: "assign", value: "assign" }
+        ]
+      }
+    },
+    {
+      id: "identifier",
+      label: "Key",
+      required: true,
+      input: {
+        kind: "identifier",
+        scope: "variable",
+        allowCreation: true
+      }
+    },
+    {
+      id: "source",
+      label: "Source",
+      required: true,
+      input: {
+        kind: "expression"
+      },
+      valueType: anyValueType
+    }
+  ],
+  ports: [flowPorts.input, flowPorts.output],
+  childSlots: [
+    {
+      id: "body",
+      label: "Body"
+    }
+  ]
+};
+
+export const doWhileStatementBlock: BlockSchema<"do-while-statement"> = {
+  kind: "do-while-statement",
+  label: "Do While",
+  category: "control",
+  fields: [
+    {
+      id: "test",
+      label: "Condition",
+      required: true,
+      input: {
+        kind: "expression"
+      }
+    }
+  ],
+  ports: [flowPorts.input, flowPorts.output],
+  childSlots: [
+    {
+      id: "body",
+      label: "Body"
+    }
+  ]
+};
+
 export const breakStatementBlock: BlockSchema<"break-statement"> = {
   kind: "break-statement",
   label: "Break",
@@ -499,6 +621,332 @@ export const throwStatementBlock: BlockSchema<"throw-statement"> = {
     }
   ],
   ports: [flowPorts.input],
+  childSlots: []
+};
+
+export const arrayForEachBlock: BlockSchema<"array-for-each"> = {
+  kind: "array-for-each",
+  label: "Array For Each",
+  description: "Run a block for each item using array.forEach().",
+  category: "control",
+  fields: [
+    {
+      id: "array",
+      label: "Array",
+      required: true,
+      input: {
+        kind: "expression"
+      }
+    },
+    {
+      id: "itemIdentifier",
+      label: "Item",
+      required: true,
+      input: {
+        kind: "identifier",
+        scope: "variable",
+        allowCreation: true
+      }
+    },
+    {
+      id: "indexIdentifier",
+      label: "Index",
+      input: {
+        kind: "identifier",
+        scope: "variable",
+        allowCreation: true
+      }
+    }
+  ],
+  ports: [flowPorts.input, flowPorts.output],
+  childSlots: [
+    {
+      id: "body",
+      label: "Body"
+    }
+  ]
+};
+
+export const arrayMapBlock: BlockSchema<"array-map"> = {
+  kind: "array-map",
+  label: "Array Map",
+  description: "Transform items using array.map().",
+  category: "expressions",
+  fields: [
+    {
+      id: "declarationKind",
+      label: "Store As",
+      defaultValue: "const",
+      input: {
+        kind: "enum",
+        options: [
+          { label: "const", value: "const" },
+          { label: "let", value: "let" },
+          { label: "assign", value: "assign" }
+        ]
+      }
+    },
+    {
+      id: "target",
+      label: "Result Variable",
+      required: true,
+      input: {
+        kind: "identifier",
+        scope: "variable",
+        allowCreation: true
+      }
+    },
+    {
+      id: "array",
+      label: "Array",
+      required: true,
+      input: {
+        kind: "expression"
+      }
+    },
+    {
+      id: "itemIdentifier",
+      label: "Item",
+      required: true,
+      input: {
+        kind: "identifier",
+        scope: "variable",
+        allowCreation: true
+      }
+    },
+    {
+      id: "indexIdentifier",
+      label: "Index",
+      input: {
+        kind: "identifier",
+        scope: "variable",
+        allowCreation: true
+      }
+    }
+  ],
+  ports: [flowPorts.input, flowPorts.output],
+  childSlots: [
+    {
+      id: "body",
+      label: "Mapper Body"
+    }
+  ]
+};
+
+export const arrayFilterBlock: BlockSchema<"array-filter"> = {
+  kind: "array-filter",
+  label: "Array Filter",
+  description: "Keep matching items using array.filter().",
+  category: "expressions",
+  fields: [
+    {
+      id: "declarationKind",
+      label: "Store As",
+      defaultValue: "const",
+      input: {
+        kind: "enum",
+        options: [
+          { label: "const", value: "const" },
+          { label: "let", value: "let" },
+          { label: "assign", value: "assign" }
+        ]
+      }
+    },
+    {
+      id: "target",
+      label: "Result Variable",
+      required: true,
+      input: {
+        kind: "identifier",
+        scope: "variable",
+        allowCreation: true
+      }
+    },
+    {
+      id: "array",
+      label: "Array",
+      required: true,
+      input: {
+        kind: "expression"
+      }
+    },
+    {
+      id: "itemIdentifier",
+      label: "Item",
+      required: true,
+      input: {
+        kind: "identifier",
+        scope: "variable",
+        allowCreation: true
+      }
+    },
+    {
+      id: "indexIdentifier",
+      label: "Index",
+      input: {
+        kind: "identifier",
+        scope: "variable",
+        allowCreation: true
+      }
+    }
+  ],
+  ports: [flowPorts.input, flowPorts.output],
+  childSlots: [
+    {
+      id: "body",
+      label: "Filter Body"
+    }
+  ]
+};
+
+export const mathOperationBlock: BlockSchema<"math-operation"> = {
+  kind: "math-operation",
+  label: "Math",
+  description: "Compute a numeric expression and store it.",
+  category: "expressions",
+  fields: [
+    {
+      id: "declarationKind",
+      label: "Store As",
+      defaultValue: "const",
+      input: {
+        kind: "enum",
+        options: [
+          { label: "const", value: "const" },
+          { label: "let", value: "let" },
+          { label: "assign", value: "assign" }
+        ]
+      }
+    },
+    {
+      id: "target",
+      label: "Result Variable",
+      required: true,
+      input: {
+        kind: "identifier",
+        scope: "variable",
+        allowCreation: true
+      }
+    },
+    {
+      id: "left",
+      label: "Left",
+      required: true,
+      input: {
+        kind: "expression"
+      },
+      valueType: numberValueType
+    },
+    {
+      id: "operator",
+      label: "Operator",
+      defaultValue: "add",
+      input: {
+        kind: "enum",
+        options: [
+          { label: "+", value: "add" },
+          { label: "-", value: "subtract" },
+          { label: "×", value: "multiply" },
+          { label: "÷", value: "divide" },
+          { label: "%", value: "modulo" },
+          { label: "^", value: "power" }
+        ]
+      }
+    },
+    {
+      id: "right",
+      label: "Right",
+      required: true,
+      input: {
+        kind: "expression"
+      },
+      valueType: numberValueType
+    }
+  ],
+  ports: [flowPorts.input, flowPorts.output],
+  childSlots: []
+};
+
+export const stringOperationBlock: BlockSchema<"string-operation"> = {
+  kind: "string-operation",
+  label: "String",
+  description: "Apply common string helpers and store the result.",
+  category: "expressions",
+  fields: [
+    {
+      id: "declarationKind",
+      label: "Store As",
+      defaultValue: "const",
+      input: {
+        kind: "enum",
+        options: [
+          { label: "const", value: "const" },
+          { label: "let", value: "let" },
+          { label: "assign", value: "assign" }
+        ]
+      }
+    },
+    {
+      id: "target",
+      label: "Result Variable",
+      required: true,
+      input: {
+        kind: "identifier",
+        scope: "variable",
+        allowCreation: true
+      }
+    },
+    {
+      id: "source",
+      label: "String",
+      required: true,
+      input: {
+        kind: "expression"
+      },
+      valueType: stringValueType
+    },
+    {
+      id: "operation",
+      label: "Operation",
+      defaultValue: "toUpperCase",
+      input: {
+        kind: "enum",
+        options: [
+          { label: "Uppercase", value: "toUpperCase" },
+          { label: "Lowercase", value: "toLowerCase" },
+          { label: "Trim", value: "trim" },
+          { label: "Includes", value: "includes" },
+          { label: "Starts With", value: "startsWith" },
+          { label: "Ends With", value: "endsWith" },
+          { label: "Slice", value: "slice" },
+          { label: "Substring", value: "substring" },
+          { label: "Replace", value: "replace" },
+          { label: "Pad Start", value: "padStart" },
+          { label: "Pad End", value: "padEnd" },
+          { label: "Concat", value: "concat" }
+        ]
+      }
+    },
+    {
+      id: "argument",
+      label: "Argument",
+      description: "Optional first argument (depends on operation).",
+      input: {
+        kind: "expression"
+      },
+      valueType: anyValueType
+    },
+    {
+      id: "argumentTwo",
+      label: "Second Argument",
+      description: "Optional second argument.",
+      input: {
+        kind: "expression"
+      },
+      valueType: anyValueType
+    }
+  ],
+  ports: [flowPorts.input, flowPorts.output],
   childSlots: []
 };
 
@@ -669,6 +1117,14 @@ export const knownBlockSchemas: BlockSchema[] = [
   functionDeclarationBlock,
   whileStatementBlock,
   forStatementBlock,
+  forOfStatementBlock,
+  forInStatementBlock,
+  doWhileStatementBlock,
+  arrayForEachBlock,
+  arrayMapBlock,
+  arrayFilterBlock,
+  mathOperationBlock,
+  stringOperationBlock,
   breakStatementBlock,
   throwStatementBlock,
   functionCallBlock,

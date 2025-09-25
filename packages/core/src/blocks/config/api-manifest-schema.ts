@@ -64,6 +64,12 @@ export type ApiOutputDefinition = {
   valueType?: ApiValueType;
 };
 
+export type ApiInvocation = {
+  style: "positional" | "object" | "positionalWithOptions";
+  arguments?: string[];
+  options?: string[];
+};
+
 export type ApiManifestEntry = {
   apiName: string;
   blockKind: string;
@@ -74,6 +80,8 @@ export type ApiManifestEntry = {
   identifierField?: string;
   fields: ApiFieldDefinition[];
   outputs: ApiOutputDefinition[];
+  defaultIdentifier?: string;
+  invocation?: ApiInvocation;
 };
 
 export type ApiManifestDocument = {

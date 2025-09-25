@@ -4,6 +4,8 @@ import * as t from "@babel/types";
 import { parse as recastParse, print as recastPrint } from "recast";
 
 import type { BlockInstance, WorkflowDocument } from "../types";
+import { apiManifestByKind } from "../blocks/config/api-manifest";
+import type { ApiFieldDefinition, ApiManifestEntry } from "../blocks/config/api-manifest-schema";
 
 const recastOptions = {
   parser: {
@@ -58,6 +60,243 @@ const parseExpressionSafely = (code: string): Expression => {
   }
 };
 
+const parseCallArguments = (code: string): Array<Expression | SpreadElement> => {
+  if (code.trim() === "") {
+    return [];
+  }
+
+  try {
+    const callAst = babelParseExpression(`__fn(${code})`, parserOptions);
+    if (t.isCallExpression(callAst)) {
+      return callAst.arguments as Array<Expression | SpreadElement>;
+    }
+  } catch {
+    // Fall through to parse each argument individually
+  }
+
+  try {
+    return [parseExpression(code)];
+  } catch {
+    return [parseExpressionSafely(code)];
+  }
+};
+
+type FieldValueSource = "user" | "default" | "fallback";
+
+const apiFieldFallbacks: Record<string, Record<string, string>> = {
+  "wait-call": { duration: "1" },
+  "press-call": { key: "return" },
+  "click-call": { target: "[0, 0]" },
+  "scroll-call": { origin: "[0, 0]", direction: '"down"', amount: "3" },
+  "type-call": { text: '""' },
+  "log-call": { message: '""' },
+  "ai-call": { prompt: '""' },
+  "open-call": { appName: '""' },
+  "open-url-call": { url: '""' },
+  "vision-call": { target: "screenshot().image" },
+  "file-reader-call": { paths: "[]" }
+};
+
+const apiFieldTransformers: Record<string, Record<string, (value: unknown) => Expression | null>> = {
+  "press-call": {
+    modifiers: (value: unknown) => {
+      if (typeof value !== "string") {
+        return null;
+      }
+      const tokens = value
+        .split(",")
+        .map((token) => token.trim())
+        .filter(Boolean);
+      if (tokens.length === 0) {
+        return null;
+      }
+      return t.arrayExpression(tokens.map((token) => t.stringLiteral(token)));
+    }
+  }
+};
+
+const isStringValueEmpty = (value: unknown): boolean => typeof value === "string" && value.trim() === "";
+
+const determineFieldValue = (
+  blockKind: string,
+  field: ApiFieldDefinition,
+  rawValue: unknown
+): { value: unknown; source: FieldValueSource } | null => {
+  if (rawValue !== undefined && rawValue !== null && !isStringValueEmpty(rawValue)) {
+    return { value: rawValue, source: "user" };
+  }
+
+  if (field.defaultValue !== undefined && field.defaultValue !== null) {
+    return { value: field.defaultValue, source: "default" };
+  }
+
+  const fallback = apiFieldFallbacks[blockKind]?.[field.id];
+  if (fallback !== undefined) {
+    return { value: fallback, source: "fallback" };
+  }
+
+  return null;
+};
+
+const createExpressionForField = (
+  blockKind: string,
+  field: ApiFieldDefinition,
+  value: unknown
+): Expression | null => {
+  const transformer = apiFieldTransformers[blockKind]?.[field.id];
+  if (transformer) {
+    return transformer(value);
+  }
+
+  switch (field.input.kind) {
+    case "expression":
+    case "code": {
+      if (typeof value !== "string") {
+        return null;
+      }
+      if (value.trim() === "") {
+        return null;
+      }
+      return parseExpressionSafely(value);
+    }
+    case "string": {
+      if (typeof value !== "string") {
+        return t.stringLiteral(String(value ?? ""));
+      }
+      return t.stringLiteral(value);
+    }
+    case "number": {
+      if (typeof value === "number" && Number.isFinite(value)) {
+        return t.numericLiteral(value);
+      }
+      if (typeof value === "string" && value.trim() !== "") {
+        const parsed = Number(value);
+        if (Number.isFinite(parsed)) {
+          return t.numericLiteral(parsed);
+        }
+        return parseExpressionSafely(value);
+      }
+      return null;
+    }
+    case "boolean": {
+      if (typeof value === "boolean") {
+        return t.booleanLiteral(value);
+      }
+      if (typeof value === "string") {
+        const trimmed = value.trim().toLowerCase();
+        if (trimmed === "true" || trimmed === "false") {
+          return t.booleanLiteral(trimmed === "true");
+        }
+        return parseExpressionSafely(value);
+      }
+      return null;
+    }
+    case "enum": {
+      if (typeof value !== "string") {
+        return t.stringLiteral(String(value ?? ""));
+      }
+      return t.stringLiteral(value);
+    }
+    case "json-schema": {
+      return t.stringLiteral(String(value ?? ""));
+    }
+    case "identifier":
+      return null;
+    default:
+      return parseExpressionSafely(String(value ?? ""));
+  }
+};
+
+const generateApiCallStatements = (
+  block: BlockInstance,
+  entry: ApiManifestEntry
+): Statement[] | null => {
+  const fieldMap = new Map(entry.fields.map((field) => [field.id, field]));
+  const identifierField = entry.identifierField;
+  const defaultIdentifier = entry.defaultIdentifier;
+
+  const invocation = entry.invocation ?? {
+    style: "object" as const,
+    arguments: [],
+    options: entry.fields.map((field) => field.id)
+  };
+
+  const args: Expression[] = [];
+  const optionProperties: t.ObjectProperty[] = [];
+
+  const getFieldResult = (fieldId: string): { expression: Expression; source: FieldValueSource } | null => {
+    const field = fieldMap.get(fieldId);
+    if (!field) {
+      return null;
+    }
+    const raw = (block.data as Record<string, unknown>)[fieldId];
+    const determined = determineFieldValue(block.kind, field, raw);
+    if (!determined) {
+      return null;
+    }
+    const expression = createExpressionForField(block.kind, field, determined.value);
+    if (!expression) {
+      return null;
+    }
+    return { expression, source: determined.source };
+  };
+
+  const includeOptionField = (fieldId: string) => {
+    if (fieldId === identifierField) {
+      return;
+    }
+    const result = getFieldResult(fieldId);
+    if (!result) {
+      return;
+    }
+    if (result.source === "default") {
+      return;
+    }
+    optionProperties.push(
+      t.objectProperty(t.identifier(fieldId), result.expression)
+    );
+  };
+
+  const invocationKind = invocation.style;
+
+  if (invocationKind === "positional" || invocationKind === "positionalWithOptions") {
+    invocation.arguments?.forEach((fieldId) => {
+      const result = getFieldResult(fieldId);
+      if (result) {
+        args.push(result.expression);
+      }
+    });
+
+    if (invocationKind === "positionalWithOptions") {
+      invocation.options?.forEach(includeOptionField);
+      if (optionProperties.length > 0) {
+        args.push(t.objectExpression(optionProperties));
+      }
+    }
+  } else {
+    const optionFieldIds = invocation.options && invocation.options.length > 0
+      ? invocation.options
+      : entry.fields.map((field) => field.id);
+    optionFieldIds.forEach(includeOptionField);
+    args.push(t.objectExpression(optionProperties));
+  }
+
+  const callExpression = t.callExpression(t.identifier(entry.apiName), args);
+
+  const identifierValue = identifierField
+    ? (block.data as Record<string, unknown>)[identifierField]
+    : undefined;
+  const identifierName = typeof identifierValue === "string" && identifierValue.trim().length > 0
+    ? identifierValue.trim()
+    : defaultIdentifier ?? null;
+
+  if (identifierName) {
+    return [t.variableDeclaration("let", [t.variableDeclarator(t.identifier(identifierName), callExpression)])];
+  }
+
+  return [t.expressionStatement(callExpression)];
+};
+
 const parseStatement = (code: string): Statement => {
   const ast = recastParse(code, recastOptions);
   const statement = ast.program.body[0] as Statement | undefined;
@@ -89,36 +328,7 @@ const parseForInitializer = (code: string): VariableDeclaration | Expression | n
   throw new Error(`Unsupported for-loop initializer: ${code}`);
 };
 
-const parseCallArguments = (code: string): Array<Expression | SpreadElement> => {
-  if (!code || code.trim() === "") {
-    return [];
-  }
 
-  try {
-    const wrapped = `[${code}]`;
-    const parsed = babelParseExpression(wrapped, parserOptions);
-    if (t.isArrayExpression(parsed)) {
-      return parsed.elements
-        .map((element) => {
-          if (!element) {
-            return null;
-          }
-          if (t.isSpreadElement(element)) {
-            return element;
-          }
-          if (t.isExpression(element)) {
-            return element as Expression;
-          }
-          return parseExpression(recastPrint(element).code);
-        })
-        .filter((el): el is Expression | SpreadElement => Boolean(el));
-    }
-  } catch (error) {
-    // fall through to string literal fallback
-  }
-
-  return [parseExpression(code)];
-};
 
 const updateOperationToBinaryOperator: Record<string, t.BinaryExpression["operator"]> = {
   add: "+",
@@ -148,6 +358,51 @@ const parameterIdentifiers = (parameters: string | undefined): Identifier[] => {
     .map((name) => t.identifier(name));
 };
 
+const mathOperatorMap: Record<string, t.BinaryExpression["operator"]> = {
+  add: "+",
+  subtract: "-",
+  multiply: "*",
+  divide: "/",
+  modulo: "%",
+  power: "**"
+};
+
+const createAssignmentStatements = ({
+  identifier,
+  declarationKind,
+  expression
+}: {
+  identifier: string | undefined;
+  declarationKind?: string;
+  expression: Expression;
+}): Statement[] => {
+  const targetName = typeof identifier === "string" ? identifier.trim() : "";
+  if (!targetName) {
+    return [t.expressionStatement(expression)];
+  }
+
+  if (declarationKind === "assign") {
+    return [
+      t.expressionStatement(
+        t.assignmentExpression("=", t.identifier(targetName), expression)
+      )
+    ];
+  }
+
+  const variableKind: "const" | "let" = declarationKind === "let" ? "let" : "const";
+  return [
+    t.variableDeclaration(variableKind, [t.variableDeclarator(t.identifier(targetName), expression)])
+  ];
+};
+
+const parseExpressionWithFallback = (code: string, fallback: string): Expression => {
+  const candidate = typeof code === "string" ? code.trim() : "";
+  if (candidate === "") {
+    return parseExpression(fallback);
+  }
+  return parseExpression(candidate);
+};
+
 const blockToStatement = ({
   block,
   document
@@ -155,6 +410,14 @@ const blockToStatement = ({
   block: BlockInstance;
   document: WorkflowDocument;
 }): Statement[] => {
+  const apiEntry = apiManifestByKind.get(block.kind);
+  if (apiEntry) {
+    const apiStatements = generateApiCallStatements(block, apiEntry);
+    if (apiStatements) {
+      return apiStatements;
+    }
+  }
+
   switch (block.kind) {
     case "function-declaration": {
       const name = typeof block.data.identifier === "string" ? block.data.identifier : "anonymous";
@@ -224,6 +487,24 @@ const blockToStatement = ({
       return [t.expressionStatement(expression)];
     }
 
+    case "function-call": {
+      const functionNameRaw = typeof block.data.functionName === "string" ? block.data.functionName : "call";
+      const functionName = functionNameRaw.trim() === "" ? "call" : functionNameRaw.trim();
+      const argsCode = typeof block.data.arguments === "string" ? block.data.arguments : "";
+      const assignToRaw = typeof block.data.assignTo === "string" ? block.data.assignTo : "";
+      const assignTo = assignToRaw.trim() === "" ? null : assignToRaw.trim();
+
+      const callee = parseExpressionSafely(functionName);
+      const callArguments = parseCallArguments(argsCode);
+      const callExpression = t.callExpression(callee, callArguments);
+
+      if (assignTo) {
+        return [t.variableDeclaration("let", [t.variableDeclarator(t.identifier(assignTo), callExpression)])];
+      }
+
+      return [t.expressionStatement(callExpression)];
+    }
+
     case "return-statement": {
       const argumentCode = typeof block.data.argument === "string" ? block.data.argument : "";
       const argumentExpression = argumentCode.trim() === "" ? null : parseExpression(argumentCode);
@@ -251,273 +532,6 @@ const blockToStatement = ({
       return [t.ifStatement(testExpression, consequent, alternate)];
     }
 
-    case "wait-call": {
-      const duration = Number(block.data.duration ?? 1);
-      const durationLiteral = Number.isFinite(duration) ? t.numericLiteral(duration) : parseExpression(String(block.data.duration ?? 1));
-      return [t.expressionStatement(t.callExpression(t.identifier("wait"), [durationLiteral]))];
-    }
-
-    case "press-call": {
-      const key = typeof block.data.key === "string" ? block.data.key : "return";
-      const modifiersRaw = typeof block.data.modifiers === "string" ? block.data.modifiers : "";
-      
-      const args: Expression[] = [parseExpressionSafely(key)];
-      const modifierTokens = modifiersRaw
-        .split(",")
-        .map((token) => token.trim())
-        .filter(Boolean);
-      if (modifierTokens.length > 0) {
-        args.push(t.arrayExpression(modifierTokens.map((token) => t.stringLiteral(token))));
-      }
-      return [t.expressionStatement(t.callExpression(t.identifier("press"), args))];
-    }
-
-    case "click-call": {
-      const targetCode = typeof block.data.target === "string" && block.data.target.trim() !== "" ? block.data.target : "[0, 0]";
-      const targetExpression = parseExpression(targetCode);
-      return [t.expressionStatement(t.callExpression(t.identifier("click"), [targetExpression]))];
-    }
-
-    case "scroll-call": {
-      const originCode = typeof block.data.origin === "string" && block.data.origin.trim() !== "" ? block.data.origin : "[0, 0]";
-      const direction = typeof block.data.direction === "string" && block.data.direction.trim() !== ""
-        ? block.data.direction.trim()
-        : "down";
-      const amountValue = block.data.amount;
-      const amount = typeof amountValue === "number" && Number.isFinite(amountValue)
-        ? t.numericLiteral(amountValue)
-        : parseExpression(String(amountValue ?? 1));
-      const originExpression = parseExpression(originCode);
-      return [
-        t.expressionStatement(
-          t.callExpression(t.identifier("scroll"), [originExpression, t.stringLiteral(direction), amount])
-        )
-      ];
-    }
-
-    case "select-all-call": {
-      return [t.expressionStatement(t.callExpression(t.identifier("selectAll"), []))];
-    }
-
-    case "type-call": {
-      const rawText = typeof block.data.text === "string" ? block.data.text.trim() : "";
-      const candidate = rawText.length > 0 ? rawText : "\"\"";
-      return [t.expressionStatement(t.callExpression(t.identifier("type"), [parseExpressionSafely(candidate)]))];
-    }
-
-    case "read-clipboard-call": {
-      const assignTo = typeof block.data.assignTo === "string" && block.data.assignTo.trim() !== ""
-        ? block.data.assignTo.trim()
-        : "clipboardText";
-      const declaration = t.variableDeclaration("let", [
-        t.variableDeclarator(t.identifier(assignTo), t.callExpression(t.identifier("readClipboard"), []))
-      ]);
-      return [declaration];
-    }
-
-    case "file-reader-call": {
-      const assignTo = typeof block.data.assignTo === "string" && block.data.assignTo.trim() !== ""
-        ? block.data.assignTo.trim()
-        : "documents";
-      const pathsCode = typeof block.data.paths === "string" && block.data.paths.trim() !== ""
-        ? block.data.paths
-        : "[]";
-      const pathsExpression = parseExpression(pathsCode);
-      const declaration = t.variableDeclaration("let", [
-        t.variableDeclarator(
-          t.identifier(assignTo),
-          t.callExpression(t.identifier("fileReader"), [pathsExpression])
-        )
-      ]);
-      return [declaration];
-    }
-
-    case "log-call": {
-      const messageExpression = typeof block.data.message === "string" ? block.data.message : "";
-      return [t.expressionStatement(t.callExpression(t.identifier("log"), [parseExpressionSafely(messageExpression)]))];
-    }
-
-    case "function-call": {
-      const functionName =
-        typeof block.data.functionName === "string" && block.data.functionName.trim() !== ""
-          ? block.data.functionName.trim()
-          : "call";
-      const argsCode = typeof block.data.arguments === "string" ? block.data.arguments : "";
-      const args = parseCallArguments(argsCode);
-      const call = t.callExpression(t.identifier(functionName), args);
-      const assignTo =
-        typeof block.data.assignTo === "string" && block.data.assignTo.trim() !== ""
-          ? block.data.assignTo.trim()
-          : null;
-      if (assignTo) {
-        return [t.variableDeclaration("let", [t.variableDeclarator(t.identifier(assignTo), call)])];
-      }
-      return [t.expressionStatement(call)];
-    }
-
-    case "open-call": {
-      const appName = typeof block.data.appName === "string" ? block.data.appName : "";
-      const bringToFront = typeof block.data.bringToFront === "boolean" ? block.data.bringToFront : true;
-      const waitSecondsRaw = block.data.waitSeconds;
-      const waitSeconds = typeof waitSecondsRaw === "number" && Number.isFinite(waitSecondsRaw) ? waitSecondsRaw : 5;
-      
-      const args: Expression[] = [parseExpressionSafely(appName)];
-      if (bringToFront !== undefined) {
-        args.push(t.booleanLiteral(bringToFront));
-      }
-      if (waitSeconds !== undefined) {
-        args.push(t.numericLiteral(waitSeconds));
-      }
-      const call = t.callExpression(t.identifier("open"), args);
-      const identifier = typeof block.data.identifier === "string" && block.data.identifier.trim() !== "" ? block.data.identifier : null;
-      if (identifier) {
-        return [t.variableDeclaration("let", [t.variableDeclarator(t.identifier(identifier), call)])];
-      }
-      return [t.expressionStatement(call)];
-    }
-
-    case "open-url-call": {
-      const url = typeof block.data.url === "string" ? block.data.url : "";
-      return [t.expressionStatement(t.callExpression(t.identifier("openUrl"), [parseExpressionSafely(url)]))];
-    }
-
-    case "ai-call": {
-      const identifier = typeof block.data.identifier === "string" ? block.data.identifier : "result";
-      const prompt = typeof block.data.prompt === "string" ? block.data.prompt : "";
-      const format = typeof block.data.format === "string" ? block.data.format : "text";
-      const schemaCode = typeof block.data.schema === "string" ? block.data.schema : "";
-
-      const args: Expression[] = [parseExpressionSafely(prompt)];
-      const properties: t.ObjectProperty[] = [];
-
-      if (format && format !== "text") {
-        properties.push(t.objectProperty(t.identifier("format"), t.stringLiteral(format)));
-      }
-
-      if (schemaCode.trim()) {
-        try {
-          properties.push(t.objectProperty(t.identifier("schema"), parseExpression(schemaCode)));
-        } catch (error) {
-          properties.push(t.objectProperty(t.identifier("schema"), t.stringLiteral(schemaCode)));
-        }
-      }
-
-      if (properties.length > 0) {
-        args.push(t.objectExpression(properties));
-      }
-
-      const callExpression = t.callExpression(t.identifier("ai"), args);
-      const declaration = t.variableDeclaration("let", [t.variableDeclarator(t.identifier(identifier), callExpression)]);
-      return [declaration];
-    }
-
-    case "locator-call": {
-      const identifier = typeof block.data.identifier === "string" ? block.data.identifier : "node";
-      const rawInstruction = typeof block.data.instruction === "string" ? block.data.instruction.trim() : "";
-      const element = typeof block.data.element === "string" ? block.data.element : "";
-      const role = typeof block.data.role === "string" ? block.data.role.trim() : "";
-      const name = typeof block.data.name === "string" ? block.data.name.trim() : "";
-      const nameMatch = typeof block.data.nameMatch === "string" ? block.data.nameMatch.trim() : "";
-      const pidData = block.data.pid;
-      const waitTimeData = block.data.waitTime;
-
-      const properties: t.ObjectProperty[] = [];
-      if (rawInstruction.length > 0) {
-        properties.push(t.objectProperty(t.identifier("instruction"), parseExpressionSafely(rawInstruction)));
-      }
-      if (role) {
-        properties.push(t.objectProperty(t.identifier("role"), t.stringLiteral(role)));
-      }
-      if (name) {
-        properties.push(t.objectProperty(t.identifier("name"), t.stringLiteral(name)));
-      }
-      if (nameMatch) {
-        properties.push(t.objectProperty(t.identifier("nameMatch"), t.stringLiteral(nameMatch)));
-      }
-      if (element) {
-        properties.push(t.objectProperty(t.identifier("element"), t.stringLiteral(element)));
-      }
-      if (typeof pidData === "number" && Number.isFinite(pidData)) {
-        properties.push(t.objectProperty(t.identifier("pid"), t.numericLiteral(pidData)));
-      } else if (typeof pidData === "string" && pidData.trim() !== "") {
-        try {
-          properties.push(t.objectProperty(t.identifier("pid"), parseExpression(pidData)));
-        } catch (error) {
-          const parsed = Number(pidData);
-          if (Number.isFinite(parsed)) {
-            properties.push(t.objectProperty(t.identifier("pid"), t.numericLiteral(parsed)));
-          }
-        }
-      }
-      if (typeof waitTimeData === "number" && Number.isFinite(waitTimeData)) {
-        properties.push(t.objectProperty(t.identifier("waitTime"), t.numericLiteral(waitTimeData)));
-      } else if (typeof waitTimeData === "string" && waitTimeData.trim() !== "") {
-        try {
-          properties.push(t.objectProperty(t.identifier("waitTime"), parseExpression(waitTimeData)));
-        } catch (error) {
-          const parsed = Number(waitTimeData);
-          if (Number.isFinite(parsed)) {
-            properties.push(t.objectProperty(t.identifier("waitTime"), t.numericLiteral(parsed)));
-          }
-        }
-      }
-
-      const locatorArgs: Expression[] = [];
-      if (properties.length > 0) {
-        locatorArgs.push(t.objectExpression(properties));
-      }
-
-      const callExpression = t.callExpression(t.identifier("locator"), locatorArgs);
-      const declaration = t.variableDeclaration("let", [t.variableDeclarator(t.identifier(identifier), callExpression)]);
-      return [declaration];
-    }
-
-    case "vision-call": {
-      const identifier = typeof block.data.identifier === "string" ? block.data.identifier : "visionResult";
-      const targetCode = typeof block.data.target === "string" ? block.data.target : "";
-      const targetExpression = parseExpression(targetCode || "screenshot().image");
-      const prompt = typeof block.data.prompt === "string" ? block.data.prompt : "";
-      const format = typeof block.data.format === "string" ? block.data.format : "json";
-      const schemaCode = typeof block.data.schema === "string" ? block.data.schema : "";
-
-      const args: Expression[] = [targetExpression, parseExpressionSafely(prompt)];
-      const properties: t.ObjectProperty[] = [];
-
-      if (format) {
-        properties.push(t.objectProperty(t.identifier("format"), t.stringLiteral(format)));
-      }
-
-      if (schemaCode.trim()) {
-        try {
-          properties.push(t.objectProperty(t.identifier("schema"), parseExpression(schemaCode)));
-        } catch (error) {
-          properties.push(t.objectProperty(t.identifier("schema"), t.stringLiteral(schemaCode)));
-        }
-      }
-
-      if (properties.length > 0) {
-        args.push(t.objectExpression(properties));
-      }
-
-      const callExpression = t.callExpression(t.identifier("vision"), args);
-      const declaration = t.variableDeclaration("let", [t.variableDeclarator(t.identifier(identifier), callExpression)]);
-      return [declaration];
-    }
-
-    case "screenshot-call": {
-      const assignTo =
-        typeof block.data.assignTo === "string" && block.data.assignTo.trim() !== ""
-          ? block.data.assignTo.trim()
-          : null;
-      const targetCode = typeof block.data.target === "string" ? block.data.target.trim() : "";
-      const args: Expression[] = targetCode ? [parseExpression(targetCode)] : [];
-      const call = t.callExpression(t.identifier("screenshot"), args);
-      if (assignTo) {
-        return [t.variableDeclaration("let", [t.variableDeclarator(t.identifier(assignTo), call)])];
-      }
-      return [t.expressionStatement(call)];
-    }
-
     case "while-statement": {
       const testCode = typeof block.data.test === "string" ? block.data.test : "false";
       const testExpression = parseExpression(testCode);
@@ -543,6 +557,256 @@ const blockToStatement = ({
       const body = t.blockStatement(bodyStatements);
 
       return [t.forStatement(init, test, update, body)];
+    }
+
+    case "for-of-statement": {
+      const declarationKind = typeof block.data.declarationKind === "string" ? block.data.declarationKind : "const";
+      const identifierName = typeof block.data.identifier === "string" && block.data.identifier.trim() !== ""
+        ? block.data.identifier.trim()
+        : "item";
+      const iterableCode = typeof block.data.iterable === "string" ? block.data.iterable : "";
+      const iterableExpression = parseExpressionWithFallback(iterableCode, "[]");
+
+      const bodyBlocks = block.children.body.map((id) => document.blocks[id]).filter(Boolean);
+      const bodyStatements = bodyBlocks.flatMap((child) => blockToStatement({ block: child, document }));
+      const body = t.blockStatement(bodyStatements);
+
+      if (declarationKind === "assign") {
+        return [t.forOfStatement(t.identifier(identifierName), iterableExpression, body, false)];
+      }
+
+      return [
+        t.forOfStatement(
+          t.variableDeclaration(declarationKind === "let" ? "let" : "const", [t.variableDeclarator(t.identifier(identifierName))]),
+          iterableExpression,
+          body,
+          false
+        )
+      ];
+    }
+
+    case "for-in-statement": {
+      const declarationKind = typeof block.data.declarationKind === "string" ? block.data.declarationKind : "const";
+      const identifierName = typeof block.data.identifier === "string" && block.data.identifier.trim() !== ""
+        ? block.data.identifier.trim()
+        : "key";
+      const sourceCode = typeof block.data.source === "string" ? block.data.source : "";
+      const sourceExpression = parseExpressionWithFallback(sourceCode, "{}");
+
+      const bodyBlocks = block.children.body.map((id) => document.blocks[id]).filter(Boolean);
+      const bodyStatements = bodyBlocks.flatMap((child) => blockToStatement({ block: child, document }));
+      const body = t.blockStatement(bodyStatements);
+
+      if (declarationKind === "assign") {
+        return [t.forInStatement(t.identifier(identifierName), sourceExpression, body)];
+      }
+
+      return [
+        t.forInStatement(
+          t.variableDeclaration(declarationKind === "let" ? "let" : "const", [t.variableDeclarator(t.identifier(identifierName))]),
+          sourceExpression,
+          body
+        )
+      ];
+    }
+
+    case "do-while-statement": {
+      const testCode = typeof block.data.test === "string" ? block.data.test : "";
+      const testExpression = parseExpressionWithFallback(testCode, "false");
+
+      const bodyBlocks = block.children.body.map((id) => document.blocks[id]).filter(Boolean);
+      const bodyStatements = bodyBlocks.flatMap((child) => blockToStatement({ block: child, document }));
+      const body = t.blockStatement(bodyStatements);
+
+      return [t.doWhileStatement(testExpression, body)];
+    }
+
+    case "array-for-each": {
+      const arrayCode = typeof block.data.array === "string" ? block.data.array : "";
+      const arrayExpression = parseExpressionWithFallback(arrayCode, "[]");
+      const itemIdentifier = typeof block.data.itemIdentifier === "string" && block.data.itemIdentifier.trim() !== ""
+        ? block.data.itemIdentifier.trim()
+        : "item";
+      const indexIdentifier = typeof block.data.indexIdentifier === "string" && block.data.indexIdentifier.trim() !== ""
+        ? block.data.indexIdentifier.trim()
+        : "";
+
+      const params: Identifier[] = [t.identifier(itemIdentifier)];
+      if (indexIdentifier) {
+        params.push(t.identifier(indexIdentifier));
+      }
+
+      const bodyBlocks = block.children.body.map((id) => document.blocks[id]).filter(Boolean);
+      const bodyStatements = bodyBlocks.flatMap((child) => blockToStatement({ block: child, document }));
+      const callback = t.arrowFunctionExpression(params, t.blockStatement(bodyStatements));
+      const callExpression = t.callExpression(
+        t.memberExpression(arrayExpression, t.identifier("forEach")),
+        [callback]
+      );
+
+      return [t.expressionStatement(callExpression)];
+    }
+
+    case "array-map": {
+      const arrayCode = typeof block.data.array === "string" ? block.data.array : "";
+      const arrayExpression = parseExpressionWithFallback(arrayCode, "[]");
+      const itemIdentifier = typeof block.data.itemIdentifier === "string" && block.data.itemIdentifier.trim() !== ""
+        ? block.data.itemIdentifier.trim()
+        : "item";
+      const indexIdentifier = typeof block.data.indexIdentifier === "string" && block.data.indexIdentifier.trim() !== ""
+        ? block.data.indexIdentifier.trim()
+        : "";
+
+      const params: Identifier[] = [t.identifier(itemIdentifier)];
+      if (indexIdentifier) {
+        params.push(t.identifier(indexIdentifier));
+      }
+
+      const bodyBlocks = block.children.body.map((id) => document.blocks[id]).filter(Boolean);
+      const bodyStatements = bodyBlocks.flatMap((child) => blockToStatement({ block: child, document }));
+      const callback = t.arrowFunctionExpression(params, t.blockStatement(bodyStatements));
+      const callExpression = t.callExpression(
+        t.memberExpression(arrayExpression, t.identifier("map")),
+        [callback]
+      );
+
+      return createAssignmentStatements({
+        identifier: typeof block.data.target === "string" ? block.data.target : undefined,
+        declarationKind: typeof block.data.declarationKind === "string" ? block.data.declarationKind : "const",
+        expression: callExpression
+      });
+    }
+
+    case "array-filter": {
+      const arrayCode = typeof block.data.array === "string" ? block.data.array : "";
+      const arrayExpression = parseExpressionWithFallback(arrayCode, "[]");
+      const itemIdentifier = typeof block.data.itemIdentifier === "string" && block.data.itemIdentifier.trim() !== ""
+        ? block.data.itemIdentifier.trim()
+        : "item";
+      const indexIdentifier = typeof block.data.indexIdentifier === "string" && block.data.indexIdentifier.trim() !== ""
+        ? block.data.indexIdentifier.trim()
+        : "";
+
+      const params: Identifier[] = [t.identifier(itemIdentifier)];
+      if (indexIdentifier) {
+        params.push(t.identifier(indexIdentifier));
+      }
+
+      const bodyBlocks = block.children.body.map((id) => document.blocks[id]).filter(Boolean);
+      const bodyStatements = bodyBlocks.flatMap((child) => blockToStatement({ block: child, document }));
+      const callback = t.arrowFunctionExpression(params, t.blockStatement(bodyStatements));
+      const callExpression = t.callExpression(
+        t.memberExpression(arrayExpression, t.identifier("filter")),
+        [callback]
+      );
+
+      return createAssignmentStatements({
+        identifier: typeof block.data.target === "string" ? block.data.target : undefined,
+        declarationKind: typeof block.data.declarationKind === "string" ? block.data.declarationKind : "const",
+        expression: callExpression
+      });
+    }
+
+    case "math-operation": {
+      const leftCode = typeof block.data.left === "string" ? block.data.left : "";
+      const rightCode = typeof block.data.right === "string" ? block.data.right : "";
+      const operatorKey = typeof block.data.operator === "string" ? block.data.operator : "add";
+      const operator = mathOperatorMap[operatorKey] ?? "+";
+
+      const leftExpression = parseExpressionWithFallback(leftCode, "0");
+      const rightExpression = parseExpressionWithFallback(rightCode, "0");
+      const expression = t.binaryExpression(operator, leftExpression, rightExpression);
+
+      return createAssignmentStatements({
+        identifier: typeof block.data.target === "string" ? block.data.target : undefined,
+        declarationKind: typeof block.data.declarationKind === "string" ? block.data.declarationKind : "const",
+        expression
+      });
+    }
+
+    case "string-operation": {
+      const sourceCode = typeof block.data.source === "string" ? block.data.source : "";
+      const operation = typeof block.data.operation === "string" ? block.data.operation : "toUpperCase";
+      const argOneCode = typeof block.data.argument === "string" ? block.data.argument : "";
+      const argTwoCode = typeof block.data.argumentTwo === "string" ? block.data.argumentTwo : "";
+
+      const sourceExpression = parseExpressionWithFallback(sourceCode, '""');
+
+      let expression: Expression;
+      switch (operation) {
+        case "concat": {
+          const rightExpression = parseExpressionWithFallback(argOneCode, '""');
+          expression = t.binaryExpression("+", sourceExpression, rightExpression);
+          break;
+        }
+        case "includes":
+        case "startsWith":
+        case "endsWith": {
+          const args = [parseExpressionWithFallback(argOneCode, '""')];
+          if (argTwoCode.trim() !== "") {
+            args.push(parseExpression(argTwoCode));
+          }
+          expression = t.callExpression(
+            t.memberExpression(sourceExpression, t.identifier(operation)),
+            args
+          );
+          break;
+        }
+        case "slice":
+        case "substring": {
+          const args: Expression[] = [];
+          if (argOneCode.trim() !== "") {
+            args.push(parseExpression(argOneCode));
+          }
+          if (argTwoCode.trim() !== "") {
+            args.push(parseExpression(argTwoCode));
+          }
+          expression = t.callExpression(
+            t.memberExpression(sourceExpression, t.identifier(operation)),
+            args
+          );
+          break;
+        }
+        case "replace": {
+          const searchExpression = parseExpressionWithFallback(argOneCode, '""');
+          const replacementExpression = parseExpressionWithFallback(argTwoCode, '""');
+          expression = t.callExpression(
+            t.memberExpression(sourceExpression, t.identifier("replace")),
+            [searchExpression, replacementExpression]
+          );
+          break;
+        }
+        case "padStart":
+        case "padEnd": {
+          const targetLength = parseExpressionWithFallback(argOneCode, "0");
+          const fillString = argTwoCode.trim() === "" ? null : parseExpression(argTwoCode);
+          const args: Expression[] = [targetLength];
+          if (fillString) {
+            args.push(fillString);
+          }
+          expression = t.callExpression(
+            t.memberExpression(sourceExpression, t.identifier(operation)),
+            args
+          );
+          break;
+        }
+        case "toLowerCase":
+        case "toUpperCase":
+        case "trim":
+        default: {
+          expression = t.callExpression(
+            t.memberExpression(sourceExpression, t.identifier(operation)),
+            []
+          );
+          break;
+        }
+      }
+
+      return createAssignmentStatements({
+        identifier: typeof block.data.target === "string" ? block.data.target : undefined,
+        declarationKind: typeof block.data.declarationKind === "string" ? block.data.declarationKind : "const",
+        expression
+      });
     }
 
     case "break-statement": {

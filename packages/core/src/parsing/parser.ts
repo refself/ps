@@ -1,13 +1,18 @@
 import { parse as babelParse } from "@babel/parser";
 import type {
+  ArrowFunctionExpression,
   AssignmentExpression,
   BinaryExpression,
   CallExpression,
   CatchClause,
+  DoWhileStatement,
   ExpressionStatement,
   File,
+  ForInStatement,
+  ForOfStatement,
   ForStatement,
   FunctionDeclaration,
+  FunctionExpression,
   Identifier,
   IfStatement,
   MemberExpression,
@@ -133,6 +138,30 @@ const compoundAssignmentOperationMap: Record<string, "add" | "subtract" | "multi
   "*=": "multiply",
   "/=": "divide",
   "%=": "modulo"
+};
+
+const stringMethodOperationMap: Record<string, string> = {
+  toUpperCase: "toUpperCase",
+  toLowerCase: "toLowerCase",
+  trim: "trim",
+  includes: "includes",
+  startsWith: "startsWith",
+  endsWith: "endsWith",
+  slice: "slice",
+  substring: "substring",
+  replace: "replace",
+  padStart: "padStart",
+  padEnd: "padEnd",
+  concat: "concat"
+};
+
+const binaryOperatorToMathOperation: Record<string, string> = {
+  "+": "add",
+  "-": "subtract",
+  "*": "multiply",
+  "/": "divide",
+  "%": "modulo",
+  "**": "power"
 };
 
 const isIdentifierNode = (node: Node | null | undefined, name: string): boolean => {
@@ -358,13 +387,108 @@ const convertStatement = (statement: Statement, blocks: BlockInstance[]): BlockI
 
   if (n.VariableDeclaration.check(statement)) {
     const declarationNode = statement as VariableDeclaration;
-    if (declarationNode.kind !== "let" || declarationNode.declarations.length !== 1) {
+    if ((!['let', 'const'].includes(declarationNode.kind)) || declarationNode.declarations.length !== 1) {
       return createRawStatement(declarationNode, blocks);
     }
 
     const declarator = declarationNode.declarations[0];
     if (!n.Identifier.check(declarator.id)) {
       return createRawStatement(declarationNode, blocks);
+    }
+
+    if (declarator.init && n.CallExpression.check(declarator.init) && n.MemberExpression.check(declarator.init.callee) && !declarator.init.callee.computed) {
+      const member = declarator.init.callee as MemberExpression;
+      const property = member.property;
+      if (!n.Identifier.check(property)) {
+        // fall back to default handling below
+      } else {
+        const methodName = property.name;
+
+        if (methodName === "map" || methodName === "filter") {
+          const callbackArg = declarator.init.arguments[0];
+          if (!callbackArg || (!n.ArrowFunctionExpression.check(callbackArg) && !n.FunctionExpression.check(callbackArg))) {
+            return createRawStatement(declarationNode, blocks);
+          }
+
+          const callback = callbackArg as ArrowFunctionExpression | FunctionExpression;
+          const itemParam = callback.params[0];
+          if (itemParam && !n.Identifier.check(itemParam)) {
+            return createRawStatement(declarationNode, blocks);
+          }
+          const indexParam = callback.params[1];
+          if (indexParam && !n.Identifier.check(indexParam)) {
+            return createRawStatement(declarationNode, blocks);
+          }
+
+          const itemIdentifier = itemParam && n.Identifier.check(itemParam) ? itemParam.name : "item";
+          const indexIdentifier = indexParam && n.Identifier.check(indexParam) ? indexParam.name : "";
+          const arrayCode = sourceFor(member.object as Node);
+
+          const blockData: Record<string, unknown> = {
+            declarationKind: declarationNode.kind,
+            target: declarator.id.name,
+            array: arrayCode,
+            itemIdentifier
+          };
+          if (indexIdentifier) {
+            blockData.indexIdentifier = indexIdentifier;
+          }
+
+          const block = createBlockInstance(methodName === "map" ? "array-map" : "array-filter", blockData);
+          attachMetadata(block, declarationNode);
+
+          const bodySlot = block.children.body;
+          if (n.BlockStatement.check(callback.body)) {
+            callback.body.body.forEach((innerStatement) => {
+              const innerBlock = convertStatement(innerStatement as Statement, blocks);
+              bodySlot.push(innerBlock.id);
+            });
+          } else {
+            const returnBlock = createBlockInstance("return-statement", {
+              argument: sourceFor(callback.body as Node)
+            });
+            attachMetadata(returnBlock, callback.body as Node);
+            blocks.push(returnBlock);
+            bodySlot.push(returnBlock.id);
+          }
+
+          blocks.push(block);
+          return block;
+        }
+
+        const stringOperation = stringMethodOperationMap[methodName];
+        if (stringOperation) {
+          const argOne = declarator.init.arguments[0] ? sourceFor(declarator.init.arguments[0]) : "";
+          const argTwo = declarator.init.arguments[1] ? sourceFor(declarator.init.arguments[1]) : "";
+          const block = createBlockInstance("string-operation", {
+            declarationKind: declarationNode.kind,
+            target: declarator.id.name,
+            source: sourceFor(member.object as Node),
+            operation: stringOperation,
+            argument: argOne,
+            argumentTwo: argTwo
+          });
+          attachMetadata(block, declarationNode);
+          blocks.push(block);
+          return block;
+        }
+      }
+    }
+
+    if (declarator.init && n.BinaryExpression.check(declarator.init)) {
+      const mathOperation = binaryOperatorToMathOperation[declarator.init.operator];
+      if (mathOperation) {
+        const block = createBlockInstance("math-operation", {
+          declarationKind: declarationNode.kind,
+          target: declarator.id.name,
+          left: sourceFor(declarator.init.left as Node),
+          operator: mathOperation,
+          right: sourceFor(declarator.init.right as Node)
+        });
+        attachMetadata(block, declarationNode);
+        blocks.push(block);
+        return block;
+      }
     }
 
     if (declarator.init && n.CallExpression.check(declarator.init) && n.Identifier.check(declarator.init.callee)) {
@@ -592,6 +716,107 @@ const convertStatement = (statement: Statement, blocks: BlockInstance[]): BlockI
         return pushBlock;
       }
 
+      if (
+        assignment.operator === "=" &&
+        n.Identifier.check(assignment.left) &&
+        n.CallExpression.check(assignment.right) &&
+        n.MemberExpression.check(assignment.right.callee) &&
+        !assignment.right.callee.computed
+      ) {
+        const member = assignment.right.callee as MemberExpression;
+        const property = member.property;
+        if (!n.Identifier.check(property)) {
+          // fall back to generic handling
+        } else {
+          const methodName = property.name;
+
+          if (methodName === "map" || methodName === "filter") {
+            const callbackArg = assignment.right.arguments[0];
+            if (callbackArg && (n.ArrowFunctionExpression.check(callbackArg) || n.FunctionExpression.check(callbackArg))) {
+              const callback = callbackArg as ArrowFunctionExpression | FunctionExpression;
+              const itemParam = callback.params[0];
+              const indexParam = callback.params[1];
+              if (itemParam && !n.Identifier.check(itemParam)) {
+                // fall back to generic handling
+              } else if (indexParam && !n.Identifier.check(indexParam)) {
+                // fall back to generic handling
+              } else {
+                const itemIdentifier = itemParam && n.Identifier.check(itemParam) ? itemParam.name : "item";
+                const indexIdentifier = indexParam && n.Identifier.check(indexParam) ? indexParam.name : "";
+                const arrayCode = sourceFor(member.object as Node);
+
+                const blockData: Record<string, unknown> = {
+                  declarationKind: "assign",
+                  target: assignment.left.name,
+                  array: arrayCode,
+                  itemIdentifier
+                };
+                if (indexIdentifier) {
+                  blockData.indexIdentifier = indexIdentifier;
+                }
+
+                const block = createBlockInstance(methodName === "map" ? "array-map" : "array-filter", blockData);
+                attachMetadata(block, expressionNode.expression as Node);
+
+                const bodySlot = block.children.body;
+                if (n.BlockStatement.check(callback.body)) {
+                  callback.body.body.forEach((inner: Statement) => {
+                    const innerBlock = convertStatement(inner, blocks);
+                    bodySlot.push(innerBlock.id);
+                  });
+                } else {
+                  const returnBlock = createBlockInstance("return-statement", {
+                    argument: sourceFor(callback.body as Node)
+                  });
+                  attachMetadata(returnBlock, callback.body as Node);
+                  blocks.push(returnBlock);
+                  bodySlot.push(returnBlock.id);
+                }
+
+                blocks.push(block);
+                return block;
+              }
+            }
+          }
+          const stringOperation = stringMethodOperationMap[methodName];
+          if (stringOperation) {
+            const argOne = assignment.right.arguments[0] ? sourceFor(assignment.right.arguments[0]) : "";
+            const argTwo = assignment.right.arguments[1] ? sourceFor(assignment.right.arguments[1]) : "";
+            const block = createBlockInstance("string-operation", {
+              declarationKind: "assign",
+              target: assignment.left.name,
+              source: sourceFor(member.object as Node),
+              operation: stringOperation,
+              argument: argOne,
+              argumentTwo: argTwo
+            });
+            attachMetadata(block, expressionNode.expression as Node);
+            blocks.push(block);
+            return block;
+          }
+        }
+      }
+
+      if (
+        assignment.operator === "=" &&
+        n.Identifier.check(assignment.left) &&
+        n.BinaryExpression.check(assignment.right)
+      ) {
+        const mathOperation = binaryOperatorToMathOperation[assignment.right.operator];
+        if (mathOperation) {
+          const block = createBlockInstance("math-operation", {
+            declarationKind: "assign",
+            target: assignment.left.name,
+            left: sourceFor(assignment.right.left as Node),
+            operator: mathOperation,
+            right: sourceFor(assignment.right.right as Node)
+          });
+          attachMetadata(block, expressionNode.expression as Node);
+          blocks.push(block);
+          return block;
+        }
+      }
+
       const updateBlock = createVariableUpdateBlockFromAssignment(assignment);
       if (updateBlock) {
         attachMetadata(updateBlock, expressionNode);
@@ -608,6 +833,60 @@ const convertStatement = (statement: Statement, blocks: BlockInstance[]): BlockI
         attachMetadata(pushBlock, expressionNode);
         blocks.push(pushBlock);
         return pushBlock;
+      }
+
+      if (
+        n.MemberExpression.check(callExpression.callee) &&
+        !callExpression.callee.computed
+      ) {
+        const member = callExpression.callee as MemberExpression;
+        const property = member.property;
+        if (n.Identifier.check(property)) {
+          const methodName = property.name;
+
+          if (methodName === "forEach") {
+            const callbackArg = callExpression.arguments[0];
+            if (callbackArg && (n.ArrowFunctionExpression.check(callbackArg) || n.FunctionExpression.check(callbackArg))) {
+              const callback = callbackArg as ArrowFunctionExpression | FunctionExpression;
+              const itemParam = callback.params[0];
+              const indexParam = callback.params[1];
+            if (itemParam && !n.Identifier.check(itemParam)) {
+              // fall back to generic handling
+            } else if (indexParam && !n.Identifier.check(indexParam)) {
+              // fall back to generic handling
+            } else {
+              const itemIdentifier = itemParam && n.Identifier.check(itemParam) ? itemParam.name : "item";
+              const indexIdentifier = indexParam && n.Identifier.check(indexParam) ? indexParam.name : "";
+                const arrayCode = sourceFor(member.object as Node);
+
+                const block = createBlockInstance("array-for-each", {
+                  array: arrayCode,
+                  itemIdentifier,
+                  indexIdentifier
+                });
+                attachMetadata(block, expressionNode);
+
+                const bodySlot = block.children.body;
+                if (n.BlockStatement.check(callback.body)) {
+                  callback.body.body.forEach((inner: Statement) => {
+                    const innerBlock = convertStatement(inner, blocks);
+                    bodySlot.push(innerBlock.id);
+                  });
+                } else {
+                  const returnBlock = createBlockInstance("return-statement", {
+                    argument: sourceFor(callback.body as Node)
+                  });
+                  attachMetadata(returnBlock, callback.body as Node);
+                  blocks.push(returnBlock);
+                  bodySlot.push(returnBlock.id);
+                }
+
+                blocks.push(block);
+                return block;
+              }
+            }
+          }
+        }
       }
 
       if (n.Identifier.check(callExpression.callee)) {
@@ -863,6 +1142,112 @@ const convertStatement = (statement: Statement, blocks: BlockInstance[]): BlockI
       });
     } else {
       const innerBlock = convertStatement(whileNode.body as Statement, blocks);
+      bodySlot.push(innerBlock.id);
+    }
+
+    blocks.push(block);
+    return block;
+  }
+
+  if (n.DoWhileStatement.check(statement)) {
+    const doWhileNode = statement as DoWhileStatement;
+    const block = createBlockInstance("do-while-statement", {
+      test: sourceFor(doWhileNode.test)
+    });
+    attachMetadata(block, doWhileNode);
+
+    const bodySlot = block.children.body;
+    if (n.BlockStatement.check(doWhileNode.body)) {
+      doWhileNode.body.body.forEach((inner: Statement) => {
+        const innerBlock = convertStatement(inner, blocks);
+        bodySlot.push(innerBlock.id);
+      });
+    } else {
+      const innerBlock = convertStatement(doWhileNode.body as Statement, blocks);
+      bodySlot.push(innerBlock.id);
+    }
+
+    blocks.push(block);
+    return block;
+  }
+
+  if (n.ForOfStatement.check(statement)) {
+    const forOfNode = statement as ForOfStatement;
+
+    let declarationKind = "assign";
+    let identifier = "item";
+
+    if (n.VariableDeclaration.check(forOfNode.left)) {
+      const leftDeclaration = forOfNode.left as VariableDeclaration;
+      declarationKind = leftDeclaration.kind === "let" || leftDeclaration.kind === "const" ? leftDeclaration.kind : "let";
+      const firstDeclarator = leftDeclaration.declarations[0];
+      if (!firstDeclarator || !n.Identifier.check(firstDeclarator.id)) {
+        return createRawStatement(forOfNode, blocks);
+      }
+      identifier = firstDeclarator.id.name;
+    } else if (n.Identifier.check(forOfNode.left)) {
+      identifier = (forOfNode.left as Identifier).name;
+    } else {
+      return createRawStatement(forOfNode, blocks);
+    }
+
+    const block = createBlockInstance("for-of-statement", {
+      declarationKind,
+      identifier,
+      iterable: sourceFor(forOfNode.right)
+    });
+    attachMetadata(block, forOfNode);
+
+    const bodySlot = block.children.body;
+    if (n.BlockStatement.check(forOfNode.body)) {
+      forOfNode.body.body.forEach((inner: Statement) => {
+        const innerBlock = convertStatement(inner, blocks);
+        bodySlot.push(innerBlock.id);
+      });
+    } else {
+      const innerBlock = convertStatement(forOfNode.body as Statement, blocks);
+      bodySlot.push(innerBlock.id);
+    }
+
+    blocks.push(block);
+    return block;
+  }
+
+  if (n.ForInStatement.check(statement)) {
+    const forInNode = statement as ForInStatement;
+
+    let declarationKind = "assign";
+    let identifier = "key";
+
+    if (n.VariableDeclaration.check(forInNode.left)) {
+      const leftDeclaration = forInNode.left as VariableDeclaration;
+      declarationKind = leftDeclaration.kind === "let" || leftDeclaration.kind === "const" ? leftDeclaration.kind : "let";
+      const firstDeclarator = leftDeclaration.declarations[0];
+      if (!firstDeclarator || !n.Identifier.check(firstDeclarator.id)) {
+        return createRawStatement(forInNode, blocks);
+      }
+      identifier = firstDeclarator.id.name;
+    } else if (n.Identifier.check(forInNode.left)) {
+      identifier = (forInNode.left as Identifier).name;
+    } else {
+      return createRawStatement(forInNode, blocks);
+    }
+
+    const block = createBlockInstance("for-in-statement", {
+      declarationKind,
+      identifier,
+      source: sourceFor(forInNode.right)
+    });
+    attachMetadata(block, forInNode);
+
+    const bodySlot = block.children.body;
+    if (n.BlockStatement.check(forInNode.body)) {
+      forInNode.body.body.forEach((inner: Statement) => {
+        const innerBlock = convertStatement(inner, blocks);
+        bodySlot.push(innerBlock.id);
+      });
+    } else {
+      const innerBlock = convertStatement(forInNode.body as Statement, blocks);
       bodySlot.push(innerBlock.id);
     }
 

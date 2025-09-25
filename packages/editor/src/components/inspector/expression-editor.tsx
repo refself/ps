@@ -228,6 +228,12 @@ const ExpressionEditor = ({
   const allowedKinds = useMemo(() => determineAllowedKinds(expectedType), [expectedType]);
   const [kind, setKind] = useState<ExpressionKind>(() => {
     const baseKind = preferCustomEditor && value.trim() === "" ? "custom" : detectExpressionKind(value);
+    if (allowedKinds.includes(baseKind)) {
+      return baseKind;
+    }
+    if (allowedKinds.includes("identifier")) {
+      return "identifier";
+    }
     return pickAllowedKind(baseKind, allowedKinds);
   });
   const [stringValue, setStringValue] = useState(() => unquoteString(value.trim()));
@@ -245,7 +251,10 @@ const ExpressionEditor = ({
   useEffect(() => {
     const trimmed = value.trim();
     const baseKind = preferCustomEditor && trimmed === "" ? "custom" : detectExpressionKind(value);
-    const nextKind = pickAllowedKind(baseKind, allowedKinds);
+    let nextKind = pickAllowedKind(baseKind, allowedKinds);
+    if (!allowedKinds.includes(baseKind) && allowedKinds.includes("identifier")) {
+      nextKind = "identifier";
+    }
     setKind(nextKind);
     setStringValue(unquoteString(value.trim()));
     setNumberValue(Number.isNaN(Number(value.trim())) ? "" : value.trim());

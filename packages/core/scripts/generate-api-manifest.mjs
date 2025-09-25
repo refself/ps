@@ -157,6 +157,16 @@ const serializeEntry = (entry) => {
   if (entry.identifierField) {
     lines.push(indent(`identifierField: ${quote(entry.identifierField)},`, 1));
   }
+  if (entry.defaultIdentifier) {
+    lines.push(indent(`defaultIdentifier: ${quote(entry.defaultIdentifier)},`, 1));
+  }
+  if (entry.invocation) {
+    const invocationJson = JSON.stringify(entry.invocation, null, 2)
+      .split("\n")
+      .map((line) => indent(line, 1))
+      .join("\n");
+    lines.push(`${indent("invocation: ", 1)}${invocationJson},`);
+  }
 
   const fieldsContent = entry.fields.length
     ? `[

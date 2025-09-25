@@ -3,6 +3,158 @@ import type { ApiManifestEntry } from "./api-manifest-schema";
 
 export const apiManifestEntries: ApiManifestEntry[] = [
   {
+    apiName: "locate",
+    blockKind: "accessibility-locate-call",
+    label: "AX Locate",
+    category: "automation",
+    description: "Find accessibility elements matching a selector within the target app.",
+    identifierField: "assignTo",
+    defaultIdentifier: "elements",
+    invocation:   {
+      "arguments": [
+        "pid",
+        "selector",
+        "timeout",
+        "highlight"
+      ],
+      "options": [],
+      "style": "positional"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store As",
+              description: "Optional variable that receives the matched elements list.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            },
+        {
+              id: "pid",
+              label: "Application PID",
+              description: "Process identifier of the application to inspect.",
+              required: true,
+              input: {
+                      kind: "expression"
+                    },
+              valueType: {"kind":"number"}
+            },
+        {
+              id: "selector",
+              label: "Selector",
+              description: "Accessibility selector string (for example role:button name=Submit).",
+              required: true,
+              input: {
+                      kind: "string",
+                      placeholder: "role:button name=Submit"
+                    },
+              valueType: {"kind":"string"}
+            },
+        {
+              id: "timeout",
+              label: "Timeout (s)",
+              description: "How long to keep searching before giving up.",
+              defaultValue: 5,
+              input: {
+                      kind: "number",
+                      min: 0,
+                      step: 0.5
+                    },
+              valueType: {"kind":"number"}
+            },
+        {
+              id: "highlight",
+              label: "Highlight Matches",
+              description: "Flash the matched elements on screen.",
+              defaultValue: false,
+              input: {
+                      kind: "boolean"
+                    },
+              valueType: {"kind":"boolean"}
+            }
+      ],
+    outputs: [
+        {
+              id: "elements",
+              label: "Elements",
+              description: "Array of matching accessibility nodes.",
+              valueType: {"kind":"array","of":{"kind":"object"}}
+            }
+      ]
+  },
+  {
+    apiName: "traverse",
+    blockKind: "accessibility-traverse-call",
+    label: "AX Traverse",
+    category: "automation",
+    description: "Capture the current accessibility tree for an application.",
+    identifierField: "assignTo",
+    defaultIdentifier: "elements",
+    invocation:   {
+      "arguments": [
+        "pid",
+        "highlight",
+        "frontmostOnly"
+      ],
+      "options": [],
+      "style": "positional"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store As",
+              description: "Optional variable that receives the traversal results.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            },
+        {
+              id: "pid",
+              label: "Application PID",
+              description: "Process identifier of the application to traverse.",
+              required: true,
+              input: {
+                      kind: "expression"
+                    },
+              valueType: {"kind":"number"}
+            },
+        {
+              id: "highlight",
+              label: "Highlight",
+              description: "Flash elements as they are discovered.",
+              defaultValue: false,
+              input: {
+                      kind: "boolean"
+                    },
+              valueType: {"kind":"boolean"}
+            },
+        {
+              id: "frontmostOnly",
+              label: "Frontmost Window Only",
+              description: "Limit traversal to the frontmost window.",
+              defaultValue: false,
+              input: {
+                      kind: "boolean"
+                    },
+              valueType: {"kind":"boolean"}
+            }
+      ],
+    outputs: [
+        {
+              id: "elements",
+              label: "Elements",
+              description: "Array of accessibility nodes in the traversal order.",
+              valueType: {"kind":"array","of":{"kind":"object"}}
+            }
+      ]
+  },
+  {
     apiName: "ai",
     blockKind: "ai-call",
     label: "AI Response",
@@ -10,6 +162,17 @@ export const apiManifestEntries: ApiManifestEntry[] = [
     icon: "sparkles",
     description: "Send a prompt to the AI model and capture text or JSON output.",
     identifierField: "identifier",
+    defaultIdentifier: "result",
+    invocation:   {
+      "arguments": [
+        "prompt"
+      ],
+      "options": [
+        "format",
+        "schema"
+      ],
+      "style": "positionalWithOptions"
+    },
     fields: [
         {
               id: "identifier",
@@ -74,12 +237,165 @@ export const apiManifestEntries: ApiManifestEntry[] = [
       ]
   },
   {
+    apiName: "appendFile",
+    blockKind: "append-file-call",
+    label: "Append File",
+    category: "io",
+    description: "Append UTF-8 text to the end of a file, creating it when needed.",
+    identifierField: "assignTo",
+    invocation:   {
+      "arguments": [
+        "path",
+        "content"
+      ],
+      "options": [],
+      "style": "positional"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store Result",
+              description: "Optional variable that receives the success flag.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            },
+        {
+              id: "path",
+              label: "Path",
+              description: "File to append to.",
+              required: true,
+              input: {
+                      kind: "string",
+                      placeholder: "~/Documents/log.txt"
+                    },
+              valueType: {"kind":"string"}
+            },
+        {
+              id: "content",
+              label: "Content",
+              description: "Text appended to the file.",
+              required: true,
+              input: {
+                      kind: "string",
+                      multiline: true
+                    },
+              valueType: {"kind":"string"}
+            }
+      ],
+    outputs: [
+        {
+              id: "success",
+              label: "Success",
+              description: "True when the append completed.",
+              valueType: {"kind":"boolean"}
+            }
+      ]
+  },
+  {
+    apiName: "autonomousAgent",
+    blockKind: "autonomous-agent-call",
+    label: "Autonomous Agent",
+    category: "ai",
+    description: "Let the agent observe the screen and take UI actions to complete a task.",
+    identifierField: "assignTo",
+    defaultIdentifier: "agentResult",
+    invocation:   {
+      "arguments": [
+        "taskPrompt"
+      ],
+      "options": [
+        "maxLoops",
+        "waitBetweenActions"
+      ],
+      "style": "positionalWithOptions"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store As",
+              description: "Optional variable that receives the agent result.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            },
+        {
+              id: "taskPrompt",
+              label: "Task",
+              description: "High-level instruction describing what the agent should accomplish.",
+              required: true,
+              input: {
+                      kind: "string",
+                      multiline: true
+                    },
+              valueType: {"kind":"string"}
+            },
+        {
+              id: "maxLoops",
+              label: "Max Iterations",
+              description: "Safety limit on the number of perception/action cycles.",
+              defaultValue: 10,
+              input: {
+                      kind: "number",
+                      min: 1,
+                      step: 1
+                    },
+              valueType: {"kind":"number"}
+            },
+        {
+              id: "waitBetweenActions",
+              label: "Delay Between Actions (s)",
+              description: "Pause between UI actions to avoid overwhelming the system.",
+              defaultValue: 0.5,
+              input: {
+                      kind: "number",
+                      min: 0,
+                      step: 0.1
+                    },
+              valueType: {"kind":"number"}
+            }
+      ],
+    outputs: [
+        {
+              id: "completed",
+              label: "Completed",
+              description: "True when the agent reported success.",
+              valueType: {"kind":"boolean"}
+            },
+        {
+              id: "loops",
+              label: "Loops",
+              description: "Total cycles executed.",
+              valueType: {"kind":"number"}
+            },
+        {
+              id: "chatHistory",
+              label: "Chat History",
+              description: "Conversation transcript exchanged with the agent.",
+              valueType: {"kind":"array","of":{"kind":"object"}}
+            }
+      ]
+  },
+  {
     apiName: "click",
     blockKind: "click-call",
     label: "Click",
     category: "automation",
     icon: "mouse",
     description: "Click at the provided coordinates or locator result.",
+    invocation:   {
+      "arguments": [
+        "target"
+      ],
+      "options": [],
+      "style": "positional"
+    },
     fields: [
         {
               id: "target",
@@ -95,6 +411,304 @@ export const apiManifestEntries: ApiManifestEntry[] = [
     outputs: []
   },
   {
+    apiName: "confirm",
+    blockKind: "confirm-dialog-call",
+    label: "Confirm",
+    category: "utility",
+    description: "Show a yes/no confirmation dialog.",
+    identifierField: "assignTo",
+    defaultIdentifier: "confirmed",
+    invocation:   {
+      "arguments": [
+        "prompt"
+      ],
+      "options": [],
+      "style": "positional"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store As",
+              description: "Optional variable that receives the boolean result.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            },
+        {
+              id: "prompt",
+              label: "Prompt",
+              input: {
+                      kind: "string",
+                      placeholder: "Are you sure?"
+                    },
+              valueType: {"kind":"string"}
+            }
+      ],
+    outputs: [
+        {
+              id: "confirmed",
+              label: "Confirmed",
+              description: "True when the user selected Yes.",
+              valueType: {"kind":"boolean"}
+            }
+      ]
+  },
+  {
+    apiName: "copyFile",
+    blockKind: "copy-file-call",
+    label: "Copy File",
+    category: "io",
+    description: "Copy a file to a new location.",
+    identifierField: "assignTo",
+    invocation:   {
+      "arguments": [
+        "sourcePath",
+        "destinationPath"
+      ],
+      "options": [],
+      "style": "positional"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store Result",
+              description: "Optional variable that receives the success flag.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            },
+        {
+              id: "sourcePath",
+              label: "Source",
+              required: true,
+              input: {
+                      kind: "string",
+                      placeholder: "~/Downloads/source.txt"
+                    },
+              valueType: {"kind":"string"}
+            },
+        {
+              id: "destinationPath",
+              label: "Destination",
+              required: true,
+              input: {
+                      kind: "string",
+                      placeholder: "~/Documents/source.txt"
+                    },
+              valueType: {"kind":"string"}
+            }
+      ],
+    outputs: [
+        {
+              id: "success",
+              label: "Success",
+              description: "True when the file was copied.",
+              valueType: {"kind":"boolean"}
+            }
+      ]
+  },
+  {
+    apiName: "createDirectory",
+    blockKind: "create-directory-call",
+    label: "Create Directory",
+    category: "io",
+    description: "Create a directory, optionally including missing parents.",
+    identifierField: "assignTo",
+    invocation:   {
+      "arguments": [
+        "path",
+        "createIntermediates"
+      ],
+      "options": [],
+      "style": "positional"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store Result",
+              description: "Optional variable that receives the success flag.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            },
+        {
+              id: "path",
+              label: "Path",
+              required: true,
+              input: {
+                      kind: "string",
+                      placeholder: "~/Projects/new-folder"
+                    },
+              valueType: {"kind":"string"}
+            },
+        {
+              id: "createIntermediates",
+              label: "Create Parents",
+              description: "Create intermediate directories when needed.",
+              defaultValue: true,
+              input: {
+                      kind: "boolean"
+                    },
+              valueType: {"kind":"boolean"}
+            }
+      ],
+    outputs: [
+        {
+              id: "success",
+              label: "Success",
+              description: "True when the directory was created.",
+              valueType: {"kind":"boolean"}
+            }
+      ]
+  },
+  {
+    apiName: "deleteFile",
+    blockKind: "delete-file-call",
+    label: "Delete File",
+    category: "io",
+    description: "Remove a file or directory from disk.",
+    identifierField: "assignTo",
+    invocation:   {
+      "arguments": [
+        "path"
+      ],
+      "options": [],
+      "style": "positional"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store Result",
+              description: "Optional variable that receives the success flag.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            },
+        {
+              id: "path",
+              label: "Path",
+              required: true,
+              input: {
+                      kind: "string",
+                      placeholder: "~/Downloads/temp.json"
+                    },
+              valueType: {"kind":"string"}
+            }
+      ],
+    outputs: [
+        {
+              id: "success",
+              label: "Success",
+              description: "True when the path was removed.",
+              valueType: {"kind":"boolean"}
+            }
+      ]
+  },
+  {
+    apiName: "fileExists",
+    blockKind: "file-exists-call",
+    label: "File Exists",
+    category: "io",
+    description: "Test whether a file or directory exists.",
+    identifierField: "assignTo",
+    invocation:   {
+      "arguments": [
+        "path"
+      ],
+      "options": [],
+      "style": "positional"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store As",
+              description: "Optional variable that receives the boolean result.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            },
+        {
+              id: "path",
+              label: "Path",
+              required: true,
+              input: {
+                      kind: "string",
+                      placeholder: "~/Documents/report.pdf"
+                    },
+              valueType: {"kind":"string"}
+            }
+      ],
+    outputs: [
+        {
+              id: "exists",
+              label: "Exists",
+              description: "True when the path is present.",
+              valueType: {"kind":"boolean"}
+            }
+      ]
+  },
+  {
+    apiName: "fileInfo",
+    blockKind: "file-info-call",
+    label: "File Info",
+    category: "io",
+    description: "Retrieve size and timestamps for a path.",
+    identifierField: "assignTo",
+    invocation:   {
+      "arguments": [
+        "path"
+      ],
+      "options": [],
+      "style": "positional"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store As",
+              description: "Optional variable that receives file metadata.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            },
+        {
+              id: "path",
+              label: "Path",
+              required: true,
+              input: {
+                      kind: "string",
+                      placeholder: "~/Documents/report.pdf"
+                    },
+              valueType: {"kind":"string"}
+            }
+      ],
+    outputs: [
+        {
+              id: "info",
+              label: "Info",
+              description: "Object containing size, timestamps, and type.",
+              valueType: {"kind":"object"}
+            }
+      ]
+  },
+  {
     apiName: "fileReader",
     blockKind: "file-reader-call",
     label: "Read Files",
@@ -102,6 +716,14 @@ export const apiManifestEntries: ApiManifestEntry[] = [
     icon: "file",
     description: "Read up to 10 files and convert their contents to markdown.",
     identifierField: "assignTo",
+    defaultIdentifier: "documents",
+    invocation:   {
+      "arguments": [
+        "paths"
+      ],
+      "options": [],
+      "style": "positional"
+    },
     fields: [
         {
               id: "assignTo",
@@ -148,6 +770,157 @@ export const apiManifestEntries: ApiManifestEntry[] = [
       ]
   },
   {
+    apiName: "getHomePath",
+    blockKind: "get-home-path-call",
+    label: "Get Home Path",
+    category: "io",
+    description: "Return the current user's home directory.",
+    identifierField: "assignTo",
+    defaultIdentifier: "homePath",
+    invocation:   {
+      "arguments": [],
+      "options": [],
+      "style": "positional"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store As",
+              description: "Optional variable that receives the path.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            }
+      ],
+    outputs: [
+        {
+              id: "path",
+              label: "Path",
+              description: "Home directory path.",
+              valueType: {"kind":"string"}
+            }
+      ]
+  },
+  {
+    apiName: "getTempPath",
+    blockKind: "get-temp-path-call",
+    label: "Get Temp Path",
+    category: "io",
+    description: "Return the system temporary directory.",
+    identifierField: "assignTo",
+    defaultIdentifier: "tempPath",
+    invocation:   {
+      "arguments": [],
+      "options": [],
+      "style": "positional"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store As",
+              description: "Optional variable that receives the path.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            }
+      ],
+    outputs: [
+        {
+              id: "path",
+              label: "Path",
+              description: "Temporary directory path.",
+              valueType: {"kind":"string"}
+            }
+      ]
+  },
+  {
+    apiName: "getWorkingDirectory",
+    blockKind: "get-working-directory-call",
+    label: "Get Working Directory",
+    category: "io",
+    description: "Return the process current working directory.",
+    identifierField: "assignTo",
+    defaultIdentifier: "cwd",
+    invocation:   {
+      "arguments": [],
+      "options": [],
+      "style": "positional"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store As",
+              description: "Optional variable that receives the directory path.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            }
+      ],
+    outputs: [
+        {
+              id: "path",
+              label: "Path",
+              description: "Current working directory path.",
+              valueType: {"kind":"string"}
+            }
+      ]
+  },
+  {
+    apiName: "listDirectory",
+    blockKind: "list-directory-call",
+    label: "List Directory",
+    category: "io",
+    description: "List files and folders inside a directory.",
+    identifierField: "assignTo",
+    invocation:   {
+      "arguments": [
+        "path"
+      ],
+      "options": [],
+      "style": "positional"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store As",
+              description: "Optional variable that receives the entries.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            },
+        {
+              id: "path",
+              label: "Directory",
+              required: true,
+              input: {
+                      kind: "string",
+                      placeholder: "~/Documents"
+                    },
+              valueType: {"kind":"string"}
+            }
+      ],
+    outputs: [
+        {
+              id: "entries",
+              label: "Entries",
+              description: "Array of file and folder names.",
+              valueType: {"kind":"array","of":{"kind":"string"}}
+            }
+      ]
+  },
+  {
     apiName: "locator",
     blockKind: "locator-call",
     label: "Locate Element",
@@ -155,6 +928,20 @@ export const apiManifestEntries: ApiManifestEntry[] = [
     icon: "eye",
     description: "Use vision or accessibility cues to locate an element on screen.",
     identifierField: "identifier",
+    defaultIdentifier: "node",
+    invocation:   {
+      "arguments": [],
+      "options": [
+        "instruction",
+        "role",
+        "name",
+        "nameMatch",
+        "pid",
+        "element",
+        "waitTime"
+      ],
+      "style": "object"
+    },
     fields: [
         {
               id: "identifier",
@@ -229,9 +1016,7 @@ export const apiManifestEntries: ApiManifestEntry[] = [
               label: "Application PID",
               description: "Target application process identifier. Defaults to the frontmost app.",
               input: {
-                      kind: "number",
-                      min: 0,
-                      step: 1
+                      kind: "expression"
                     },
               valueType: {"kind":"number"}
             },
@@ -303,6 +1088,13 @@ export const apiManifestEntries: ApiManifestEntry[] = [
     label: "Log Message",
     category: "utility",
     description: "Write a message to the workflow log.",
+    invocation:   {
+      "arguments": [
+        "message"
+      ],
+      "options": [],
+      "style": "positional"
+    },
     fields: [
         {
               id: "message",
@@ -318,12 +1110,79 @@ export const apiManifestEntries: ApiManifestEntry[] = [
     outputs: []
   },
   {
+    apiName: "moveFile",
+    blockKind: "move-file-call",
+    label: "Move File",
+    category: "io",
+    description: "Move or rename a file.",
+    identifierField: "assignTo",
+    invocation:   {
+      "arguments": [
+        "sourcePath",
+        "destinationPath"
+      ],
+      "options": [],
+      "style": "positional"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store Result",
+              description: "Optional variable that receives the success flag.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            },
+        {
+              id: "sourcePath",
+              label: "Source",
+              required: true,
+              input: {
+                      kind: "string",
+                      placeholder: "~/Downloads/source.txt"
+                    },
+              valueType: {"kind":"string"}
+            },
+        {
+              id: "destinationPath",
+              label: "Destination",
+              required: true,
+              input: {
+                      kind: "string",
+                      placeholder: "~/Documents/source.txt"
+                    },
+              valueType: {"kind":"string"}
+            }
+      ],
+    outputs: [
+        {
+              id: "success",
+              label: "Success",
+              description: "True when the file was moved.",
+              valueType: {"kind":"boolean"}
+            }
+      ]
+  },
+  {
     apiName: "open",
     blockKind: "open-call",
     label: "Open App",
     category: "automation",
     description: "Launch an application and optionally wait for stability.",
     identifierField: "identifier",
+    defaultIdentifier: "app",
+    invocation:   {
+      "arguments": [
+        "appName",
+        "bringToFront",
+        "waitSeconds"
+      ],
+      "options": [],
+      "style": "positional"
+    },
     fields: [
         {
               id: "identifier",
@@ -378,6 +1237,13 @@ export const apiManifestEntries: ApiManifestEntry[] = [
     label: "Open URL",
     category: "automation",
     description: "Open a URL in the default browser.",
+    invocation:   {
+      "arguments": [
+        "url"
+      ],
+      "options": [],
+      "style": "positional"
+    },
     fields: [
         {
               id: "url",
@@ -394,12 +1260,254 @@ export const apiManifestEntries: ApiManifestEntry[] = [
     outputs: []
   },
   {
+    apiName: "password",
+    blockKind: "password-input-call",
+    label: "Prompt Password",
+    category: "utility",
+    description: "Collect a password or other secure input.",
+    identifierField: "assignTo",
+    defaultIdentifier: "password",
+    invocation:   {
+      "arguments": [
+        "prompt"
+      ],
+      "options": [],
+      "style": "positional"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store As",
+              description: "Optional variable that receives the password text.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            },
+        {
+              id: "prompt",
+              label: "Prompt",
+              input: {
+                      kind: "string",
+                      placeholder: "Enter password"
+                    },
+              valueType: {"kind":"string"}
+            }
+      ],
+    outputs: [
+        {
+              id: "value",
+              label: "Value",
+              description: "Captured password or null when cancelled.",
+              valueType: {"kind":"union","options":[{"kind":"string"},{"kind":"null"}]}
+            }
+      ]
+  },
+  {
+    apiName: "pathBasename",
+    blockKind: "path-basename-call",
+    label: "Path Basename",
+    category: "io",
+    description: "Return the last path component.",
+    identifierField: "assignTo",
+    defaultIdentifier: "basename",
+    invocation:   {
+      "arguments": [
+        "path"
+      ],
+      "options": [],
+      "style": "positional"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store As",
+              description: "Optional variable that receives the basename.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            },
+        {
+              id: "path",
+              label: "Path",
+              required: true,
+              input: {
+                      kind: "string",
+                      placeholder: "~/Documents/report.pdf"
+                    },
+              valueType: {"kind":"string"}
+            }
+      ],
+    outputs: [
+        {
+              id: "basename",
+              label: "Basename",
+              description: "Last component of the path.",
+              valueType: {"kind":"string"}
+            }
+      ]
+  },
+  {
+    apiName: "pathDirname",
+    blockKind: "path-dirname-call",
+    label: "Path Dirname",
+    category: "io",
+    description: "Return the parent directory of a path.",
+    identifierField: "assignTo",
+    defaultIdentifier: "dirname",
+    invocation:   {
+      "arguments": [
+        "path"
+      ],
+      "options": [],
+      "style": "positional"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store As",
+              description: "Optional variable that receives the directory name.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            },
+        {
+              id: "path",
+              label: "Path",
+              required: true,
+              input: {
+                      kind: "string",
+                      placeholder: "~/Documents/report.pdf"
+                    },
+              valueType: {"kind":"string"}
+            }
+      ],
+    outputs: [
+        {
+              id: "dirname",
+              label: "Dirname",
+              description: "Parent directory path.",
+              valueType: {"kind":"string"}
+            }
+      ]
+  },
+  {
+    apiName: "pathExtension",
+    blockKind: "path-extension-call",
+    label: "Path Extension",
+    category: "io",
+    description: "Return the filename extension of a path.",
+    identifierField: "assignTo",
+    defaultIdentifier: "pathExtension",
+    invocation:   {
+      "arguments": [
+        "path"
+      ],
+      "options": [],
+      "style": "positional"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store As",
+              description: "Optional variable that receives the extension.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            },
+        {
+              id: "path",
+              label: "Path",
+              required: true,
+              input: {
+                      kind: "string",
+                      placeholder: "~/Documents/report.pdf"
+                    },
+              valueType: {"kind":"string"}
+            }
+      ],
+    outputs: [
+        {
+              id: "extension",
+              label: "Extension",
+              description: "File extension without leading dot.",
+              valueType: {"kind":"string"}
+            }
+      ]
+  },
+  {
+    apiName: "pathJoin",
+    blockKind: "path-join-call",
+    label: "Join Path",
+    category: "io",
+    description: "Join path components using platform separators.",
+    identifierField: "assignTo",
+    defaultIdentifier: "joinedPath",
+    invocation:   {
+      "arguments": [
+        "components"
+      ],
+      "options": [],
+      "style": "positional"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store As",
+              description: "Optional variable that receives the joined path.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            },
+        {
+              id: "components",
+              label: "Components",
+              description: "Array of path segments (for example ['tmp', 'logs']).",
+              required: true,
+              input: {
+                      kind: "expression"
+                    },
+              valueType: {"kind":"array","of":{"kind":"string"}}
+            }
+      ],
+    outputs: [
+        {
+              id: "path",
+              label: "Path",
+              description: "Joined file system path.",
+              valueType: {"kind":"string"}
+            }
+      ]
+  },
+  {
     apiName: "press",
     blockKind: "press-call",
     label: "Press Key",
     category: "automation",
     icon: "keyboard",
     description: "Simulate pressing a keyboard key with optional modifiers.",
+    invocation:   {
+      "arguments": [
+        "key",
+        "modifiers"
+      ],
+      "options": [],
+      "style": "positional"
+    },
     fields: [
         {
               id: "key",
@@ -433,6 +1541,12 @@ export const apiManifestEntries: ApiManifestEntry[] = [
     icon: "clipboard",
     description: "Read the current clipboard contents as text.",
     identifierField: "assignTo",
+    defaultIdentifier: "clipboardText",
+    invocation:   {
+      "arguments": [],
+      "options": [],
+      "style": "positional"
+    },
     fields: [
         {
               id: "assignTo",
@@ -464,6 +1578,13 @@ export const apiManifestEntries: ApiManifestEntry[] = [
     icon: "eye",
     description: "Capture the screen or a specific application window.",
     identifierField: "assignTo",
+    invocation:   {
+      "arguments": [
+        "target"
+      ],
+      "options": [],
+      "style": "positional"
+    },
     fields: [
         {
               id: "assignTo",
@@ -540,6 +1661,15 @@ export const apiManifestEntries: ApiManifestEntry[] = [
     category: "automation",
     icon: "mouse",
     description: "Scroll the specified area in a direction by a given amount.",
+    invocation:   {
+      "arguments": [
+        "origin",
+        "direction",
+        "amount"
+      ],
+      "options": [],
+      "style": "positional"
+    },
     fields: [
         {
               id: "origin",
@@ -596,14 +1726,118 @@ export const apiManifestEntries: ApiManifestEntry[] = [
     outputs: []
   },
   {
-    apiName: "selectAll",
-    blockKind: "select-all-call",
-    label: "Select All",
-    category: "automation",
-    icon: "keyboard",
-    description: "Select all text/content in the active context.",
-    fields: [],
-    outputs: []
+    apiName: "setWorkingDirectory",
+    blockKind: "set-working-directory-call",
+    label: "Set Working Directory",
+    category: "io",
+    description: "Change the process current working directory.",
+    identifierField: "assignTo",
+    invocation:   {
+      "arguments": [
+        "path"
+      ],
+      "options": [],
+      "style": "positional"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store Result",
+              description: "Optional variable that receives the success flag.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            },
+        {
+              id: "path",
+              label: "Path",
+              required: true,
+              input: {
+                      kind: "string",
+                      placeholder: "~/Projects"
+                    },
+              valueType: {"kind":"string"}
+            }
+      ],
+    outputs: [
+        {
+              id: "success",
+              label: "Success",
+              description: "True when the working directory changed.",
+              valueType: {"kind":"boolean"}
+            }
+      ]
+  },
+  {
+    apiName: "textarea",
+    blockKind: "textarea-input-call",
+    label: "Prompt Text Area",
+    category: "utility",
+    description: "Capture multi-line user input.",
+    identifierField: "assignTo",
+    defaultIdentifier: "text",
+    invocation:   {
+      "arguments": [
+        "prompt"
+      ],
+      "options": [
+        "placeholder",
+        "default"
+      ],
+      "style": "positionalWithOptions"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store As",
+              description: "Optional variable that receives the text.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            },
+        {
+              id: "prompt",
+              label: "Prompt",
+              input: {
+                      kind: "string",
+                      placeholder: "Describe your update"
+                    },
+              valueType: {"kind":"string"}
+            },
+        {
+              id: "placeholder",
+              label: "Placeholder",
+              description: "Hint text shown when empty.",
+              input: {
+                      kind: "string"
+                    },
+              valueType: {"kind":"string"}
+            },
+        {
+              id: "default",
+              label: "Default Value",
+              description: "Initial value shown in the text area.",
+              input: {
+                      kind: "string",
+                      multiline: true
+                    },
+              valueType: {"kind":"string"}
+            }
+      ],
+    outputs: [
+        {
+              id: "value",
+              label: "Value",
+              description: "Text entered by the user or null when cancelled.",
+              valueType: {"kind":"union","options":[{"kind":"string"},{"kind":"null"}]}
+            }
+      ]
   },
   {
     apiName: "type",
@@ -612,6 +1846,13 @@ export const apiManifestEntries: ApiManifestEntry[] = [
     category: "automation",
     icon: "keyboard",
     description: "Type text or evaluated expressions at the current focus location.",
+    invocation:   {
+      "arguments": [
+        "text"
+      ],
+      "options": [],
+      "style": "positional"
+    },
     fields: [
         {
               id: "text",
@@ -627,6 +1868,183 @@ export const apiManifestEntries: ApiManifestEntry[] = [
     outputs: []
   },
   {
+    apiName: "input",
+    blockKind: "user-input-call",
+    label: "Prompt Input",
+    category: "utility",
+    description: "Ask the user for a single-line response.",
+    identifierField: "assignTo",
+    defaultIdentifier: "userInput",
+    invocation:   {
+      "arguments": [
+        "prompt"
+      ],
+      "options": [
+        "placeholder",
+        "default",
+        "type",
+        "min",
+        "max",
+        "minLength",
+        "maxLength"
+      ],
+      "style": "positionalWithOptions"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store As",
+              description: "Optional variable that receives the response.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            },
+        {
+              id: "prompt",
+              label: "Prompt",
+              description: "Message shown in the dialog.",
+              required: true,
+              input: {
+                      kind: "string",
+                      placeholder: "Enter value"
+                    },
+              valueType: {"kind":"string"}
+            },
+        {
+              id: "placeholder",
+              label: "Placeholder",
+              description: "Hint text shown when the field is empty.",
+              input: {
+                      kind: "string"
+                    },
+              valueType: {"kind":"string"}
+            },
+        {
+              id: "default",
+              label: "Default Value",
+              description: "Initial content placed in the field.",
+              input: {
+                      kind: "string"
+                    },
+              valueType: {"kind":"string"}
+            },
+        {
+              id: "type",
+              label: "Validation Type",
+              description: "Optional validation rule (text, number, email, url).",
+              input: {
+                      kind: "string"
+                    },
+              valueType: {"kind":"string"}
+            },
+        {
+              id: "min",
+              label: "Minimum",
+              description: "Minimum numeric value when type is number.",
+              input: {
+                      kind: "number"
+                    },
+              valueType: {"kind":"number"}
+            },
+        {
+              id: "max",
+              label: "Maximum",
+              description: "Maximum numeric value when type is number.",
+              input: {
+                      kind: "number"
+                    },
+              valueType: {"kind":"number"}
+            },
+        {
+              id: "minLength",
+              label: "Min Length",
+              description: "Required minimum number of characters.",
+              input: {
+                      kind: "number"
+                    },
+              valueType: {"kind":"number"}
+            },
+        {
+              id: "maxLength",
+              label: "Max Length",
+              description: "Maximum number of characters allowed.",
+              input: {
+                      kind: "number"
+                    },
+              valueType: {"kind":"number"}
+            }
+      ],
+    outputs: [
+        {
+              id: "value",
+              label: "Value",
+              description: "User provided text or null when cancelled.",
+              valueType: {"kind":"union","options":[{"kind":"string"},{"kind":"null"}]}
+            }
+      ]
+  },
+  {
+    apiName: "select",
+    blockKind: "user-select-call",
+    label: "Select Option",
+    category: "utility",
+    description: "Let the user pick one choice from a list.",
+    identifierField: "assignTo",
+    defaultIdentifier: "selection",
+    invocation:   {
+      "arguments": [
+        "prompt",
+        "choices"
+      ],
+      "options": [],
+      "style": "positional"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store As",
+              description: "Optional variable that receives the selection.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            },
+        {
+              id: "prompt",
+              label: "Prompt",
+              required: true,
+              input: {
+                      kind: "string",
+                      placeholder: "Choose an option"
+                    },
+              valueType: {"kind":"string"}
+            },
+        {
+              id: "choices",
+              label: "Choices",
+              description: "Expression resolving to an array of string options.",
+              required: true,
+              input: {
+                      kind: "expression"
+                    },
+              valueType: {"kind":"array","of":{"kind":"string"}}
+            }
+      ],
+    outputs: [
+        {
+              id: "value",
+              label: "Value",
+              description: "Selected option or null when cancelled.",
+              valueType: {"kind":"union","options":[{"kind":"string"},{"kind":"null"}]}
+            }
+      ]
+  },
+  {
     apiName: "vision",
     blockKind: "vision-call",
     label: "Vision Analysis",
@@ -634,6 +2052,18 @@ export const apiManifestEntries: ApiManifestEntry[] = [
     icon: "eye",
     description: "Send screenshots to the vision model and capture structured responses.",
     identifierField: "identifier",
+    defaultIdentifier: "visionResult",
+    invocation:   {
+      "arguments": [
+        "target",
+        "prompt"
+      ],
+      "options": [
+        "format",
+        "schema"
+      ],
+      "style": "positionalWithOptions"
+    },
     fields: [
         {
               id: "identifier",
@@ -714,6 +2144,13 @@ export const apiManifestEntries: ApiManifestEntry[] = [
     category: "automation",
     icon: "clock",
     description: "Pause execution for a specific number of seconds before continuing.",
+    invocation:   {
+      "arguments": [
+        "duration"
+      ],
+      "options": [],
+      "style": "positional"
+    },
     fields: [
         {
               id: "duration",
@@ -730,6 +2167,65 @@ export const apiManifestEntries: ApiManifestEntry[] = [
             }
       ],
     outputs: []
+  },
+  {
+    apiName: "writeFile",
+    blockKind: "write-file-call",
+    label: "Write File",
+    category: "io",
+    description: "Overwrite a file with new UTF-8 text content.",
+    identifierField: "assignTo",
+    invocation:   {
+      "arguments": [
+        "path",
+        "content"
+      ],
+      "options": [],
+      "style": "positional"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store Result",
+              description: "Optional variable that receives the success flag.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            },
+        {
+              id: "path",
+              label: "Path",
+              description: "Absolute or relative path to the file to write.",
+              required: true,
+              input: {
+                      kind: "string",
+                      placeholder: "~/Documents/output.txt"
+                    },
+              valueType: {"kind":"string"}
+            },
+        {
+              id: "content",
+              label: "Content",
+              description: "Text content written to the file.",
+              required: true,
+              input: {
+                      kind: "string",
+                      multiline: true
+                    },
+              valueType: {"kind":"string"}
+            }
+      ],
+    outputs: [
+        {
+              id: "success",
+              label: "Success",
+              description: "True when the file was written.",
+              valueType: {"kind":"boolean"}
+            }
+      ]
   }
 ];
 
