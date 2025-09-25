@@ -1,3 +1,5 @@
+import type { ValueType } from "./value-type";
+
 export type BlockCategory =
   | "program"
   | "structure"
@@ -57,12 +59,14 @@ export type BlockFieldDefinition = {
   required?: boolean;
   defaultValue?: FieldPrimitiveValue;
   input: FieldInputConfiguration;
+  valueType?: ValueType;
 };
 
 export type BlockOutputDefinition = {
   id: string;
   label: string;
   description?: string;
+  valueType?: ValueType;
 };
 
 export type PortDirection = "input" | "output";

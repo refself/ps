@@ -1,17 +1,25 @@
-import { blockRegistry } from "@workflow-builder/core";
-import type { BlockInstance, WorkflowDocument } from "@workflow-builder/core";
+import { apiManifestEntries, blockRegistry } from "@workflow-builder/core";
+import type { BlockInstance, ValueType, WorkflowDocument } from "@workflow-builder/core";
 
-const identifierFieldByKind: Record<string, string> = {
+const staticIdentifierFieldByKind: Record<string, string> = {
   "variable-declaration": "identifier",
   "function-declaration": "identifier",
-  "ai-call": "identifier",
-  "locator-call": "identifier",
-  "open-call": "identifier",
-  "vision-call": "identifier",
-  "screenshot-call": "assignTo",
-  "read-clipboard-call": "assignTo",
-  "file-reader-call": "assignTo",
   "function-call": "assignTo"
+};
+
+const manifestIdentifierFieldByKind = apiManifestEntries.reduce<Record<string, string>>(
+  (acc, entry) => {
+    if (entry.identifierField) {
+      acc[entry.blockKind] = entry.identifierField;
+    }
+    return acc;
+  },
+  {}
+);
+
+const identifierFieldByKind: Record<string, string> = {
+  ...manifestIdentifierFieldByKind,
+  ...staticIdentifierFieldByKind
 };
 
 type IdentifierOutputSuggestion = {
@@ -19,6 +27,7 @@ type IdentifierOutputSuggestion = {
   label: string;
   description?: string;
   expression: string;
+  valueType?: ValueType;
 };
 
 export type IdentifierSuggestion = {
@@ -46,7 +55,8 @@ const buildIdentifierIndex = (document: WorkflowDocument): IdentifierIndexResult
       id: output.id,
       label: output.label ?? output.id,
       description: output.description,
-      expression: `${identifier}.${output.id}`
+      expression: `${identifier}.${output.id}`,
+      valueType: output.valueType
     }));
 
     identifierSuggestions.set(identifier, {

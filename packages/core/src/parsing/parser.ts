@@ -408,6 +408,10 @@ const convertStatement = (statement: Statement, blocks: BlockInstance[]): BlockI
         const optionsArg = declarator.init.arguments[0];
         let instruction = "";
         let element = "";
+        let role = "";
+        let name = "";
+        let nameMatch = "";
+        let pid: number | string = "";
         let waitTime: number | string = "";
 
         if (optionsArg && n.ObjectExpression.check(optionsArg)) {
@@ -418,6 +422,19 @@ const convertStatement = (statement: Statement, blocks: BlockInstance[]): BlockI
               }
               if (property.key.name === "element") {
                 element = stringLiteralValue(property.value) ?? sourceFor(property.value);
+              }
+              if (property.key.name === "role") {
+                role = stringLiteralValue(property.value) ?? sourceFor(property.value);
+              }
+              if (property.key.name === "name") {
+                name = stringLiteralValue(property.value) ?? sourceFor(property.value);
+              }
+              if (property.key.name === "nameMatch") {
+                nameMatch = stringLiteralValue(property.value) ?? sourceFor(property.value);
+              }
+              if (property.key.name === "pid") {
+                const pidNumeric = numberLiteralValue(property.value);
+                pid = pidNumeric ?? sourceFor(property.value);
               }
               if (property.key.name === "waitTime") {
                 const waitNumeric = numberLiteralValue(property.value);
@@ -431,6 +448,10 @@ const convertStatement = (statement: Statement, blocks: BlockInstance[]): BlockI
           identifier: declarator.id.name,
           instruction,
           element,
+          role,
+          name,
+          nameMatch,
+          pid,
           waitTime
         });
         attachMetadata(block, declarationNode);

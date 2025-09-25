@@ -258,6 +258,7 @@ const FieldEditor = ({ field, value, onChange, contextBlockId }: FieldEditorProp
           preferCustomEditor={preferCustomEditor}
           language={language}
           placeholder={placeholder}
+          expectedType={input.kind === "expression" ? field.valueType : undefined}
         />
       </div>
     );

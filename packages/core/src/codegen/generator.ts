@@ -415,14 +415,39 @@ const blockToStatement = ({
       const identifier = typeof block.data.identifier === "string" ? block.data.identifier : "node";
       const rawInstruction = typeof block.data.instruction === "string" ? block.data.instruction.trim() : "";
       const element = typeof block.data.element === "string" ? block.data.element : "";
+      const role = typeof block.data.role === "string" ? block.data.role.trim() : "";
+      const name = typeof block.data.name === "string" ? block.data.name.trim() : "";
+      const nameMatch = typeof block.data.nameMatch === "string" ? block.data.nameMatch.trim() : "";
+      const pidData = block.data.pid;
       const waitTimeData = block.data.waitTime;
 
       const properties: t.ObjectProperty[] = [];
       if (rawInstruction.length > 0) {
         properties.push(t.objectProperty(t.identifier("instruction"), parseExpressionSafely(rawInstruction)));
       }
+      if (role) {
+        properties.push(t.objectProperty(t.identifier("role"), t.stringLiteral(role)));
+      }
+      if (name) {
+        properties.push(t.objectProperty(t.identifier("name"), t.stringLiteral(name)));
+      }
+      if (nameMatch) {
+        properties.push(t.objectProperty(t.identifier("nameMatch"), t.stringLiteral(nameMatch)));
+      }
       if (element) {
         properties.push(t.objectProperty(t.identifier("element"), t.stringLiteral(element)));
+      }
+      if (typeof pidData === "number" && Number.isFinite(pidData)) {
+        properties.push(t.objectProperty(t.identifier("pid"), t.numericLiteral(pidData)));
+      } else if (typeof pidData === "string" && pidData.trim() !== "") {
+        try {
+          properties.push(t.objectProperty(t.identifier("pid"), parseExpression(pidData)));
+        } catch (error) {
+          const parsed = Number(pidData);
+          if (Number.isFinite(parsed)) {
+            properties.push(t.objectProperty(t.identifier("pid"), t.numericLiteral(parsed)));
+          }
+        }
       }
       if (typeof waitTimeData === "number" && Number.isFinite(waitTimeData)) {
         properties.push(t.objectProperty(t.identifier("waitTime"), t.numericLiteral(waitTimeData)));

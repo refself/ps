@@ -13,6 +13,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "generate:api-manifest": "node ./scripts/generate-api-manifest.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint 'src/**/*.{ts,tsx}'",
     "test": "vitest"

@@ -1,4 +1,17 @@
-import type { BlockSchema } from "../types";
+import type {
+  BlockFieldDefinition,
+  BlockOutputDefinition,
+  BlockSchema,
+  FieldInputConfiguration
+} from "../types";
+
+import { apiManifestEntries } from "./config/api-manifest";
+import type {
+  ApiFieldDefinition,
+  ApiFieldInputConfiguration,
+  ApiManifestEntry,
+  ApiOutputDefinition
+} from "./config/api-manifest-schema";
 
 const flowPorts = {
   input: {
@@ -16,6 +29,93 @@ const flowPorts = {
     multiplicity: "single" as const
   }
 };
+
+const cloneInputConfiguration = (input: ApiFieldInputConfiguration): FieldInputConfiguration => {
+  switch (input.kind) {
+    case "string":
+      return {
+        kind: "string",
+        multiline: input.multiline,
+        placeholder: input.placeholder ?? undefined
+      };
+    case "number":
+      return {
+        kind: "number",
+        min: input.min,
+        max: input.max,
+        step: input.step
+      };
+    case "boolean":
+      return { kind: "boolean" };
+    case "enum":
+      return {
+        kind: "enum",
+        options: (input.options ?? []).map((option) => ({ ...option }))
+      };
+    case "expression":
+      return {
+        kind: "expression",
+        expressionKind: input.expressionKind
+      };
+    case "identifier":
+      return {
+        kind: "identifier",
+        scope: input.scope ?? "variable",
+        allowCreation: input.allowCreation
+      };
+    case "code":
+      return {
+        kind: "code",
+        language: input.language ?? "reflow",
+        placeholder: input.placeholder
+      };
+    case "json-schema":
+      return { kind: "json-schema" };
+    default:
+      return input as unknown as FieldInputConfiguration;
+  }
+};
+
+const cloneFieldDefinition = (field: ApiFieldDefinition): BlockFieldDefinition => ({
+  id: field.id,
+  label: field.label,
+  description: field.description,
+  required: field.required,
+  defaultValue: field.defaultValue ?? undefined,
+  input: cloneInputConfiguration(field.input),
+  valueType: field.valueType
+});
+
+const cloneOutputDefinition = (output: ApiOutputDefinition): BlockOutputDefinition => ({
+  id: output.id,
+  label: output.label,
+  description: output.description,
+  valueType: output.valueType
+});
+
+const createApiBlockSchema = (entry: ApiManifestEntry): BlockSchema => {
+  const fields = entry.fields.map(cloneFieldDefinition);
+  const outputs = entry.outputs?.map(cloneOutputDefinition);
+
+  return {
+    kind: entry.blockKind,
+    label: entry.label,
+    category: entry.category,
+    icon: entry.icon,
+    description: entry.description,
+    fields,
+    ports: [flowPorts.input, flowPorts.output],
+    childSlots: [],
+    ...(outputs && outputs.length > 0 ? { outputs } : {})
+  } satisfies BlockSchema;
+};
+
+const apiBlocksByKind = new Map<string, BlockSchema>();
+const apiCallBlocks: BlockSchema[] = apiManifestEntries.map((entry) => {
+  const schema = createApiBlockSchema(entry);
+  apiBlocksByKind.set(entry.blockKind, schema);
+  return schema;
+});
 
 export const programBlock: BlockSchema<"program"> = {
   kind: "program",
@@ -402,597 +502,35 @@ export const throwStatementBlock: BlockSchema<"throw-statement"> = {
   childSlots: []
 };
 
-export const waitCallBlock: BlockSchema<"wait-call"> = {
-  kind: "wait-call",
-  label: "Wait",
-  description: "Pause execution for a specific number of seconds before continuing.",
-  category: "automation",
-  icon: "clock",
-  fields: [
-    {
-      id: "duration",
-      label: "Seconds",
-      required: true,
-      defaultValue: 1,
-      description: "How long to wait. Fractions represent milliseconds (0.5 = 500ms).",
-      input: {
-        kind: "number",
-        min: 0,
-        step: 0.1
-      }
-    }
-  ],
-  ports: [flowPorts.input, flowPorts.output],
-  childSlots: [],
-  outputs: [
-    {
-      id: "result",
-      label: "Result",
-      description: "Wait returns no value; flow continues afterwards."
-    }
-  ]
-};
+export const waitCallBlock = apiBlocksByKind.get("wait-call") as BlockSchema<"wait-call">;
 
-export const pressCallBlock: BlockSchema<"press-call"> = {
-  kind: "press-call",
-  label: "Press Key",
-  description: "Simulate pressing a keyboard key with optional modifiers.",
-  category: "automation",
-  icon: "keyboard",
-  fields: [
-    {
-      id: "key",
-      label: "Key",
-      required: true,
-      description: "Name of the key to press (e.g. return, escape, a).",
-      input: {
-        kind: "string",
-        placeholder: "return"
-      }
-    },
-    {
-      id: "modifiers",
-      label: "Modifiers",
-      description: "Comma-separated modifier keys (command, control, option, shift).",
-      input: {
-        kind: "string",
-        placeholder: "command, shift"
-      }
-    }
-  ],
-  ports: [flowPorts.input, flowPorts.output],
-  childSlots: [],
-  outputs: [
-    {
-      id: "result",
-      label: "Result",
-      description: "No value returned; the next block runs immediately."
-    }
-  ]
-};
+export const pressCallBlock = apiBlocksByKind.get("press-call") as BlockSchema<"press-call">;
 
-export const clickCallBlock: BlockSchema<"click-call"> = {
-  kind: "click-call",
-  label: "Click",
-  description: "Simulate a mouse click at the provided coordinates or on a locator result.",
-  category: "automation",
-  icon: "mouse",
-  fields: [
-    {
-      id: "target",
-      label: "Target",
-      required: true,
-      description: "Point to click. Accepts coordinate arrays (e.g. [x, y]) or locator coordinates.",
-      input: {
-        kind: "expression"
-      }
-    }
-  ],
-  ports: [flowPorts.input, flowPorts.output],
-  childSlots: [],
-  outputs: [
-    {
-      id: "result",
-      label: "Result",
-      description: "Click has no output; continue to the next block"
-    }
-  ]
-};
+export const clickCallBlock = apiBlocksByKind.get("click-call") as BlockSchema<"click-call">;
 
-export const typeCallBlock: BlockSchema<"type-call"> = {
-  kind: "type-call",
-  label: "Type Text",
-  description: "Type text or evaluated expressions at the current focus location.",
-  category: "automation",
-  icon: "keyboard",
-  fields: [
-    {
-      id: "text",
-      label: "Text",
-      required: true,
-      description: "Expression that resolves to the text to type. Wrap literal text in quotes.",
-      input: {
-        kind: "expression"
-      }
-    }
-  ],
-  ports: [flowPorts.input, flowPorts.output],
-  childSlots: [],
-  outputs: [
-    {
-      id: "result",
-      label: "Result",
-      description: "No value returned; execution continues"
-    }
-  ]
-};
+export const typeCallBlock = apiBlocksByKind.get("type-call") as BlockSchema<"type-call">;
 
-export const scrollCallBlock: BlockSchema<"scroll-call"> = {
-  kind: "scroll-call",
-  label: "Scroll",
-  description: "Scroll the specified area in a direction by a given amount.",
-  category: "automation",
-  icon: "mouse",
-  fields: [
-    {
-      id: "origin",
-      label: "Origin",
-      required: false,
-      description: "Coordinates to perform the scroll from. Defaults to the previously used location.",
-      input: {
-        kind: "expression"
-      }
-    },
-    {
-      id: "direction",
-      label: "Direction",
-      required: true,
-      defaultValue: "down",
-      description: "Direction to scroll.",
-      input: {
-        kind: "enum",
-        options: [
-          { label: "Down", value: "down" },
-          { label: "Up", value: "up" },
-          { label: "Left", value: "left" },
-          { label: "Right", value: "right" }
-        ]
-      }
-    },
-    {
-      id: "amount",
-      label: "Distance",
-      required: true,
-      defaultValue: 3,
-      description: "Scroll amount measured in wheel notches.",
-      input: {
-        kind: "number",
-        min: 1,
-        step: 1
-      }
-    }
-  ],
-  ports: [flowPorts.input, flowPorts.output],
-  childSlots: [],
-  outputs: [
-    {
-      id: "result",
-      label: "Result",
-      description: "Scroll does not yield a value; flow continues"
-    }
-  ]
-};
+export const scrollCallBlock = apiBlocksByKind.get("scroll-call") as BlockSchema<"scroll-call">;
 
-export const selectAllCallBlock: BlockSchema<"select-all-call"> = {
-  kind: "select-all-call",
-  label: "Select All",
-  description: "Select all text/content in the active context.",
-  category: "automation",
-  icon: "keyboard",
-  fields: [],
-  ports: [flowPorts.input, flowPorts.output],
-  childSlots: [],
-  outputs: [
-    {
-      id: "result",
-      label: "Result",
-      description: "Returns nothing; subsequent blocks execute next"
-    }
-  ]
-};
+export const selectAllCallBlock = apiBlocksByKind.get("select-all-call") as BlockSchema<"select-all-call">;
 
-export const logCallBlock: BlockSchema<"log-call"> = {
-  kind: "log-call",
-  label: "Log Message",
-  category: "utility",
-  fields: [
-    {
-      id: "message",
-      label: "Message",
-      required: true,
-      input: {
-        kind: "expression"
-      }
-    }
-  ],
-  ports: [flowPorts.input, flowPorts.output],
-  childSlots: []
-};
+export const logCallBlock = apiBlocksByKind.get("log-call") as BlockSchema<"log-call">;
 
-export const openCallBlock: BlockSchema<"open-call"> = {
-  kind: "open-call",
-  label: "Open App",
-  category: "automation",
-  fields: [
-    {
-      id: "identifier",
-      label: "Store As",
-      input: {
-        kind: "identifier",
-        scope: "variable",
-        allowCreation: true
-      }
-    },
-    {
-      id: "appName",
-      label: "Application",
-      required: true,
-      input: {
-        kind: "string",
-        placeholder: "Google Chrome"
-      }
-    },
-    {
-      id: "bringToFront",
-      label: "Bring To Front",
-      defaultValue: true,
-      input: {
-        kind: "boolean"
-      }
-    },
-    {
-      id: "waitSeconds",
-      label: "Wait Seconds",
-      defaultValue: 5,
-      input: {
-        kind: "number",
-        min: 0,
-        step: 0.5
-      }
-    }
-  ],
-  ports: [flowPorts.input, flowPorts.output],
-  childSlots: []
-};
+export const openCallBlock = apiBlocksByKind.get("open-call") as BlockSchema<"open-call">;
 
-export const openUrlCallBlock: BlockSchema<"open-url-call"> = {
-  kind: "open-url-call",
-  label: "Open URL",
-  category: "automation",
-  fields: [
-    {
-      id: "url",
-      label: "URL",
-      required: true,
-      input: {
-        kind: "string",
-        placeholder: "https://example.com"
-      }
-    }
-  ],
-  ports: [flowPorts.input, flowPorts.output],
-  childSlots: []
-};
+export const openUrlCallBlock = apiBlocksByKind.get("open-url-call") as BlockSchema<"open-url-call">;
 
-export const visionCallBlock: BlockSchema<"vision-call"> = {
-  kind: "vision-call",
-  label: "Vision Analysis",
-  category: "ai",
-  description: "Send screenshots to the vision model and capture structured responses.",
-  icon: "eye",
-  fields: [
-    {
-      id: "identifier",
-      label: "Store As",
-      description: "Variable that will store the vision response object.",
-      input: {
-        kind: "identifier",
-        scope: "variable",
-        allowCreation: true
-      }
-    },
-    {
-      id: "target",
-      label: "Image Source",
-      required: true,
-      description: "Expression resolving to an image or array of images (e.g. screenshot().image).",
-      input: {
-        kind: "expression",
-        expressionKind: "any"
-      }
-    },
-    {
-      id: "prompt",
-      label: "Prompt",
-      required: true,
-      description: "Natural language instructions for the vision model.",
-      input: {
-        kind: "string",
-        multiline: true,
-        placeholder: "Describe what to look for"
-      }
-    },
-    {
-      id: "format",
-      label: "Output Format",
-      defaultValue: "json",
-      description: "Return format. Use JSON when applying a schema.",
-      input: {
-        kind: "enum",
-        options: [
-          { label: "JSON", value: "json" },
-          { label: "Text", value: "text" }
-        ]
-      }
-    },
-    {
-      id: "schema",
-      label: "JSON Schema",
-      description: "Optional JSON schema describing the AI response shape.",
-      input: {
-        kind: "json-schema"
-      }
-    }
-  ],
-  ports: [flowPorts.input, flowPorts.output],
-  childSlots: [],
-  outputs: [
-    {
-      id: "analysis",
-      label: "Vision Result",
-      description: "Object with parsed data (fields depend on prompt/schema)."
-    }
-  ]
-};
+export const visionCallBlock = apiBlocksByKind.get("vision-call") as BlockSchema<"vision-call">;
 
-export const aiCallBlock: BlockSchema<"ai-call"> = {
-  kind: "ai-call",
-  label: "AI Response",
-  category: "ai",
-  description: "Send a prompt to the AI model and capture text or JSON output.",
-  icon: "sparkles",
-  fields: [
-    {
-      id: "identifier",
-      label: "Store As",
-      required: false,
-      description: "Optional variable name for the AI response (text, tokens, etc).",
-      input: {
-        kind: "identifier",
-        scope: "variable",
-        allowCreation: true
-      }
-    },
-    {
-      id: "prompt",
-      label: "Prompt",
-      required: true,
-      description: "Instructions provided to the AI model.",
-      input: {
-        kind: "string",
-        multiline: true,
-        placeholder: "Describe what the AI should do"
-      }
-    },
-    {
-      id: "format",
-      label: "Output Format",
-      required: false,
-      defaultValue: "text",
-      description: "Return format. Select JSON when providing a schema.",
-      input: {
-        kind: "enum",
-        options: [
-          { label: "Text", value: "text" },
-          { label: "JSON", value: "json" }
-        ]
-      }
-    },
-    {
-      id: "schema",
-      label: "JSON Schema",
-      description: "Provide when requesting structured JSON output",
-      input: {
-        kind: "json-schema"
-      }
-    }
-  ],
-  ports: [flowPorts.input, flowPorts.output],
-  childSlots: [],
-  outputs: [
-    {
-      id: "response",
-      label: "AI Result",
-      description: "Response object (text property for text mode, structured fields for JSON mode)."
-    }
-  ]
-};
+export const aiCallBlock = apiBlocksByKind.get("ai-call") as BlockSchema<"ai-call">;
 
-export const screenshotCallBlock: BlockSchema<"screenshot-call"> = {
-  kind: "screenshot-call",
-  label: "Screenshot",
-  category: "automation",
-  description: "Capture the screen or a specific application window.",
-  icon: "eye",
-  fields: [
-    {
-      id: "assignTo",
-      label: "Store As",
-      input: {
-        kind: "identifier",
-        scope: "variable",
-        allowCreation: true
-      }
-    },
-    {
-      id: "target",
-      label: "Target PID",
-      description: "Optional process identifier to capture",
-      input: {
-        kind: "code",
-        language: "reflow",
-        placeholder: "app.pid"
-      }
-    }
-  ],
-  ports: [flowPorts.input, flowPorts.output],
-  childSlots: [],
-  outputs: [
-    { id: "image", label: "Image", description: "Base64 image data." },
-    { id: "originalWidth", label: "Original Width", description: "Width of the captured region." },
-    { id: "originalHeight", label: "Original Height", description: "Height of the captured region." },
-    { id: "resizedWidth", label: "Resized Width", description: "Normalized width used for AI operations." },
-    { id: "resizedHeight", label: "Resized Height", description: "Normalized height used for AI operations." }
-  ]
-};
+export const screenshotCallBlock = apiBlocksByKind.get("screenshot-call") as BlockSchema<"screenshot-call">;
 
-export const locatorCallBlock: BlockSchema<"locator-call"> = {
-  kind: "locator-call",
-  label: "Locate Element",
-  category: "automation",
-  description: "Use vision or accessibility cues to locate an element on screen.",
-  icon: "eye",
-  fields: [
-    {
-      id: "identifier",
-      label: "Store As",
-      required: false,
-      description: "Optional variable name to store the locator result (x, y, found, etc.).",
-      input: {
-        kind: "identifier",
-        scope: "variable",
-        allowCreation: true
-      }
-    },
-    {
-      id: "instruction",
-      label: "Instruction",
-      required: true,
-      description: "Natural language instruction describing what to locate.",
-      input: {
-        kind: "expression"
-      }
-    },
-    {
-      id: "element",
-      label: "Accessibility Query",
-      description: "Optional accessibility selector (e.g. role:textfield name=Email).",
-      input: {
-        kind: "string",
-        placeholder: "role:button name=Submit"
-      }
-    },
-    {
-      id: "waitTime",
-      label: "Wait Time (s)",
-      description: "How long to wait while searching before giving up.",
-      input: {
-        kind: "number",
-        min: 0,
-        step: 0.5
-      }
-    }
-  ],
-  ports: [flowPorts.input, flowPorts.output],
-  childSlots: [],
-  outputs: [
-    { id: "found", label: "Found", description: "Boolean indicating if element was located." },
-    { id: "coordinates", label: "Coordinates", description: "[x, y] center point array." },
-    { id: "x", label: "X", description: "X coordinate of the element center." },
-    { id: "y", label: "Y", description: "Y coordinate of the element center." },
-    { id: "width", label: "Width", description: "Width of the detected element." },
-    { id: "height", label: "Height", description: "Height of the detected element." }
-  ]
-};
+export const locatorCallBlock = apiBlocksByKind.get("locator-call") as BlockSchema<"locator-call">;
 
-export const readClipboardCallBlock: BlockSchema<"read-clipboard-call"> = {
-  kind: "read-clipboard-call",
-  label: "Read Clipboard",
-  category: "automation",
-  description: "Read the current clipboard contents as text.",
-  icon: "clipboard",
-  fields: [
-    {
-      id: "assignTo",
-      label: "Store As",
-      required: true,
-      description: "Variable that receives the clipboard text.",
-      input: {
-        kind: "identifier",
-        scope: "variable",
-        allowCreation: true
-      }
-    }
-  ],
-  ports: [flowPorts.input, flowPorts.output],
-  childSlots: [],
-  outputs: [
-    {
-      id: "text",
-      label: "Clipboard Text",
-      description: "String value read from the clipboard."
-    }
-  ]
-};
+export const readClipboardCallBlock = apiBlocksByKind.get("read-clipboard-call") as BlockSchema<"read-clipboard-call">;
 
-export const fileReaderCallBlock: BlockSchema<"file-reader-call"> = {
-  kind: "file-reader-call",
-  label: "Read Files",
-  category: "io",
-  description: "Read up to 10 files and convert their contents to markdown.",
-  icon: "file",
-  fields: [
-    {
-      id: "assignTo",
-      label: "Store As",
-      required: true,
-      description: "Variable that receives the file reader result (results array, errors, tokens).",
-      input: {
-        kind: "identifier",
-        scope: "variable",
-        allowCreation: true
-      }
-    },
-    {
-      id: "paths",
-      label: "Files or Directories",
-      required: true,
-      description: "Expression that resolves to an array of absolute file paths.",
-      input: {
-        kind: "expression"
-      }
-    }
-  ],
-  ports: [flowPorts.input, flowPorts.output],
-  childSlots: [],
-  outputs: [
-    {
-      id: "results",
-      label: "Results",
-      description: "Array of {name, data, tokens} for each processed file."
-    },
-    {
-      id: "errors",
-      label: "Errors",
-      description: "List of files that failed to process."
-    },
-    {
-      id: "tokenCount",
-      label: "Token Count",
-      description: "Estimated total tokens for all documents."
-    }
-  ]
-};
+export const fileReaderCallBlock = apiBlocksByKind.get("file-reader-call") as BlockSchema<"file-reader-call">;
 
 export const switchCaseBlock: BlockSchema<"switch-case"> = {
   kind: "switch-case",
@@ -1134,21 +672,7 @@ export const knownBlockSchemas: BlockSchema[] = [
   breakStatementBlock,
   throwStatementBlock,
   functionCallBlock,
-  waitCallBlock,
-  pressCallBlock,
-  clickCallBlock,
-  scrollCallBlock,
-  selectAllCallBlock,
-  typeCallBlock,
-  logCallBlock,
-  openCallBlock,
-  openUrlCallBlock,
-  aiCallBlock,
-  visionCallBlock,
-  screenshotCallBlock,
-  locatorCallBlock,
-  readClipboardCallBlock,
-  fileReaderCallBlock,
+  ...apiCallBlocks,
   switchCaseBlock,
   switchStatementBlock,
   catchClauseBlock,
