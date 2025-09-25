@@ -103,10 +103,10 @@ const VersionHistoryDrawer = ({
       className="fixed inset-0 z-50 flex items-center justify-end backdrop-blur"
       role="dialog"
       aria-modal="true"
-      style={{ backgroundColor: withAlpha(editorTheme.colors.foreground, 0.35) }}
+      style={{ backgroundColor: withAlpha(editorTheme.colors.foreground, 0.28) }}
     >
       <div
-        className="flex h-full w-[420px] flex-col border-l shadow-[0_40px_80px_rgba(10,26,35,0.35)]"
+        className="flex h-full w-[420px] flex-col border-l shadow-[0_32px_64px_rgba(10,26,35,0.30)]"
         style={{
           borderColor: editorTheme.colors.borderSubtle,
           background: editorTheme.surfaces.card,
@@ -132,7 +132,7 @@ const VersionHistoryDrawer = ({
             <h2 className="text-base font-semibold" style={{ color: editorTheme.colors.foreground }}>
               Version History
             </h2>
-            <span className="text-xs uppercase tracking-[0.3em]" style={{ color: editorTheme.colors.shaded }}>
+            <span className="text-xs" style={{ color: editorTheme.colors.shaded }}>
               Track and restore revisions
             </span>
           </div>
@@ -203,12 +203,13 @@ const VersionHistoryDrawer = ({
                 return (
                   <li
                     key={version.id}
-                    className="rounded-xl border px-4 py-3 shadow-sm transition"
+                    className="rounded-lg border px-4 py-3 transition"
                     style={{
                       borderColor: isActive ? editorTheme.colors.action : editorTheme.colors.borderSubtle,
                       background: isActive
                         ? withAlpha(editorTheme.colors.action, 0.08)
-                        : editorTheme.colors.backgroundDefault,
+                        : editorTheme.surfaces.card,
+                      boxShadow: isActive ? "0 12px 22px rgba(10,26,35,0.14)" : "0 6px 12px rgba(10,26,35,0.06)",
                     }}
                   >
                     <div className="flex items-start justify-between gap-4">
@@ -231,7 +232,7 @@ const VersionHistoryDrawer = ({
                             </span>
                             {isActive ? (
                               <span
-                                className="rounded-full px-2 py-[2px] text-[10px] font-semibold uppercase tracking-wide"
+                                className="rounded-full px-2 py-[2px] text-[10px] font-semibold"
                                 style={{
                                   backgroundColor: withAlpha(editorTheme.colors.action, 0.09),
                                   color: editorTheme.colors.action,
@@ -242,7 +243,7 @@ const VersionHistoryDrawer = ({
                             ) : null}
                           </div>
                         )}
-                        <span className="text-xs" style={{ color: editorTheme.colors.shaded }}>
+                        <span className="text-xs" style={{ color: editorTheme.colors.accentMuted }}>
                           {formatter.format(new Date(version.createdAt))}
                         </span>
                       </div>

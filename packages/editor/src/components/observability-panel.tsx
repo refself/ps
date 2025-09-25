@@ -422,11 +422,8 @@ const RecordingDetail = ({ recording }: { recording: ObservabilityRecording }) =
         }}
       >
         <div className="flex flex-wrap items-center gap-2 text-[11px]" style={{ color: editorTheme.colors.accentMuted }}>
-          <span>
-            Recording
-            <span className="ml-1 font-mono text-sm" style={{ color: editorTheme.colors.foreground }}>
-              {shortId(recording.recordingId)}
-            </span>
+          <span className="font-mono text-sm" style={{ color: editorTheme.colors.foreground }}>
+            {shortId(recording.recordingId)}
           </span>
           <span>Started {formatTimestamp(recording.createdAt)}</span>
           {recording.stoppedAt ? <span>Stopped {formatTimestamp(recording.stoppedAt)}</span> : null}
@@ -607,7 +604,7 @@ export const ObservabilityPanel = ({
 
   const connectionMessages = useMemo(() => {
     if (!connection) {
-      return [] as string[];
+      return ["Desktop offline", "Browser offline"];
     }
     return [
       `Desktop ${connection.hasOSClient ? "connected" : "offline"}`,
@@ -624,24 +621,20 @@ export const ObservabilityPanel = ({
       }}
     >
       <div className="flex flex-wrap items-center gap-2 text-[11px]" style={{ color: editorTheme.colors.accentMuted }}>
+        {connectionMessages.map((message, index) => (
+          <span key={message + index}>{message}</span>
+        ))}
         {selectedRecording ? (
           <>
             <span>
-              Recording
+              Active:
               <span className="ml-1 font-mono text-sm" style={{ color: editorTheme.colors.foreground }}>
                 {shortId(selectedRecording.recordingId)}
               </span>
             </span>
-            <span>Started {formatTimestamp(selectedRecording.createdAt)}</span>
-            {selectedRecording.stoppedAt ? <span>Stopped {formatTimestamp(selectedRecording.stoppedAt)}</span> : null}
             {selectedDurationSeconds !== null ? <span>{selectedDurationSeconds}s</span> : null}
           </>
-        ) : (
-          <span>No recording selected</span>
-        )}
-        {connectionMessages.map((message, index) => (
-          <span key={message + index}>{message}</span>
-        ))}
+        ) : null}
       </div>
       <div className="flex items-center gap-2">
         {onStartRecording && !activeRecording ? (
