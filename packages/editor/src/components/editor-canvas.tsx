@@ -16,7 +16,10 @@ const EditorCanvas = () => {
 
   const [, dropRef] = useDrop({
     accept: DND_ITEM_TYPES.BLOCK,
-    drop: (item: BlockDragItem) => {
+    drop: (item: BlockDragItem, monitor) => {
+      if (monitor.didDrop()) {
+        return;
+      }
       if (item.source === "palette") {
         addBlock({ kind: item.kind, parentId: document.root, slotId: "body" });
       }
