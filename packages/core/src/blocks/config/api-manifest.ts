@@ -3,6 +3,106 @@ import type { ApiManifestEntry } from "./api-manifest-schema";
 
 export const apiManifestEntries: ApiManifestEntry[] = [
   {
+    apiName: "captureContent",
+    blockKind: "accessibility-capture-content-call",
+    label: "AX Capture Content",
+    category: "automation",
+    description: "Extract textual content from an application's accessibility tree.",
+    identifierField: "assignTo",
+    defaultIdentifier: "content",
+    invocation:   {
+      "arguments": [
+        "pid",
+        "frontmostOnly",
+        "maxElements",
+        "includeTabs"
+      ],
+      "options": [],
+      "style": "positional"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store As",
+              description: "Optional variable that receives the captured content.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            },
+        {
+              id: "pid",
+              label: "Application PID",
+              description: "Process identifier of the application to inspect. Defaults to the frontmost app when omitted.",
+              input: {
+                      kind: "expression"
+                    },
+              valueType: {"kind":"number"}
+            },
+        {
+              id: "frontmostOnly",
+              label: "Frontmost Window Only",
+              description: "Limit capture to the frontmost window when available.",
+              defaultValue: true,
+              input: {
+                      kind: "boolean"
+                    },
+              valueType: {"kind":"boolean"}
+            },
+        {
+              id: "maxElements",
+              label: "Max Elements",
+              description: "Limit how many elements are included in the capture (helps keep prompts concise).",
+              defaultValue: 200,
+              input: {
+                      kind: "number",
+                      min: 1,
+                      max: 2000,
+                      step: 1
+                    },
+              valueType: {"kind":"integer"}
+            },
+        {
+              id: "includeTabs",
+              label: "Include Tabs",
+              description: "Keep surrounding UI chrome (toolbars, tab strips, etc.) instead of filtering to page content.",
+              defaultValue: false,
+              input: {
+                      kind: "boolean"
+                    },
+              valueType: {"kind":"boolean"}
+            }
+      ],
+    outputs: [
+        {
+              id: "text",
+              label: "Text",
+              description: "Plain-text summary of captured elements.",
+              valueType: {"kind":"string"}
+            },
+        {
+              id: "elements",
+              label: "Elements",
+              description: "Structured element details that contributed to the capture.",
+              valueType: {"kind":"array","of":{"kind":"object"}}
+            },
+        {
+              id: "totalElements",
+              label: "Total Elements",
+              description: "Total number of traversed accessibility nodes.",
+              valueType: {"kind":"number"}
+            },
+        {
+              id: "returnedElements",
+              label: "Returned Elements",
+              description: "Number of elements included in the results after applying the limit.",
+              valueType: {"kind":"number"}
+            }
+      ]
+  },
+  {
     apiName: "locate",
     blockKind: "accessibility-locate-call",
     label: "AX Locate",
@@ -1768,6 +1868,211 @@ export const apiManifestEntries: ApiManifestEntry[] = [
               label: "Success",
               description: "True when the working directory changed.",
               valueType: {"kind":"boolean"}
+            }
+      ]
+  },
+  {
+    apiName: "stickyNote",
+    blockKind: "sticky-note-call",
+    label: "Sticky Note",
+    category: "utility",
+    icon: "note",
+    description: "Display a floating sticky note window with custom text.",
+    identifierField: "assignTo",
+    defaultIdentifier: "note",
+    invocation:   {
+      "arguments": [],
+      "options": [
+        "text",
+        "title",
+        "duration",
+        "x",
+        "y",
+        "width",
+        "height",
+        "theme",
+        "fontSize"
+      ],
+      "style": "object"
+    },
+    fields: [
+        {
+              id: "assignTo",
+              label: "Store As",
+              description: "Optional variable that receives the sticky note details.",
+              input: {
+                      kind: "identifier",
+                      scope: "variable",
+                      allowCreation: true
+                    },
+              valueType: {"kind":"identifier"}
+            },
+        {
+              id: "text",
+              label: "Text",
+              description: "Content shown inside the sticky note window.",
+              required: true,
+              input: {
+                      kind: "expression"
+                    },
+              valueType: {"kind":"string"}
+            },
+        {
+              id: "title",
+              label: "Title",
+              description: "Window title shown in the sticky note chrome.",
+              input: {
+                      kind: "expression"
+                    },
+              valueType: {"kind":"string"}
+            },
+        {
+              id: "duration",
+              label: "Duration (s)",
+              description: "Automatically close the note after this many seconds (omit to keep it open).",
+              input: {
+                      kind: "number",
+                      min: 1,
+                      step: 1
+                    },
+              valueType: {"kind":"number"}
+            },
+        {
+              id: "x",
+              label: "Position X",
+              description: "Optional horizontal screen position for the window origin.",
+              input: {
+                      kind: "number",
+                      step: 1
+                    },
+              valueType: {"kind":"number"}
+            },
+        {
+              id: "y",
+              label: "Position Y",
+              description: "Optional vertical screen position for the window origin.",
+              input: {
+                      kind: "number",
+                      step: 1
+                    },
+              valueType: {"kind":"number"}
+            },
+        {
+              id: "width",
+              label: "Width",
+              description: "Sticky note width in points.",
+              defaultValue: 320,
+              input: {
+                      kind: "number",
+                      min: 160,
+                      max: 800,
+                      step: 10
+                    },
+              valueType: {"kind":"number"}
+            },
+        {
+              id: "height",
+              label: "Height",
+              description: "Sticky note height in points.",
+              defaultValue: 200,
+              input: {
+                      kind: "number",
+                      min: 120,
+                      max: 800,
+                      step: 10
+                    },
+              valueType: {"kind":"number"}
+            },
+        {
+              id: "theme",
+              label: "Theme",
+              description: "Color theme for the sticky note background.",
+              defaultValue: "sunflower",
+              input: {
+                      kind: "enum",
+                      options: [
+                      {
+                                  label: "Sunflower",
+                                  value: "sunflower"
+                                },
+                      {
+                                  label: "Ocean",
+                                  value: "ocean"
+                                },
+                      {
+                                  label: "Mint",
+                                  value: "mint"
+                                },
+                      {
+                                  label: "Graphite",
+                                  value: "graphite"
+                                }
+                              ]
+                    },
+              valueType: {"kind":"string"}
+            },
+        {
+              id: "fontSize",
+              label: "Font Size",
+              description: "Text size in points.",
+              defaultValue: 14,
+              input: {
+                      kind: "number",
+                      min: 10,
+                      max: 32,
+                      step: 1
+                    },
+              valueType: {"kind":"number"}
+            }
+      ],
+    outputs: [
+        {
+              id: "id",
+              label: "Note ID",
+              description: "Identifier of the sticky note window.",
+              valueType: {"kind":"string"}
+            },
+        {
+              id: "title",
+              label: "Title",
+              description: "Resolved window title.",
+              valueType: {"kind":"string"}
+            },
+        {
+              id: "text",
+              label: "Text",
+              description: "Resolved note text.",
+              valueType: {"kind":"string"}
+            },
+        {
+              id: "autoDismissAt",
+              label: "Auto Dismiss At",
+              description: "Epoch milliseconds when the note will close automatically.",
+              valueType: {"kind":"number"}
+            },
+        {
+              id: "x",
+              label: "Position X",
+              description: "Window origin X coordinate.",
+              valueType: {"kind":"number"}
+            },
+        {
+              id: "y",
+              label: "Position Y",
+              description: "Window origin Y coordinate.",
+              valueType: {"kind":"number"}
+            },
+        {
+              id: "width",
+              label: "Width",
+              description: "Window width in points.",
+              valueType: {"kind":"number"}
+            },
+        {
+              id: "height",
+              label: "Height",
+              description: "Window height in points.",
+              valueType: {"kind":"number"}
             }
       ]
   },

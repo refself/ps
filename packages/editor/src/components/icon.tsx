@@ -31,6 +31,7 @@ export type IconName =
   | "mouse"
   | "eye"
   | "clipboard"
+  | "note"
   | "file";
 
 type IconProps = {
@@ -259,6 +260,14 @@ const ICONS: Record<IconName, IconRenderer> = {
     <>
       <rect x="8" y="4" width="8" height="3" rx="1" {...strokeProps} />
       <rect x="5" y="7" width="14" height="14" rx="2" {...strokeProps} />
+    </>
+  ),
+  note: () => (
+    <>
+      <path {...strokeProps} d="M7 3h8l6 6v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
+      <path {...strokeProps} d="M15 3v5h5" />
+      <path {...strokeProps} d="M9 13h6" />
+      <path {...strokeProps} d="M9 17h6" />
     </>
   ),
   file: () => (
