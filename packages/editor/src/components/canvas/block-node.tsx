@@ -2,7 +2,7 @@ import clsx from "clsx";
 import { useMemo, useState, type CSSProperties, type MouseEvent } from "react";
 import { useDrag } from "react-dnd";
 
-import { blockRegistry } from "@workflow-builder/core";
+import { blockRegistry } from "@workflows/core";
 
 import { DND_ITEM_TYPES } from "../../dnd/item-types";
 import { useEditorStore } from "../../state/editor-store";

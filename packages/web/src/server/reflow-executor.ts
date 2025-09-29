@@ -116,7 +116,7 @@ export const runReflowScript = async (script: string): Promise<ReflowExecutionRe
   };
 
   const client = new Client({
-    name: "workflow-builder",
+    name: "workflows",
     version: "0.0.0"
   });
 

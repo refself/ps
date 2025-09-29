@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { WorkflowEditor, type ObservabilityConfig, type RunScriptHandler } from "@workflow-builder/editor";
-import type { WorkflowDocument } from "@workflow-builder/core";
+import { WorkflowEditor, type ObservabilityConfig, type RunScriptHandler } from "@workflows/editor";
+import type { WorkflowDocument } from "@workflows/core";
 
 import WorkflowList from "./components/workflow-list";
 import { useWorkspaceStore, useActiveWorkflow } from "./state/workspace-store";

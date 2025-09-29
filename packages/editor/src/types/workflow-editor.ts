@@ -1,4 +1,4 @@
-import type { WorkflowDocument } from '@workflow-builder/core';
+import type { WorkflowDocument } from '@workflows/core';
 
 export type ConnectionStatus = "online" | "offline" | "checking";
 export type EditorMode = "visual" | "code" | "recordings";

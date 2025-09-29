@@ -1,5 +1,5 @@
-import { blockRegistry } from "@workflow-builder/core";
-import type { BlockInstance, WorkflowDocument } from "@workflow-builder/core";
+import { blockRegistry } from "@workflows/core";
+import type { BlockInstance, WorkflowDocument } from "@workflows/core";
 
 const identifierFieldByKind: Record<string, string> = {
   "variable-declaration": "identifier",

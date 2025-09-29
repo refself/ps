@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { apiManifestEntries } from "@workflow-builder/core";
+import { apiManifestEntries } from "@workflows/core";
 
 import { Icon, type IconName } from "./icon";
 import { editorTheme } from "../theme";

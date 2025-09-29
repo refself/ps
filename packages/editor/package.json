@@ -1,5 +1,5 @@
 {
-  "name": "@workflow-builder/editor",
+  "name": "@workflows/editor",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
-    "@workflow-builder/core": "workspace:*",
+    "@workflows/core": "workspace:*",
     "clsx": "^2.1.0",
     "immer": "^10.1.1",
     "nanoid": "^5.0.7",

@@ -1,4 +1,4 @@
-import type { WorkflowDocument } from "@workflow-builder/core";
+import type { WorkflowDocument } from "@workflows/core";
 
 const API_KEY = (import.meta.env.VITE_WORKER_API_KEY ?? '').trim() || undefined;
 

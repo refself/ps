@@ -7,5 +7,5 @@ export type {
   AbortScriptHandler
 } from "./types/workflow-editor";
 export type { ObservabilityConfig } from "./hooks/use-observability";
-export type { WorkflowDocument } from "@workflow-builder/core";
+export type { WorkflowDocument } from "@workflows/core";
 export { useEditorStore } from "./state/editor-store";

@@ -1,5 +1,5 @@
 {
-  "name": "workflow-builder",
+  "name": "workflows",
   "private": true,
   "version": "0.0.0",
   "workspaces": [

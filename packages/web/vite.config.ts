@@ -7,7 +7,7 @@ import react from "@vitejs/plugin-react";
 import { runReflowScript } from "./src/server/reflow-executor";
 
 const executeScriptApi = (): PluginOption => ({
-  name: "workflow-builder-execute-script-api",
+  name: "workflows-execute-script-api",
   configureServer(server) {
     server.middlewares.use("/api/execute-script", (req, res) => {
       if (req.method !== "POST") {
@@ -75,8 +75,8 @@ export default defineConfig({
   plugins: [executeScriptApi(), react()],
   resolve: {
     alias: {
-      "@workflow-builder/core": path.resolve(__dirname, "../core/src"),
-      "@workflow-builder/editor": path.resolve(__dirname, "../editor/src")
+      "@workflows/core": path.resolve(__dirname, "../core/src"),
+      "@workflows/editor": path.resolve(__dirname, "../editor/src")
     }
   },
   define: {

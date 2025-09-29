@@ -5,10 +5,10 @@
     "baseUrl": ".",
     "types": ["vite/client"],
     "paths": {
-      "@workflow-builder/core": ["../core/src/index.ts"],
-      "@workflow-builder/core/*": ["../core/src/*"],
-      "@workflow-builder/editor": ["../editor/src/index.ts"],
-      "@workflow-builder/editor/*": ["../editor/src/*"]
+      "@workflows/core": ["../core/src/index.ts"],
+      "@workflows/core/*": ["../core/src/*"],
+      "@workflows/editor": ["../editor/src/index.ts"],
+      "@workflows/editor/*": ["../editor/src/*"]
     }
   },
   "include": [

@@ -1,7 +1,7 @@
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
-import type { BlockFieldDefinition } from "@workflow-builder/core";
+import type { BlockFieldDefinition } from "@workflows/core";
 
 import { useEditorStore } from "../../state/editor-store";
 import { editorTheme } from "../../theme";

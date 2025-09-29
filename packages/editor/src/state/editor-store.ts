@@ -11,8 +11,8 @@ import {
   reorderChild,
   updateBlockData,
   findBlockLocation
-} from "@workflow-builder/core";
-import type { BlockInstance, WorkflowDocument } from "@workflow-builder/core";
+} from "@workflows/core";
+import type { BlockInstance, WorkflowDocument } from "@workflows/core";
 
 import { notifyExternalListeners } from "./external-listeners";
 

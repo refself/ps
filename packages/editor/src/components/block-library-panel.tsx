@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { useDrag } from "react-dnd";
 
-import { blockRegistry } from "@workflow-builder/core";
-import type { BlockSchema } from "@workflow-builder/core";
+import { blockRegistry } from "@workflows/core";
+import type { BlockSchema } from "@workflows/core";
 
 import { useEditorStore } from "../state/editor-store";
 import { DND_ITEM_TYPES, type BlockDragItem } from "../dnd/item-types";

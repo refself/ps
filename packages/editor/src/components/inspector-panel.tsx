@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import { blockRegistry } from "@workflow-builder/core";
+import { blockRegistry } from "@workflows/core";
 
 import { useEditorStore } from "../state/editor-store";
 import { editorTheme } from "../theme";

@@ -1,5 +1,5 @@
 {
-	"name": "@workflow-builder/worker",
+	"name": "@workflows/worker",
 	"version": "0.0.0",
 	"private": true,
 	"scripts": {
@@ -22,7 +22,7 @@
 	"dependencies": {
 		"@ai-sdk/openai": "^2.0.36",
 		"@hono/zod-validator": "^0.7.3",
-		"@workflow-builder/core": "workspace:*",
+		"@workflows/core": "workspace:*",
 		"agents": "^0.2.0",
 		"ai": "^5.0.37",
 		"drizzle-orm": "^0.44.5",

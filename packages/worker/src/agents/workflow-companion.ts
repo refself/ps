@@ -4,7 +4,7 @@ import type { LanguageModel } from 'ai';
 import { createWorkersAI } from 'workers-ai-provider';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
-import { apiManifestEntries, importWorkflow } from '@workflow-builder/core';
+import { apiManifestEntries, importWorkflow } from '@workflows/core';
 import { DEFAULT_STATUS, DEFAULT_USER_ID } from '@/constants';
 import type {
   CompanionChatResponse,

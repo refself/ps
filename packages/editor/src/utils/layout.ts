@@ -1,4 +1,4 @@
-import type { WorkflowDocument } from "@workflow-builder/core";
+import type { WorkflowDocument } from "@workflows/core";
 
 export const NODE_WIDTH = 320;
 export const NODE_HEIGHT = 170;

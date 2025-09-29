@@ -1,0 +1,3 @@
+[submodule "packages/reflow-operator"]
+	path = packages/reflow-operator
+	url = git@github.com:Reflow-AI/reflow-operator.git

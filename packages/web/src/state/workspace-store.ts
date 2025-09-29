@@ -1,7 +1,7 @@
 import { createWithEqualityFn } from "zustand/traditional";
 
-import { createDocument, generateCode } from "@workflow-builder/core";
-import type { WorkflowDocument } from "@workflow-builder/core";
+import { createDocument, generateCode } from "@workflows/core";
+import type { WorkflowDocument } from "@workflows/core";
 
 import {
   listWorkflows,

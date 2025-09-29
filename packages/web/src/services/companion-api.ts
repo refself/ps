@@ -1,4 +1,4 @@
-import type { WorkflowDocument } from '@workflow-builder/core';
+import type { WorkflowDocument } from '@workflows/core';
 
 import { request } from './workflow-api';
 

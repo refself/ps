@@ -1,5 +1,5 @@
-import { apiManifestEntries, blockRegistry } from "@workflow-builder/core";
-import type { BlockInstance, ValueType, WorkflowDocument } from "@workflow-builder/core";
+import { apiManifestEntries, blockRegistry } from "@workflows/core";
+import type { BlockInstance, ValueType, WorkflowDocument } from "@workflows/core";
 
 const staticIdentifierFieldByKind: Record<string, string> = {
   "variable-declaration": "identifier",

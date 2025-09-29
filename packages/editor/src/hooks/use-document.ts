@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useEditorStore } from '../state/editor-store';
-import { generateCode, type WorkflowDocument } from '@workflow-builder/core';
+import { generateCode, type WorkflowDocument } from '@workflows/core';
 
 const safeGenerateCode = (document: WorkflowDocument) => {
   try {

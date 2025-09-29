@@ -1,8 +1,8 @@
 import clsx from "clsx";
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 
-import { isValueTypeCompatible } from "@workflow-builder/core";
-import type { ValueType } from "@workflow-builder/core";
+import { isValueTypeCompatible } from "@workflows/core";
+import type { ValueType } from "@workflows/core";
 
 import { useEditorStore } from "../../state/editor-store";
 import { editorTheme } from "../../theme";
