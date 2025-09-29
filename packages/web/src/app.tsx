@@ -7,6 +7,7 @@ import WorkflowList from "./components/workflow-list";
 import { useWorkspaceStore, useActiveWorkflow } from "./state/workspace-store";
 import { useWebSocketManager } from "./hooks/use-websocket-manager";
 import { useRecordings } from "./hooks/use-recordings";
+import { useCompanionChat } from "./hooks/use-companion-chat";
 import { WORKER_BASE_URL } from "./services/workflow-api";
 
 const API_KEY = (import.meta.env.VITE_WORKER_API_KEY ?? "").trim() || undefined;
@@ -62,6 +63,13 @@ const App = () => {
     },
     [activeWorkflow?.document, updateActiveWorkflow]
   );
+
+  const companion = useCompanionChat({
+    workflowId: activeWorkflow?.id ?? null,
+    onWorkflowUpdate: () => {
+      void refreshActiveWorkflow();
+    },
+  });
 
   const handleRunScript = useCallback<RunScriptHandler>(async ({ enableNarration }) => {
     if (!activeWorkflow) {
@@ -317,6 +325,11 @@ const App = () => {
       enableCommandPalette
       enableUndoRedo
       className="h-screen w-screen"
+      companion={{
+        state: companion.state,
+        onSendMessage: companion.sendMessage,
+        onReset: companion.reset,
+      }}
     />
   );
 };

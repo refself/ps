@@ -16,6 +16,11 @@ import {
   GetRecordingSchema,
 } from '@/schemas/osclient-tools';
 import type { ExecuteScriptInput } from '@/schemas/osclient-tools';
+import {
+  CompanionChatRequestSchema,
+  CompanionChatResponseSchema,
+  CompanionHistoryResponseSchema,
+} from '@/schemas/companion-schemas';
 import { getAgentByName } from 'agents';
 import { handleToolError } from '@/utils/error-handling';
 
@@ -39,6 +44,10 @@ const workflows = new Hono<{
 
 async function getWorkflowAgent(env: Env, workflowId: string): Promise<any> {
   return getAgentByName(env.WORKFLOW_RUNNER, workflowId) as Promise<any>;
+}
+
+async function getCompanionAgent(env: Env, workflowId: string): Promise<any> {
+  return getAgentByName(env.WORKFLOW_COMPANION, `companion:${workflowId}`) as Promise<any>;
 }
 
 // List workflows
@@ -270,6 +279,32 @@ workflows.get('/:id/recordings/:recordingId', async (c) => {
   } catch (error) {
     return handleToolError(c, error, 'Get recording');
   }
+});
+
+workflows.get('/:id/companion/history', async (c) => {
+  const workflowId = c.req.param('id');
+  const agent = await getCompanionAgent(c.env, workflowId);
+  const history = await agent.history();
+  const payload = CompanionHistoryResponseSchema.parse(history);
+  return c.json(payload);
+});
+
+workflows.post('/:id/companion/messages', zValidator('json', CompanionChatRequestSchema), async (c) => {
+  const workflowId = c.req.param('id');
+  const { message } = c.req.valid('json');
+
+  const agent = await getCompanionAgent(c.env, workflowId);
+  const raw = await agent.chat(message);
+  const response = CompanionChatResponseSchema.parse(raw);
+
+  return c.json(response);
+});
+
+workflows.post('/:id/companion/reset', async (c) => {
+  const workflowId = c.req.param('id');
+  const agent = await getCompanionAgent(c.env, workflowId);
+  await agent.reset();
+  return new Response(null, { status: 204, headers: CORS_HEADERS });
 });
 
 workflows.get('/:id/tools/requests', zValidator('query', ToolRequestQuerySchema), async (c) => {

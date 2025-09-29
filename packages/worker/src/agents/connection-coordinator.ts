@@ -21,6 +21,7 @@ import {
   type ToolRequestStatus,
 } from '@/repositories/connection-coordinator-repository';
 import coordinatorMigrations from '../../drizzle/connection-coordinator/migrations';
+import { DEFAULT_USER_ID } from '@/constants';
 
 interface ConnectionInfo {
   id: string;
@@ -68,8 +69,6 @@ interface ListToolRequestsInput {
   status?: ToolRequestStatus;
   limit?: number;
 }
-
-const DEFAULT_USER_ID = 'aceca593-9511-4621-a567-449207737244';
 
 const ExecuteScriptWebParamsSchema = z.object({
   enable_narration: z.boolean().optional(),

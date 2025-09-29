@@ -8,11 +8,15 @@
 	"main": "src/index.ts",
 	"compatibility_date": "2025-09-22",
 	"compatibility_flags": ["nodejs_compat"],
+	"ai": {
+		"binding": "AI"
+	},
 	"migrations": [
 		{
 			"new_sqlite_classes": [
 				"WorkflowAgent",
-				"ConnectionCoordinator"
+				"ConnectionCoordinator",
+				"WorkflowCompanion"
 			],
 			"tag": "v1"
 		}
@@ -26,6 +30,10 @@
 			{
 				"class_name": "ConnectionCoordinator",
 				"name": "CONNECTION_COORDINATOR"
+			},
+			{
+				"class_name": "WorkflowCompanion",
+				"name": "WORKFLOW_COMPANION"
 			}
 		]
 	},

@@ -23,6 +23,9 @@ type WorkflowEditorHeaderProps = {
   selectedBlockId: string | null;
   onDuplicateBlock: (blockId: string) => void;
   observabilityConfig?: { workflowId: string; baseUrl: string } | undefined;
+  companionEnabled?: boolean;
+  companionOpen?: boolean;
+  onToggleCompanion?: () => void;
 };
 
 const WorkflowEditorHeader = ({
@@ -43,6 +46,9 @@ const WorkflowEditorHeader = ({
   selectedBlockId,
   onDuplicateBlock,
   observabilityConfig,
+  companionEnabled = false,
+  companionOpen = false,
+  onToggleCompanion,
 }: WorkflowEditorHeaderProps) => {
   const undo = useEditorStore((state) => state.undo);
   const redo = useEditorStore((state) => state.redo);
@@ -180,6 +186,23 @@ const WorkflowEditorHeader = ({
                 aria-hidden="true"
               />
             )}
+          </button>
+        ) : null}
+        {companionEnabled ? (
+          <button
+            type="button"
+            onClick={onToggleCompanion}
+            className="flex h-9 w-9 items-center justify-center rounded-full transition hover:border-[var(--editor-color-action)] hover:text-[var(--editor-color-action)]"
+            style={{
+              border: `1px solid ${editorTheme.colors.borderSubtle}`,
+              background: companionOpen ? editorTheme.colors.backgroundTint : editorTheme.surfaces.card,
+              color: companionOpen ? editorTheme.colors.action : editorTheme.colors.foreground,
+              boxShadow: '0 4px 12px rgba(10, 26, 35, 0.08)',
+            }}
+            aria-label="Toggle companion"
+            aria-pressed={companionOpen}
+          >
+            <Icon name="sparkles" className="h-4 w-4" />
           </button>
         ) : null}
         {enableCommandPalette ? (

@@ -3,6 +3,41 @@ import type { WorkflowDocument } from '@workflow-builder/core';
 export type ConnectionStatus = "online" | "offline" | "checking";
 export type EditorMode = "visual" | "code" | "recordings";
 
+export type CompanionMessageRole = 'user' | 'assistant' | 'tool';
+
+export type CompanionMessageMetadata = {
+  toolName?: string;
+  toolInput?: unknown;
+  toolResult?: unknown;
+  summary?: string;
+  codeUpdated?: boolean;
+};
+
+export type CompanionMessage = {
+  id: string;
+  role: CompanionMessageRole;
+  content: string;
+  createdAt: number;
+  metadata?: CompanionMessageMetadata;
+};
+
+export type CompanionPanelState = {
+  systemPrompt: string;
+  messages: CompanionMessage[];
+  loading: boolean;
+  sending: boolean;
+  error: string | null;
+  lastReply: string | null;
+  lastNotes: string[];
+  lastTools: string[];
+};
+
+export type WorkflowCompanionConfig = {
+  state: CompanionPanelState;
+  onSendMessage: (message: string) => void;
+  onReset?: () => void;
+};
+
 export type RunScriptResult = {
   ok: boolean;
   message?: string | null;
@@ -86,4 +121,5 @@ export type WorkflowEditorProps = {
     stoppedAt: number | null;
     lastError: string | null;
   }>;
+  companion?: WorkflowCompanionConfig;
 };

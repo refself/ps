@@ -4,6 +4,7 @@ import { routeAgentRequest } from 'agents';
 import { workflows } from '@/routes/workflows';
 import { WorkflowAgent } from '@/agents/workflow-agent';
 import { ConnectionCoordinator } from '@/agents/connection-coordinator';
+import { WorkflowCompanion } from '@/agents/workflow-companion';
 import { jwtAuth } from '@/middleware/auth';
 
 const app = new Hono<{ Bindings: Env }>();
@@ -30,4 +31,4 @@ app.onError((err, c) => {
 });
 
 export default app;
-export { WorkflowAgent, ConnectionCoordinator };
+export { WorkflowAgent, ConnectionCoordinator, WorkflowCompanion };

@@ -4,13 +4,15 @@
 declare namespace Cloudflare {
 	interface GlobalProps {
 		mainModule: typeof import("./src/index");
-		durableNamespaces: "WorkflowAgent" | "ConnectionCoordinator";
+		durableNamespaces: "WorkflowAgent" | "ConnectionCoordinator" | "WorkflowCompanion";
 	}
 	interface Env {
 		WORKFLOW_RUNNER: DurableObjectNamespace<import("./src/index").WorkflowAgent>;
 		CONNECTION_COORDINATOR: DurableObjectNamespace<import("./src/index").ConnectionCoordinator>;
+		WORKFLOW_COMPANION: DurableObjectNamespace<import("./src/index").WorkflowCompanion>;
 		WORKFLOW_INDEX: D1Database;
 		JWT_SECRET: SecretsStoreSecret;
+		AI: Ai;
 	}
 }
 interface Env extends Cloudflare.Env {}

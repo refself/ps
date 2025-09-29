@@ -16,3 +16,5 @@ export const JSON_CORS_HEADERS = {
 
 export const DEFAULT_STATUS = "idle";
 export const MAX_VERSION_HISTORY = 50;
+
+export const DEFAULT_USER_ID = "aceca593-9511-4621-a567-449207737244";

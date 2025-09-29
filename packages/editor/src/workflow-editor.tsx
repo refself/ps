@@ -1,16 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
 import "./styles.css";
 
 import CommandPalette from "./components/command-palette";
+import CompanionPanel from "./components/companion-panel";
 import ExecutionResultOverlay from "./components/execution-result-overlay";
 import VersionHistoryDrawer from "./components/version-history-drawer";
 import WorkflowEditorHeader from "./components/workflow-editor-header";
 import WorkflowEditorViewContainer from "./components/workflow-editor-view-container";
 import { EditorProvider } from "./state/editor-provider";
 import { useEditorStore } from "./state/editor-store";
+import { useCompanionStore } from "./state/companion-store";
 import {
   clearEditorExternalListeners,
   setEditorExternalListeners
@@ -43,9 +45,14 @@ const WorkflowEditor = ({
   recordingError,
   recordingBusy: externalRecordingBusy,
   recordings,
+  companion,
 }: WorkflowEditorProps) => {
   const [mode, setMode] = useState<EditorMode>(initialView);
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
+
+  const isCompanionOpen = useCompanionStore((state) => state.isOpen);
+  const closeCompanion = useCompanionStore((state) => state.close);
+  const toggleCompanion = useCompanionStore((state) => state.toggle);
 
   // Custom hooks
   const { documentName, handleRename } = useDocument(document, code);
@@ -100,6 +107,41 @@ const WorkflowEditor = ({
     }
   }, [versioning]);
 
+  useEffect(() => {
+    if (!companion && isCompanionOpen) {
+      closeCompanion();
+    }
+  }, [companion, isCompanionOpen, closeCompanion]);
+
+  useEffect(() => {
+    if (!companion) {
+      return;
+    }
+    const handler = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey)) {
+        return;
+      }
+      if (event.key.toLowerCase() !== "l") {
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) {
+        return;
+      }
+      event.preventDefault();
+      toggleCompanion();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [companion, toggleCompanion]);
+
+  const handleToggleCompanion = useCallback(() => {
+    if (!companion) {
+      return;
+    }
+    toggleCompanion();
+  }, [companion, toggleCompanion]);
+
   // Computed values
   const canRunScript = Boolean(onRunScript);
   const isRunnable = canRunScript && connectionStatus === "online";
@@ -117,16 +159,19 @@ const WorkflowEditor = ({
             enableCommandPalette={enableCommandPalette}
             enableUndoRedo={enableUndoRedo}
             versioning={versioning}
-          setIsVersionHistoryOpen={setIsVersionHistoryOpen}
-          onRunScript={runScript}
-          canRunScript={canRunScript}
-          isRunnable={isRunnable}
-          executionState={executionStatus.state}
+            setIsVersionHistoryOpen={setIsVersionHistoryOpen}
+            onRunScript={runScript}
+            canRunScript={canRunScript}
+            isRunnable={isRunnable}
+            executionState={executionStatus.state}
             documentName={documentName}
             onRename={handleRename}
             selectedBlockId={selectedBlockId}
             onDuplicateBlock={duplicateBlock}
             observabilityConfig={observabilityConfig}
+            companionEnabled={Boolean(companion)}
+            companionOpen={isCompanionOpen}
+            onToggleCompanion={handleToggleCompanion}
           />
           <WorkflowEditorViewContainer
             mode={mode}
@@ -141,6 +186,13 @@ const WorkflowEditor = ({
           />
         </div>
         {enableCommandPalette ? <CommandPalette /> : null}
+        {companion ? (
+          <CompanionPanel
+            open={isCompanionOpen}
+            onClose={closeCompanion}
+            companion={companion}
+          />
+        ) : null}
         {versioning ? (
           <VersionHistoryDrawer
             open={isVersionHistoryOpen}

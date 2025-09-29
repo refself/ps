@@ -34,9 +34,19 @@ export const useDocument = (document: WorkflowDocument, code?: string) => {
       return;
     }
     const signature = JSON.stringify(document);
+    const currentCode = useEditorStore.getState().code;
+
     if (lastLoadedSignatureRef.current === signature) {
+      if (code !== undefined && code !== currentCode) {
+        useEditorStore.setState((state) => ({
+          ...state,
+          code,
+          lastError: null,
+        }));
+      }
       return;
     }
+
     lastLoadedSignatureRef.current = signature;
     loadWorkflowDocument({ document, code: code ?? safeGenerateCode(document) });
   }, [document, code, loadWorkflowDocument]);

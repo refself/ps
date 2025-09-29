@@ -33,7 +33,7 @@ const toUrl = (path: string): string => {
   return `${BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 };
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(toUrl(path), {
     ...init,
     headers: {
